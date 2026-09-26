@@ -1,0 +1,15 @@
+{
+  "name": "The Lists",
+  "short_name": "The Lists",
+  "description": "A tourney knight's career in a kingdom at peace.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0e1a2f",
+  "theme_color": "#0e1a2f",
+  "icons": [
+    { "src": "assets/icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

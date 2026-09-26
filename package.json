@@ -1,0 +1,16 @@
+{
+  "name": "the-lists",
+  "version": "0.1.0",
+  "description": "A tourney knight's career in a kingdom at peace. The lists, the heralds, and the price of honour.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "sim": "node sim/run.js",
+    "curve": "node sim/joust-curve.js",
+    "build": "node tools/bundle.js",
+    "smoke": "node tools/smoke.mjs",
+    "serve": "python3 -m http.server 8000"
+  },
+  "engines": { "node": ">=20" }
+}
