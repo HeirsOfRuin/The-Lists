@@ -158,3 +158,20 @@ test('the batch runner refuses a career that did not happen', () => {
   const r = playCareer({ seed: 3, policy: 'squire', tourneys: 6 });
   assert.ok(r.tourneys >= 1 && r.bouts >= r.tourneys && r.courses >= r.bouts);
 });
+
+test('a frame that refuses storage does not stop the game', async () => {
+  const { saveToStorage, loadFromStorage, clearStorage } = await import('../src/engine/state.js');
+  const hostile = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); }, removeItem() { throw new Error('denied'); } };
+  assert.equal(saveToStorage(knight(1), hostile).ok, false);
+  assert.equal(loadFromStorage(hostile).ok, false);
+  assert.equal(clearStorage(hostile).ok, false);
+  const desc = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, get() { throw new Error('SecurityError'); } });
+  try {
+    assert.equal(saveToStorage(knight(1)).ok, false);
+    assert.equal(loadFromStorage().ok, false);
+  } finally {
+    if (desc) Object.defineProperty(globalThis, 'localStorage', desc);
+    else delete globalThis.localStorage;
+  }
+});

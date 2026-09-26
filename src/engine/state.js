@@ -101,10 +101,16 @@ export function migrate(s) {
 
 // ---------------------------------------------------------------------------
 // Browser storage. Every access is wrapped: localStorage throws in private
-// windows and returns null when site data has been cleared.
+// windows and returns null when site data has been cleared — and in a
+// sandboxed frame even LOOKING UP localStorage can throw, so the lookup is
+// wrapped too, not just the reads and writes.
 // ---------------------------------------------------------------------------
 
-export function saveToStorage(state, storage = globalThis.localStorage) {
+function browserStorage() {
+  try { return globalThis.localStorage || null; } catch { return null; }
+}
+
+export function saveToStorage(state, storage = browserStorage()) {
   if (!storage) return { ok: false, reason: 'no storage available' };
   try {
     storage.setItem(SAVE_KEY, serialize(state));
@@ -114,7 +120,7 @@ export function saveToStorage(state, storage = globalThis.localStorage) {
   }
 }
 
-export function loadFromStorage(storage = globalThis.localStorage) {
+export function loadFromStorage(storage = browserStorage()) {
   if (!storage) return { ok: false, reason: 'no storage available' };
   let raw;
   try {
@@ -130,7 +136,7 @@ export function loadFromStorage(storage = globalThis.localStorage) {
   }
 }
 
-export function clearStorage(storage = globalThis.localStorage) {
+export function clearStorage(storage = browserStorage()) {
   try { storage?.removeItem(SAVE_KEY); return { ok: true }; }
   catch (err) { return { ok: false, reason: err?.message }; }
 }
