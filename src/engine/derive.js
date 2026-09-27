@@ -10,27 +10,30 @@ import {
   expectedStrike, reckonBout, beliefMix, trueMix, situation, archetype, activeTells, CHOICES,
 } from './joust.js';
 import { currentBout } from './tourney.js';
+import { knightById, regardLabel } from './field.js';
 import { ARCHETYPES } from '../data/joust.data.js';
+import { GRUDGE_TELL } from '../data/field.data.js';
 
 /** What you know of a rider, as the screen should say it. */
 export function knownOf(state, riderId) {
-  const ev = state.event;
-  const r = ev.riders[riderId];
-  const level = ev.intel[riderId] || 0;
-  const arch = ARCHETYPES.find((a) => a.id === r.archetype);
+  const k = knightById(state, riderId);
+  const level = state.intel[riderId] || 0;
+  const arch = ARCHETYPES.find((a) => a.id === k?.archetype);
   return {
     level,
-    label: level >= 1 ? arch.label : null,
-    habit: level >= 1 ? arch.habit : null,
-    tells: level >= 2 ? arch.tells.map((t) => t.text) : [],
-    // A rider with no tells, fully read, is worth saying so about.
-    noTells: level >= 2 && arch.tells.length === 0,
+    label: level >= 1 && arch ? arch.label : null,
+    habit: level >= 1 && arch ? arch.habit : null,
+    tells: level >= 2 && arch ? arch.tells.map((t) => t.text) : [],
+    noTells: level >= 2 && arch && arch.tells.length === 0,
+    regard: k ? k.regard : 0,
+    standing: k ? regardLabel(k.regard) : null,
+    memory: k ? k.memory : [],
+    temperament: k ? k.temperament : null,
   };
 }
 
-/** Your belief about your current opponent's choice, in a given situation. */
 function mixAtFor(state, him) {
-  const intel = state.event.intel[him.id] || 0;
+  const intel = state.intel[him.id] || 0;
   const arch = archetype(him.archetype);
   return (sit) => beliefMix(arch, sit, intel);
 }
@@ -51,7 +54,7 @@ export function coursePreview(state, choice, reckoning = null) {
     mine: expectedStrike(you, him, choice, belief),
     his: expectedStrike(you, him, choice, belief, { reverse: true }),
     win: r.byChoice[choice.key],
-    intel: state.event.intel[him.id] || 0,
+    intel: state.intel[him.id] || 0,
   };
 }
 
@@ -68,10 +71,7 @@ export function squireCall(state) {
   return r ? r.best : null;
 }
 
-/**
- * The truth, for tests: what your opponent will actually do this course. The
- * screen never calls this — you see only what you know.
- */
+/** The truth, for tests. The screen never calls this. */
 export function trueMixNow(state) {
   const cb = currentBout(state);
   if (!cb) return null;
@@ -79,13 +79,15 @@ export function trueMixNow(state) {
   return trueMix(archetype(him.archetype), situation(him, you, bout, 'b'));
 }
 
-/** Which of his tells hold right now — shown only if you have the herald's read. */
+/** Which tells hold right now: his own (with the read), and any grudge. */
 export function tellsInPlay(state) {
   const cb = currentBout(state);
   if (!cb) return [];
-  if ((state.event.intel[cb.him.id] || 0) < 2) return [];
   const sit = situation(cb.him, cb.you, cb.bout, 'b');
-  return activeTells(archetype(cb.him.archetype), sit).map((t) => t.text);
+  const out = [];
+  if (sit.grudge) out.push(GRUDGE_TELL.text);
+  if ((state.intel[cb.him.id] || 0) >= 2) out.push(...activeTells(archetype(cb.him.archetype), sit).map((t) => t.text));
+  return out;
 }
 
 export { CHOICES };

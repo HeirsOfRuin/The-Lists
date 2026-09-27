@@ -62,15 +62,23 @@ function list(names) {
 
 function times(n) { return n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`; }
 
-/** The Book of Feats entry for one tourney. */
+/** The Book of Feats entry for one tourney, or one pas at a bridge. */
 export function heraldEntry(e, name) {
-  const where = `At ${e.town}, for ${e.feast}`;
-  const opening = {
-    champion: `${where}, ${name} carried the gilt spur.`,
-    runnerUp: `${where}, ${name} rode to the last two, and was beaten there by ${e.beatenBy}.`,
-    semi: `${where}, ${name} reached the last four before ${e.beatenBy} put him out.`,
-    quarter: `${where}, ${name} rode in the first round and was put out by ${e.beatenBy}.`,
-  }[e.placing];
+  let opening;
+  if (e.tier === 'pas') {
+    opening = e.placing === 'champion'
+      ? `On the road to ${e.town}, ${name} touched the shield of ${e.host} at a bridge, and rode through.`
+      : `On the road to ${e.town}, ${name} touched the shield of ${e.host} at a bridge, and was turned back.`;
+  } else {
+    const where = `At ${e.town}, for ${e.feast}`;
+    opening = {
+      champion: `${where}, ${name} carried the prize.`,
+      runnerUp: `${where}, ${name} rode to the last two, and was beaten there by ${e.beatenBy}.`,
+      semi: `${where}, ${name} reached the last four before ${e.beatenBy} put him out.`,
+      quarter: `${where}, ${name} reached the last eight before ${e.beatenBy} put him out.`,
+      first: `${where}, ${name} rode in the first round and was put out by ${e.beatenBy}.`,
+    }[e.placing];
+  }
 
   const feats = [];
   if (e.lances) feats.push(`broke ${e.lances} lance${e.lances === 1 ? '' : 's'}`);
@@ -82,7 +90,12 @@ export function heraldEntry(e, name) {
   if (e.fellTo) parts.push(`He was himself borne down by ${e.fellTo}.`);
   if (e.withdrew) parts.push('He was carried from the lists and the surgeon was sent for.');
   if (e.horseStrikes) parts.push('To his shame, his lance found a horse, and the heralds wrote that down too.');
+  for (const v of e.vows || []) {
+    if (v.kept === true) parts.push(`He kept his vow to bear ${v.name} down.`);
+    else if (v.kept === false) parts.push(`He vowed to bear ${v.name} down, and did not.`);
+  }
   if (e.helmPrize) parts.push('The heralds gave him the prize for the most helm strikes of the day.');
-  if (e.placing !== 'champion') parts.push(`The spur went to ${e.champion}.`);
+  if (e.beneath) parts.push('It was thought a small field for a knight of his name.');
+  if (e.placing !== 'champion' && e.tier !== 'pas') parts.push(`The prize went to ${e.champion}.`);
   return parts.join(' ');
 }

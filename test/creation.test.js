@@ -105,7 +105,7 @@ test('no set of answers builds an impossible knight, and every knight can ride',
     }
     for (const k of TRAIT_KEYS) assert.ok(s.knight.traits[k] >= 0 && s.knight.traits[k] <= TRAIT_MAX);
     assert.ok(Number.isInteger(s.purse), 'purse is whole pence');
-    assert.ok(s.purse >= entryCost(), `a knight with ${s.purse}d cannot pay to ride his first tourney`);
+    assert.ok(s.purse >= entryCost('local') + 60, `a knight with ${s.purse}d cannot pay to ride even a local joust`);
     assert.ok(s.horse.quality >= STAT_MIN && s.horse.quality <= STAT_MAX);
     assert.deepEqual(badNumbers(s), []);
   }

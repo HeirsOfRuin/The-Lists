@@ -205,16 +205,30 @@ mêlée, so this is not an anachronism.
 
 ## 10. Build phases
 
-1. **Spine**: this build.
+Phase 2 was reshaped after playing phase 1. The joust held up, but on its own
+it would get old fast. So the world around it (calendar, map, travel, the
+field with memory, feasts, chivalric moments, squire and household) came
+before the court, and the card engine planned for phase 3 arrived here.
+
+1. **Spine**: done.
    - RNG, save contract, character creation, the joust resolver, and one kind of
      event (a provincial tourney) played repeatedly.
    - A single-file build that works on a phone.
    - The reference bot, the progress-asserting runner, the joust-curve
      instrument and the invariant suite.
-2. **Season:** the calendar, the economy with lead times, the rival field and the
-   Roll of Arms, injury and aging.
-3. **Court:** reputation, traits, the herald's judgement and the Book of Feats,
-   factions and patrons, the card engine, and the first forty cards.
+2. **The world**: this build.
+   - A calendar with tiers and entry rules, the map and the road.
+   - The field of 48 with memory and the Roll of Arms.
+   - The card engine, with 45 cards.
+   - Horse condition, training, winter accounts, the squire, the retinue, the
+     harness and the fair.
+   - Paid service, and the migration of phase-one saves.
+3. **Court:**
+   - Factions and patrons with obligations.
+   - The herald's judgement of conduct.
+   - Traits weighing on choices.
+   - The first story threads that phase 2's flags already record: the witness to
+     Ambry Cross, Aumbry's man, the betrothal.
 4. **Story:** tentpoles, the master's threads, endings, and a reachability test.
 5. **Breadth:** mêlée and ransom, pas d'armes, vows, romance and marriage,
    heraldry in full, and the Order.

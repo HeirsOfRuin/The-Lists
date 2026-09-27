@@ -3,65 +3,84 @@
 // THE MOST IMPORTANT THING IN THIS FILE is assertProgress(). A harness that
 // drives careers through an engine that silently refuses to advance reports
 // PASS on everything downstream, because it is comparing careers that were
-// never ridden. Every run is checked for movement — tourneys entered, bouts
-// fought, courses run — and the report prints those QUANTITIES rather than a
-// verdict, because a number can be eyeballed for "wait, that's wrong".
+// never ridden. Every run is checked for movement — years passed, tourneys
+// ridden, bouts fought, cards answered, winters kept — and the report prints
+// those QUANTITIES rather than a verdict.
 //
 // Usage:
-//   node sim/run.js --runs=300 --policy=squire --tourneys=25
-//   node sim/run.js --compare          # every policy, same seeds
+//   node sim/run.js --runs=200 --years=8
+//   node sim/run.js --compare          # every joust policy, same seeds
 
 import { newGame, STATUS } from '../src/engine/state.js';
 import { randomAnswers, randomName } from '../src/engine/knight.js';
 import { makeRng } from '../src/engine/rng.js';
 import { lsd } from '../src/engine/money.js';
-import { playTourney, rideOn, POLICIES } from './bot.js';
+import { rollOfArms } from '../src/engine/field.js';
+import { step, POLICIES } from './bot.js';
 
 export class ProgressError extends Error {}
 
 export function assertProgress(r) {
-  if (r.tourneys === 0) {
-    throw new ProgressError(`Career ${r.seed} entered no tourney at all. Nothing was played.`);
+  if (r.yearsPlayed === 0 && !r.ruined) {
+    throw new ProgressError(`Career ${r.seed} never reached a winter. The months are not advancing.`);
   }
-  if (r.bouts === 0 || r.courses === 0) {
+  if (r.tourneys === 0 && !r.ruined) {
+    throw new ProgressError(`Career ${r.seed} rode ${r.yearsPlayed} years and entered no tourney. Nothing was played.`);
+  }
+  if (r.tourneys > 0 && (r.bouts === 0 || r.courses === 0)) {
     throw new ProgressError(
-      `Career ${r.seed} entered ${r.tourneys} tourney(s) but fought ${r.bouts} bouts and ran ${r.courses} courses. ` +
-        'The lists never opened; every number downstream is meaningless.'
+      `Career ${r.seed} entered ${r.tourneys} tourney(s) but fought ${r.bouts} bouts and ran ${r.courses} courses. The lists never opened.`
     );
   }
   if (r.courses < r.bouts) {
     throw new ProgressError(`Career ${r.seed}: ${r.courses} courses for ${r.bouts} bouts. A bout was decided without being ridden.`);
   }
+  if (r.yearsPlayed >= 2 && r.cards === 0) {
+    throw new ProgressError(`Career ${r.seed} rode ${r.yearsPlayed} years and never met a card. The feasts and roads are not firing.`);
+  }
   return true;
 }
 
-export function playCareer({ seed, policy = 'squire', tourneys = 25 }) {
+export function playCareer({ seed, policy = 'squire', years = 8, answers = null }) {
   const rng = makeRng(seed * 7919 + 1);
-  const state = newGame({ seed, answers: randomAnswers(rng), name: randomName(rng) });
+  const state = newGame({ seed, answers: answers || randomAnswers(rng), name: randomName(rng) });
   const startPurse = state.purse;
-  const r = { seed, policy, answers: state.answers, tourneys: 0, bouts: 0, courses: 0, ruined: false };
-  const placings = { champion: 0, runnerUp: 0, semi: 0, quarter: 0 };
-  const netByPlacing = { champion: [], runnerUp: [], semi: [], quarter: [] };
-  for (let i = 0; i < tourneys; i++) {
-    if (state.status !== STATUS.ACTIVE) break;
-    const d = playTourney(state, policy, rng);
-    if (!d.entered) break;
-    r.tourneys += 1;
-    r.bouts += d.bouts;
-    r.courses += d.courses;
-    const e = state.event.entry;
-    placings[e.placing] += 1;
-    netByPlacing[e.placing].push(e.net);
-    rideOn(state);
+  const counts = {};
+  let guard = 0;
+  const lastYear = state.year + years;
+  while (state.status === STATUS.ACTIVE && state.year < lastYear) {
+    if (++guard > 20000) throw new ProgressError(`Career ${seed} took 20000 steps without finishing ${years} years.`);
+    const did = step(state, policy, rng);
+    counts[did] = (counts[did] || 0) + 1;
   }
-  r.ruined = state.status === STATUS.RUINED;
-  r.placings = placings;
-  r.netByPlacing = netByPlacing;
-  r.purseDelta = state.purse - startPurse;
-  r.renown = state.renown;
-  r.boutsWon = state.career.boutsWon;
-  r.lance = state.knight.stats.lance;
-  r.seat = state.knight.stats.seat;
+  const byTier = {};
+  const placings = {};
+  for (const e of state.book) {
+    if (!e.tier || e.tier === 'dubbing') continue;
+    byTier[e.tier] = (byTier[e.tier] || 0) + 1;
+    if (e.placing === 'champion') placings[e.tier] = (placings[e.tier] || 0) + 1;
+  }
+  const r = {
+    seed, policy, answers: state.answers,
+    yearsPlayed: state.year - 1,
+    ruined: state.status === STATUS.RUINED,
+    tourneys: state.career.tourneys,
+    bouts: state.career.bouts,
+    boutsWon: state.career.boutsWon,
+    courses: counts.course || 0,
+    cards: counts.card || 0,
+    trained: counts.train || 0,
+    byTier,
+    titles: placings,
+    purseDelta: state.purse - startPurse,
+    renown: state.renown,
+    rank: rollOfArms(state).rank,
+    squireDubbed: state.book.some((e) => e.tier === 'dubbing'),
+    retinue: state.retinue.length,
+    harness: state.harness.quality,
+    lance: state.knight.stats.lance,
+    seat: state.knight.stats.seat,
+  };
   assertProgress(r);
   return r;
 }
@@ -73,33 +92,35 @@ const median = (xs) => {
 };
 const pct = (n, d) => (d ? `${((100 * n) / d).toFixed(1)}%` : '—');
 
-export function batch({ runs, policy, tourneys, firstSeed = 1 }) {
+export function batch({ runs, policy, years, firstSeed = 1 }) {
   const out = [];
-  for (let i = 0; i < runs; i++) out.push(playCareer({ seed: firstSeed + i, policy, tourneys }));
+  for (let i = 0; i < runs; i++) out.push(playCareer({ seed: firstSeed + i, policy, years }));
   return out;
 }
 
 export function summarise(results) {
   const n = results.length;
   const sum = (f) => results.reduce((s, r) => s + f(r), 0);
-  const tourneys = sum((r) => r.tourneys);
-  const bouts = sum((r) => r.bouts);
-  const won = sum((r) => r.boutsWon);
-  const champs = sum((r) => r.placings.champion);
-  const ruined = results.filter((r) => r.ruined).length;
-  const allNet = { champion: [], runnerUp: [], semi: [], quarter: [] };
-  for (const r of results) for (const k of Object.keys(allNet)) allNet[k].push(...r.netByPlacing[k]);
+  const tiers = {};
+  const titles = {};
+  for (const r of results) {
+    for (const [t, v] of Object.entries(r.byTier)) tiers[t] = (tiers[t] || 0) + v;
+    for (const [t, v] of Object.entries(r.titles)) titles[t] = (titles[t] || 0) + v;
+  }
+  const ridden = Object.fromEntries(Object.entries(tiers).map(([t, v]) => [t, `${(v / n).toFixed(1)} a career, won ${pct(titles[t] || 0, v)}`]));
   return {
     careers: n,
-    tourneys,
-    bouts,
-    courses: sum((r) => r.courses),
-    boutWinRate: pct(won, bouts),
-    championRate: pct(champs, tourneys),
-    ruined: pct(ruined, n),
+    yearsPlayed: (sum((r) => r.yearsPlayed) / n).toFixed(1),
+    ruined: pct(results.filter((r) => r.ruined).length, n),
+    tourneysPerYear: (sum((r) => r.tourneys) / Math.max(1, sum((r) => r.yearsPlayed))).toFixed(1),
+    boutWinRate: pct(sum((r) => r.boutsWon), sum((r) => r.bouts)),
+    cardsPerYear: (sum((r) => r.cards) / Math.max(1, sum((r) => r.yearsPlayed))).toFixed(1),
     medianPurseDelta: lsd(median(results.map((r) => r.purseDelta))),
     medianRenown: median(results.map((r) => r.renown)),
-    netByPlacing: Object.fromEntries(Object.entries(allNet).map(([k, v]) => [k, `${lsd(median(v))} (n=${v.length})`])),
+    medianRollRank: median(results.map((r) => r.rank)),
+    squiresDubbed: pct(results.filter((r) => r.squireDubbed).length, n),
+    medianLanceAtEnd: median(results.map((r) => r.lance)),
+    ridden,
   };
 }
 
@@ -109,9 +130,9 @@ function args() {
     return [k, v ?? true];
   }));
   return {
-    runs: Number(a.runs || 200),
+    runs: Number(a.runs || 100),
     policy: a.policy || 'squire',
-    tourneys: Number(a.tourneys || 25),
+    years: Number(a.years || 8),
     compare: !!a.compare,
   };
 }
@@ -122,7 +143,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const t0 = Date.now();
   for (const policy of policies) {
     const s = summarise(batch({ ...opt, policy }));
-    console.log(`\n== policy: ${policy}  (${opt.runs} careers, up to ${opt.tourneys} tourneys each)`);
+    console.log(`\n== policy: ${policy}  (${opt.runs} careers, ${opt.years} years each)`);
     for (const [k, v] of Object.entries(s)) {
       if (typeof v === 'object') {
         console.log(`  ${k}:`);

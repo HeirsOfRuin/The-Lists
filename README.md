@@ -29,27 +29,70 @@ python3 -m http.server 8000
 
 ## What this build is
 
-Phase 1 of 6 is the spine:
+Phase 2 of 6 is the world around the lists. Phase 1 was the spine: creation and
+the joust.
 
-- **Character creation.** Ten questions: birth, family advantage, province,
-  master, what he taught, your spurs, the incident, your horse, your heart, and
-  your ambition. The line under each answer that says what it does is generated
-  from the answer's effects, and a test holds the two to each other.
-- **The joust.** Three courses under the Constable's Ordinance. For each course
-  you choose an aim (helm, shield or low) and a seat (brace, balanced or press).
-  The odds are shown before you commit, along with the squire's reckoning of
-  your chance to carry the bout.
-- **Rivals with habits.** Six rider types, each with tells, which are situational
-  shifts in what he does. You learn a rider's habits by watching him ride, or
-  from your lore. The herald's read tells you his tells.
-- **The provincial circuit.** An eight-knight bracket with an entry fee, lodging,
-  lances, largesse, prizes and wounds. The herald writes a Book of Feats entry
-  after each tourney. There are five tourneys to a season, and the knight ages
-  each winter. A knight who cannot pay to ride is ruined.
+- **A calendar, not a treadmill.** The riding year runs from March to October.
+  Each year has one King's Tourney, two high tourneys held by the great houses,
+  four regional tourneys and seven local jousts. That is far more than one knight
+  can ride, so you choose each month by entry rules, costs, prizes, distance and
+  the field.
+  - The high tourneys admit a knight with renown 15, or the host's favour, or
+    lineage 14.
+  - The King's admits one with renown 30, or renown 18 and lineage 12, or the
+    Crown's favour.
+  - The heralds say exactly why they turn you away.
+- **A map and the road.** Twelve towns in three provinces, with travel in days
+  that costs money for every mouth in your train. Long roads bring road cards.
+  One of them is a knight holding a bridge, and touching his shield means three
+  courses before you may go on.
+- **The field.** 48 knights with their own careers. They ride every tourney in
+  the calendar whether you are there or not, they age and retire, and new ones
+  come up. Their renown is earned in the same brackets as yours, so the Roll of
+  Arms is a real table.
+- **Rivals who remember you.** Each knight has a temperament and a regard for
+  you, and remembers what you did.
+  - A proud man you unhorse will hold it against you; a courteous one salutes.
+  - A knight with a grudge rides at you harder and higher, and the odds allow
+    for it.
+  - Friends in the field tell you how the others ride.
+  - Your squirehood, your master and your grandfather all start you with history.
+- **Feasts, the road, and chivalric moments.** 45 situations with choices,
+  running on one card engine:
+  - the eve feast;
+  - arrival, including the helm-show at the great tourneys;
+  - the road;
+  - the moment after a fall or a foul;
+  - the prize-giving's largesse;
+  - winter letters;
+  - court.
 
-Phase 2 adds the season's economy (upkeep, harness, horses with lead times), the
-persistent field of rivals and the Roll of Arms, and injury and aging with
-teeth. The rest is laid out in DESIGN.md §10.
+  Some answers are trials of a skill or a trait, and the chance shown on the
+  button is the chance rolled. Vows, wagers and a lady's favour on your lance
+  are settled by what happens in the lists.
+- **The month's other choices.** Train a skill, take a month's paid service for
+  money and no renown, rest, or go to court at Kingsmead, Ambry Cross or Castle
+  Brede.
+- **Horse and kit.** Every bout wears your horse, and a month without a
+  tourney brings him back. A tired horse rides as a worse one, which is why no
+  knight rides every month. Your harness wears without an armourer.
+- **Winter.**
+  - The accounts: allowance, fees, keep and wages.
+  - The Roll of Arms.
+  - Aging, and decline after 34.
+  - The winter's training.
+  - A squire to take, teach for five years and knight; he joins the field as
+    your friend.
+  - A retinue to hire: groom, armourer, pursuivant and minstrel. A knight of
+    renown is expected to arrive attended.
+  - The armourers, and the horse fair.
+- **Saves carry forward.** A phase-one save opens in this build, with the
+  knight, his purse, his renown and his Book of Feats. The world is built around
+  him from his own seed.
+
+Phase 3 brings the court properly: factions and patrons with obligations, the
+herald's judgement of conduct, and the first story threads the flags already
+record. The rest is laid out in DESIGN.md §10.
 
 ## What the instruments found
 
@@ -88,26 +131,38 @@ opponent's seat decides your aim and his aim decides your seat:
 `sim/joust-curve.js` is the instrument that caught it, and it is the one to rerun
 after any change to `src/data/joust.data.js`.
 
-### What does a career on the provincial circuit look like?
+### What does a career look like?
 
-`node sim/run.js --runs=200 --tourneys=25 --compare`: 200 random knights per
-policy, 25 tourneys each (five seasons).
+`node sim/run.js --runs=100 --years=8 --compare` runs 100 random knights per
+joust policy, each for eight years of the full loop: calendar, road, cards,
+winter, squire, retinue and fair.
 
-| policy | bouts won | tourneys won | ruined | median purse change |
-|---|---|---|---|---|
-| squire's call | 61% | 23% | 4.0% | +£18 |
-| buys every read | 63% | 25% | 4.5% | +£16 |
-| shield, balanced | 56% | 17.5% | 8.0% | +£9 |
-| random | 51% | 13% | 9.0% | +£3 |
+| policy | bouts won | tourneys a year | King's Tourneys won | Roll rank, year 8 (median) | purse change |
+|---|---|---|---|---|---|
+| squire's call | 59% | 4.9 | 10% | 2nd | +£12 |
+| buys every read | 60% | 4.9 | 11% | 2nd | +£12 |
+| shield, balanced | 51% | 4.7 | 5% | 4th | about even |
+| random | 49% | 4.8 | 5% | 4th | +£3 |
 
-- A new knight is somewhat better than the average provincial rider, which is
-  right for a debut tier.
-- Buying the herald's read for every bout wins more bouts but earns less. The
-  read is worth buying against a man you have never seen, and rarely after
-  you have watched him.
-- The provincial circuit alone is too comfortable over five seasons, because a
-  season has no upkeep yet. Adding upkeep is the job of phase 2, and this table
-  is the baseline it should move.
+- **The arc.** A career ranks 7th on the Roll of Arms at year three (median),
+  and reaches the top five around years five to seven, which is age 26 to 28.
+  About half of optimal careers top the Roll by year eight. The bot plays the
+  squire's call on every course and rides every month it can afford, so a human
+  should take longer.
+- **Knowledge now lasts.** What you learn of a rider is remembered, so buying
+  every read barely beats the squire's call over a career. The read is worth
+  buying against a man you have never seen.
+- **Paid service** is why nobody is ruined. An early version had one career in
+  five go under in its first winter: a poor start (old blood, a fallen house,
+  £5) could not cover a winter's keep from local prizes. Paid service is the
+  landless knight's other living, and the choice between money and fame is
+  now a real one.
+- **Training and horse wear were tuned by these runs.** Training was first so
+  fast that lance reached 19 by year six, and every career topped the Roll.
+  Horse condition turned out to be a real mechanic but a weak brake on its own.
+  The field's best riders being too weak and too spread out was the larger
+  cause.
+- **Cards** come up about 15 times a year, two or three per tourney.
 
 ## The instruments
 
@@ -126,18 +181,24 @@ true:
 - Every creation effect targets a real field and is the change it describes.
 - No set of answers builds a knight who cannot ride.
 - A seed plus a sequence of choices reproduces a career exactly across a save.
+- Every card is written in the engine's vocabulary. Every card can come up for
+  some knight, and the check chance shown is the chance rolled.
+- The calendar has the same shape every year. Every town is reachable. The
+  heralds admit by the rules they state.
+- Winter's accounts are the purse's change. A phase-one save loads and plays on.
+- Eight-year careers leave nothing impossible behind.
 
 **Is it balanced?**
 
 ```
 node sim/joust-curve.js --bouts=2000     # does choosing matter; is knowing worth paying for
-node sim/run.js --runs=200 --compare     # careers, by policy
+node sim/run.js --runs=100 --compare     # eight-year careers, by policy
 node tools/smoke.mjs                     # drive the real page at phone width
 node tools/check-bundle.mjs              # does the single file work from disk
 ```
 
-`sim/run.js` refuses to report on a career that entered no tourney, fought no
-bout or ran no course. A harness that silently plays nothing reports green on
+`sim/run.js` refuses to report on a career that never reached a winter, entered
+no tourney, fought no bout, ran no course, or met no card in two years. A harness that silently plays nothing reports green on
 everything.
 
 ## Layout
@@ -146,13 +207,18 @@ everything.
 src/engine/   pure, deterministic, no DOM
   joust.js      THE odds (strikeOdds), habits, the course, the bout, the squire's reckoning
   derive.js     every number the lists screen shows, from joust.js
-  tourney.js    arrival, the draw, rounds, prizes, the ledger
+  tourney.js    the road, arrival, the draw, rounds, prizes, the ledger, for every tier
+  season.js     the months and winter: every action a player can take
+  calendar.js   the year's tourneys, the roads, and who is admitted
+  field.js      the 48 knights: careers, brackets you do not ride, regard, the Roll
+  cards.js      the card engine: conditions, casting, checks, effects
   knight.js     creation: answers in, knight out, and the lines that describe it
   herald.js     the course called, and the Book of Feats entry
   heraldry.js   arms: generated, blazoned, drawn as SVG
   state.js      new career, the save contract (the-lists.save.v1)
   rng.js        named deterministic streams (from Centennial Farm)
-src/data/      logic-free tables: creation, joust, tourney, names, world
+src/data/      logic-free tables: creation, joust, tourney, household, field, world,
+               names, and the cards themselves
 src/ui/        the screens; reads the engine, computes nothing
 sim/           reference bot, career runner, joust curve
 test/          invariants

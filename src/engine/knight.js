@@ -40,6 +40,12 @@ export const FLAG_LABELS = {
   borrowedHorse: 'The horse must go back, or be bought.',
   betrothed: 'You are promised.',
   secretLove: 'You love someone you cannot name.',
+  witnessFound: 'You know the name of a man who saw what happened at Ambry Cross.',
+  witnessSworn: 'A witness has sworn before a herald about Ambry Cross.',
+  aumbryMan: 'Aumbry counts you as his man.',
+  aumbryRetainer: 'You ride in Aumbry\u2019s livery, for ten pounds a year.',
+  visitedMaster: 'You have seen your master at the priory.',
+  weddingSet: 'Your wedding has a date.',
 };
 
 const CADENCY_LABELS = {
@@ -168,6 +174,7 @@ export function buildKnight(answers, name, rng) {
     age: h.age,
     temper: h.temper,
     borrowed: !!h.borrowed,
+    condition: 10,
   };
 
   const masterDef = MASTERS[sets.master];

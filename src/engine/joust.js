@@ -15,6 +15,7 @@ import {
   FIELD_HABITS, ARCHETYPES, RATING_MARGIN,
 } from '../data/joust.data.js';
 import { WOUNDS } from '../data/tourney.data.js';
+import { GRUDGE_TELL } from '../data/field.data.js';
 
 export const AIM_IDS = ['helm', 'shield', 'low'];
 export const SEAT_IDS = ['brace', 'balanced', 'press'];
@@ -146,6 +147,8 @@ export function situation(self, other, bout, side) {
     lastCourse: courseNo >= ORDINANCE.courses,
     vsStronger: ro > rs + RATING_MARGIN,
     vsWeaker: ro < rs - RATING_MARGIN,
+    // A grudge against you is known to everyone: it is not a secret tell.
+    grudge: !!self.grudge && other.id === 'you',
   };
 }
 
@@ -164,20 +167,26 @@ function joint(aimW, seatW) {
   return out;
 }
 
-/** The tells of an archetype that hold in this situation. */
+/** The tells of an archetype that hold in this situation (not the grudge). */
 export function activeTells(arch, sit) {
   return arch.tells.filter((t) => sit[t.when]);
 }
 
-/** What the rider will ACTUALLY do: habits, shifted by whichever tells hold. */
-export function trueMix(arch, sit) {
-  const aimW = { ...arch.aim };
-  const seatW = { ...arch.seat };
-  for (const t of activeTells(arch, sit)) {
+function shifted(aim, seat, tells) {
+  const aimW = { ...aim };
+  const seatW = { ...seat };
+  for (const t of tells) {
     for (const [k, f] of Object.entries(t.aim || {})) aimW[k] *= f;
     for (const [k, f] of Object.entries(t.seat || {})) seatW[k] *= f;
   }
   return joint(aimW, seatW);
+}
+
+const grudgeOf = (sit) => (sit.grudge ? [GRUDGE_TELL] : []);
+
+/** What the rider will ACTUALLY do: habits, shifted by whichever tells hold. */
+export function trueMix(arch, sit) {
+  return shifted(arch.aim, arch.seat, [...activeTells(arch, sit), ...grudgeOf(sit)]);
 }
 
 /**
@@ -188,8 +197,8 @@ export function trueMix(arch, sit) {
  */
 export function beliefMix(arch, sit, intel) {
   if (intel >= 2) return trueMix(arch, sit);
-  if (intel === 1) return joint(arch.aim, arch.seat);
-  return joint(FIELD_HABITS.aim, FIELD_HABITS.seat);
+  if (intel === 1) return shifted(arch.aim, arch.seat, grudgeOf(sit));
+  return shifted(FIELD_HABITS.aim, FIELD_HABITS.seat, grudgeOf(sit));
 }
 
 export function pickFromMix(mix, rng) {

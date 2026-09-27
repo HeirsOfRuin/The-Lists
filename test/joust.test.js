@@ -13,8 +13,8 @@ import {
 } from '../src/engine/joust.js';
 import { OUTCOMES, ARCHETYPES, ORDINANCE } from '../src/data/joust.data.js';
 import { makeRng } from '../src/engine/rng.js';
-import { knight } from './helpers.js';
-import { enterTourney, currentBout, STAGE } from '../src/engine/tourney.js';
+import { knight, toLists } from './helpers.js';
+import { currentBout, STAGE } from '../src/engine/tourney.js';
 import { coursePreview, trueMixNow, reckonNow } from '../src/engine/derive.js';
 
 const rider = (o = {}) => ({
@@ -52,10 +52,10 @@ test('odds for every pairing are probabilities that sum to one', () => {
 
 test('the preview is exactly the resolver’s odds when you hold the read', () => {
   const s = knight(5);
-  enterTourney(s);
+  assert.ok(toLists(s));
   assert.equal(s.event.stage, STAGE.BOUT);
   const cb = currentBout(s);
-  s.event.intel[cb.him.id] = 2;
+  s.intel[cb.him.id] = 2;
   const truth = trueMixNow(s);
   for (const c of CHOICES) {
     const p = coursePreview(s, c);
@@ -101,9 +101,9 @@ test('the resolver produces the previewed odds when actually run', () => {
 
 test('without the read, the preview says so and uses the field’s habits', () => {
   const s = knight(6);
-  enterTourney(s);
+  assert.ok(toLists(s));
   const cb = currentBout(s);
-  s.event.intel[cb.him.id] = 0;
+  s.intel[cb.him.id] = 0;
   const p = coursePreview(s, choiceByKey('shield/balanced'));
   assert.equal(p.intel, 0);
   const field = beliefMix(archetype(cb.him.archetype), situation(cb.him, cb.you, cb.bout, 'b'), 0);
@@ -177,7 +177,7 @@ test('a better rider beats a worse one more often than not', () => {
 
 test('the squire’s reckoning is a probability, and his call is its best choice', () => {
   const s = knight(8);
-  enterTourney(s);
+  assert.ok(toLists(s));
   const r = reckonNow(s);
   for (const c of CHOICES) assert.ok(r.byChoice[c.key] >= 0 && r.byChoice[c.key] <= 1);
   const best = Math.max(...Object.values(r.byChoice));

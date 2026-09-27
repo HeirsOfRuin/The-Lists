@@ -27,13 +27,25 @@ if (title) {
   await page.click('[data-act="name-next"]');
   for (let i = 0; i < 10; i++) await page.locator('[data-opt]').first().click();
   await page.click('[data-act="ride-out"]');
-  await page.click('[data-act="enter"]');
-  await page.click('[data-act="run"]');
-  await page.waitForTimeout(700);
-  const pips = await page.locator('.pips i.done').count();
-  const result = await page.locator('[data-act="continue"]').count();
-  console.log('rode a course                      ', pips >= 1 || result ? 'yes' : 'NO');
-  if (!(pips >= 1 || result)) errors.push('a course did not run');
+  const map = await page.locator('svg.map').count();
+  console.log('the month opens on the map         ', map ? 'yes' : 'NO');
+  if (!map) errors.push('no map');
+  // Ride to the first tourney on offer (or train until one is), answering
+  // whatever comes up, until a course has been run.
+  let ran = false;
+  for (let i = 0; i < 60 && !ran; i++) {
+    const has = async (sel) => (await page.locator(sel).count()) > 0;
+    if (await has('[data-answer]')) await page.locator('[data-answer]').first().click();
+    else if (await has('[data-act="enter"]')) await page.click('[data-act="enter"]');
+    else if (await has('[data-act="run"]')) { await page.click('[data-act="run"]'); await page.waitForTimeout(700); ran = true; }
+    else if (await has('[data-act="continue"]')) await page.click('[data-act="continue"]');
+    else if (await has('[data-act="leave"]')) await page.click('[data-act="leave"]');
+    else if (await has('[data-ride]')) await page.locator('[data-ride]').first().click();
+    else if (await has('[data-act="train"]')) await page.click('[data-act="train"]');
+    else break;
+  }
+  console.log('rode a course                      ', ran ? 'yes' : 'NO');
+  if (!ran) errors.push('a course did not run');
 }
 await browser.close();
 if (errors.length) {

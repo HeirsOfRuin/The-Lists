@@ -1,121 +1,61 @@
-// A tourney: arrival, the draw, the rounds, the prizes, and the reckoning.
+// A tourney: the road, arrival, the eve feast, the rounds, the prizes, and the
+// reckoning. Every tier runs through this one module — a four-knight joust on
+// a village green, the King's sixteen, and a single pas at a bridge.
 //
 // Everything the event does is written into `state.event`, and the event's
 // ledger IS the account the player reads at the end. The purse moves only
-// through charge() below, and every charge writes a ledger line, so the purse
-// and the ledger cannot disagree.
+// through charge() below while an event is under way, and every charge writes
+// a ledger line, so the purse and the ledger cannot disagree.
 
 import { streamFor } from './rng.js';
 import { newBout, runCourse, recovery } from './joust.js';
-import { randomArms } from './heraldry.js';
 import { fullName } from './knight.js';
 import { heraldEntry } from './herald.js';
-import { PROVINCIAL, WOUNDS, EVENTS_PER_SEASON } from '../data/tourney.data.js';
-import { ARCHETYPES } from '../data/joust.data.js';
-import { PROVINCES, FEASTS } from '../data/world.data.js';
-import { GIVEN_NAMES, HOUSE_NAMES } from '../data/names.data.js';
+import { route } from './calendar.js';
+import {
+  pickField, riderFrom, knightById, adjustRegard, reactionFor, creditField, monthIndex,
+} from './field.js';
+import { TIERS, WOUNDS, HERALD_READ, LORE_KNOWS_HABITS } from '../data/tourney.data.js';
+import { TOWNS } from '../data/world.data.js';
+import { TRAVEL, HARNESS, SQUIRE, TRAINING, RETINUE_EXPECTED, CONDITION } from '../data/household.data.js';
 
 export const YOU = 'you';
 export const STAGE = {
-  ARRIVAL: 'arrival', // costs shown, not yet paid
+  TRAVEL: 'travel',   // on the road; a road card may be waiting
+  ARRIVAL: 'arrival', // arrived; costs shown, not yet paid
+  FEAST: 'feast',     // paid; the eve feast
   BOUT: 'bout',       // your bout is in the lists
   RESULT: 'result',   // your bout is decided; its result is on screen
   DONE: 'done',       // prizes given, the herald has written
 };
 
-const clampRound = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(v)));
-
-function drawStat(rng, spec) {
-  return clampRound(rng.normal(spec.mean, spec.sd), spec.min, spec.max);
-}
-
 // ---------------------------------------------------------------------------
-// Arrival
+// The road and arrival
 // ---------------------------------------------------------------------------
 
-/** The tourney you ride to next. Nothing is paid until you enter. */
-export function newTourney(state) {
-  const serial = state.eventsEntered + 1;
-  const rng = streamFor(state.seed, state.season, `tourney:${serial}`);
-  const tier = PROVINCIAL;
-
-  // A debut close to home; after that, wherever the circuit goes.
-  const provinceId = serial === 1 ? state.province : rng.pick(Object.keys(PROVINCES));
-  const province = PROVINCES[provinceId];
-  const town = rng.pick(province.towns);
-  const feast = FEASTS[state.eventInSeason % FEASTS.length];
-  const host = `Sir ${rng.pick(GIVEN_NAMES)} ${rng.pick(HOUSE_NAMES)}`;
-
-  const riders = {};
-  riders[YOU] = playerRider(state);
-  const usedNames = new Set([`${state.knight.given} ${state.knight.house}`]);
-  for (let i = 1; i < tier.entrants; i++) {
-    let given; let house;
-    do { given = rng.pick(GIVEN_NAMES); house = rng.pick(HOUSE_NAMES); }
-    while (usedNames.has(`${given} ${house}`));
-    usedNames.add(`${given} ${house}`);
-    const r = tier.rivals;
-    riders[`r${i}`] = {
-      id: `r${i}`,
-      given, house,
-      name: `Sir ${given} ${house}`,
-      lance: drawStat(rng, r.lance),
-      seat: drawStat(rng, r.seat),
-      vigour: drawStat(rng, r.vigour),
-      horse: { quality: drawStat(rng, r.horse), temper: rng.chance(r.hotShare) ? 'hot' : 'steady' },
-      renown: drawStat(rng, r.renown),
-      archetype: rng.pick(ARCHETYPES).id,
-      arms: randomArms(rng, rng.pick(['none', 'none', 'label', 'crescent'])),
-      fatigue: 0,
-      wound: null,
-    };
-  }
-
-  // The draw. The two best-known riders are kept apart; the rest by lot.
-  const ids = Object.keys(riders);
-  const bySeed = [...ids].sort((x, y) => riders[y].renown - riders[x].renown || (x < y ? -1 : 1));
-  const [s1, s2] = bySeed;
-  const rest = rng.shuffle(ids.filter((id) => id !== s1 && id !== s2));
-  const slots = [s1, ...rest.slice(0, 3), ...rest.slice(3), s2];
-  const first = [];
-  for (let i = 0; i < slots.length; i += 2) first.push(pairing(slots[i], slots[i + 1]));
-
-  const intel = {};
-  const knowsHabits = state.knight.stats.lore >= tier.loreKnowsHabits;
-  for (const id of ids) if (id !== YOU) intel[id] = knowsHabits ? 1 : 0;
-
-  return {
-    serial,
-    season: state.season,
-    feast,
-    town,
-    province: provinceId,
-    host,
-    tier: tier.tier,
-    riders,
-    rounds: [first],
-    round: 0,
-    stage: STAGE.ARRIVAL,
-    current: null,
-    intel,
-    heraldRead: {},
-    withdrawn: {},
-    ledger: [],
-    lastCourse: null,
-    placing: null,
-    champion: null,
-  };
+/** Mouths to feed on the road: you, your squire, your retinue. */
+export function followers(state) {
+  return (state.squire ? 1 : 0) + state.retinue.length;
+}
+export function travelPerDay(state) {
+  return TRAVEL.knight + TRAVEL.perFollower * followers(state);
+}
+export function travelCost(state, days) {
+  return days * travelPerDay(state);
+}
+export function entryCost(tierId) {
+  return Object.values(TIERS[tierId].costs).reduce((s, v) => s + v, 0);
 }
 
-function pairing(x, y) {
-  // You always ride as side 'a' in your own bouts, so the screen never has to
-  // ask which side you are.
-  if (y === YOU) return { a: y, b: x, bout: null, winner: null };
-  return { a: x, b: y, bout: null, winner: null };
+/** Your horse as he will ride today: his quality, less what a hard season has taken. */
+export function horseOnTheDay(state) {
+  const c = state.horse.condition ?? CONDITION.max;
+  return Math.max(1, state.horse.quality - Math.max(0, CONDITION.soundAt - c));
 }
 
 function playerRider(state) {
   const k = state.knight;
+  const q = state.harness.quality;
   return {
     id: YOU,
     given: k.given, house: k.house,
@@ -123,60 +63,170 @@ function playerRider(state) {
     lance: k.stats.lance,
     seat: k.stats.seat,
     vigour: k.stats.vigour,
-    horse: { quality: state.horse.quality, temper: state.horse.temper },
+    horse: { quality: horseOnTheDay(state), temper: state.horse.temper },
     renown: state.renown,
     arms: state.arms,
     fatigue: 0,
     wound: null,
+    woundMult: Math.max(0.35, 1 - HARNESS.woundPerPoint * (q - 9)) * (state.retinue.includes('armourer') ? 0.85 : 1),
+    groom: state.retinue.includes('groom'),
   };
 }
 
-export function entryCost(tier = PROVINCIAL) {
-  return Object.values(tier.costs).reduce((s, v) => s + v, 0);
+/**
+ * Set out for a tourney. The field is drawn now; nothing but the road is paid.
+ * `opts.riders` fixes the field (the pas at a bridge).
+ */
+export function newTourney(state, cal, opts = {}) {
+  state.eventSerial = (state.eventSerial || 0) + 1;
+  const serial = state.eventSerial;
+  const tier = TIERS[cal.tier];
+  const rng = streamFor(state.seed, cal.year, `tourney:${cal.id}`);
+
+  const riders = { [YOU]: playerRider(state) };
+  const field = opts.riders
+    ? opts.riders.map((id) => knightById(state, id))
+    : pickField(state, cal, tier.entrants - 1, new Set(), rng);
+  for (const k of field) riders[k.id] = riderFrom(k);
+
+  // The draw: the two best-known riders are kept apart; the rest by lot.
+  const ids = Object.keys(riders);
+  const bySeed = [...ids].sort((x, y) => riders[y].renown - riders[x].renown || (x < y ? -1 : 1));
+  const [s1, s2] = bySeed;
+  const rest = rng.shuffle(ids.filter((id) => id !== s1 && id !== s2));
+  const slots = ids.length === 2 ? [s1, s2] : [s1, ...rest, s2];
+  const first = [];
+  for (let i = 0; i < slots.length; i += 2) first.push(pairing(slots[i], slots[i + 1]));
+
+  const days = opts.from ? route(opts.from, cal.town).days : 0;
+  const ev = {
+    serial,
+    calId: cal.id,
+    name: cal.name,
+    tier: cal.tier,
+    year: cal.year,
+    month: cal.month,
+    feast: cal.feast,
+    town: cal.town,
+    province: TOWNS[cal.town].province,
+    host: cal.host,
+    from: opts.from || null,
+    travelDays: days,
+    riders,
+    rounds: [first],
+    round: 0,
+    stage: STAGE.TRAVEL,
+    current: null,
+    heraldRead: {},
+    withdrawn: {},
+    ledger: [],
+    notes: [],
+    reactions: [],
+    vows: [],
+    wager: null,
+    token: false,
+    lastCourse: null,
+    placing: null,
+    champion: null,
+  };
+  return ev;
 }
 
-export function canEnter(state) {
-  return state.purse >= entryCost();
+function pairing(x, y) {
+  // You always ride as side 'a' in your own bouts.
+  if (y === YOU) return { a: y, b: x, bout: null, winner: null };
+  return { a: x, b: y, bout: null, winner: null };
 }
 
-/** Money in or out of the purse. The only place the purse changes during an event. */
-function charge(state, label, amount) {
+/** Money in or out of the purse during an event. The only place it changes. */
+export function charge(state, label, amount) {
   if (!amount) return;
   state.purse += amount;
   state.event.ledger.push({ label, amount });
 }
 
+/** Pay for the road, and tire on it. */
+export function takeRoad(state, extraDays = 0) {
+  const ev = state.event;
+  const days = extraDays || ev.travelDays;
+  if (!days) return;
+  const label = extraDays
+    ? `${extraDays} more day${extraDays === 1 ? '' : 's'} on the road`
+    : `The road from ${TOWNS[ev.from].name}, ${days} day${days === 1 ? '' : 's'}`;
+  charge(state, label, -travelCost(state, days));
+  if (extraDays) ev.travelDays += extraDays;
+  const over = ev.travelDays - TRAVEL.tiredAfter;
+  if (!extraDays && over > 0) ev.riders[YOU].fatigue += over * 0.5;
+}
+
+/** Arrive: who you know in the field, and whether you came attended enough. */
+export function arrive(state) {
+  const ev = state.event;
+  ev.stage = STAGE.ARRIVAL;
+  state.location = ev.town;
+  const field = Object.keys(ev.riders).filter((id) => id !== YOU);
+  if (state.knight.stats.lore >= LORE_KNOWS_HABITS || state.retinue.includes('pursuivant')) {
+    for (const id of field) state.intel[id] = Math.max(state.intel[id] || 0, 1);
+  }
+  // Friends in the field tell you what they know.
+  for (const id of field) {
+    const k = knightById(state, id);
+    if (!k || k.regard < 5) continue;
+    const unknown = field.filter((x) => x !== id && !(state.intel[x] > 0));
+    const told = unknown.slice(0, 2);
+    for (const x of told) state.intel[x] = 1;
+    if (told.length) ev.notes.push(`${k.name}, your friend, tells you how ${told.map((x) => ev.riders[x].name).join(' and ')} ride.`);
+  }
+  if (TIERS[ev.tier].retinueExpected) {
+    const expected = expectedRetinue(state.renown);
+    if (state.retinue.length < expected) {
+      state.honour -= 1;
+      ev.notes.push(`A knight of your renown is expected with ${expected} in his retinue. You came with ${state.retinue.length}, and it was noticed. Honour −1.`);
+    }
+  }
+}
+
+export function expectedRetinue(renown) {
+  let n = 0;
+  for (const r of RETINUE_EXPECTED) if (renown >= r.renown) n = r.size;
+  return n;
+}
+
+export function canEnter(state) {
+  return state.purse >= entryCost(state.event.tier);
+}
+
 const COST_LABELS = {
   entry: 'Entry to the heralds’ roll',
-  lodging: 'Lodging, three nights',
+  lodging: 'Lodging',
   stabling: 'Stabling and the farrier',
   largesse: 'Largesse to the heralds',
 };
 
-/** Pay to ride, and go to the lists. */
-export function enterTourney(state) {
+/** Pay to ride. The eve feast follows (the flow layer draws its card). */
+export function payEntry(state) {
   const ev = state.event;
   if (!ev || ev.stage !== STAGE.ARRIVAL) return { ok: false, reason: 'There is no tourney waiting to be entered.' };
   if (!canEnter(state)) return { ok: false, reason: 'You cannot pay to ride.' };
-  for (const [k, v] of Object.entries(PROVINCIAL.costs)) charge(state, COST_LABELS[k], -v);
-  openRound(state);
+  for (const [k, v] of Object.entries(TIERS[ev.tier].costs)) if (v) charge(state, COST_LABELS[k], -v);
+  ev.stage = STAGE.FEAST;
   return { ok: true };
 }
 
 /** What the herald's read of a rider costs you. */
 export function heraldReadCost(state) {
-  const h = PROVINCIAL.heraldRead;
+  const h = HERALD_READ;
   return Math.max(h.min, h.base - h.perCourtesy * (state.knight.stats.courtesy - 8));
 }
 
 export function buyHeraldRead(state, riderId) {
   const ev = state.event;
   if (!ev || riderId === YOU || !ev.riders[riderId]) return { ok: false, reason: 'No such rider.' };
-  if (ev.intel[riderId] >= 2) return { ok: false, reason: 'You already have the herald’s read of him.' };
+  if ((state.intel[riderId] || 0) >= 2) return { ok: false, reason: 'You already have the herald’s read of him.' };
   const cost = heraldReadCost(state);
   if (state.purse < cost) return { ok: false, reason: 'You cannot spare the coin.' };
   charge(state, `The herald’s read of ${ev.riders[riderId].name}`, -cost);
-  ev.intel[riderId] = 2;
+  state.intel[riderId] = 2;
   ev.heraldRead[riderId] = true;
   return { ok: true };
 }
@@ -185,11 +235,19 @@ export function buyHeraldRead(state, riderId) {
 // The rounds
 // ---------------------------------------------------------------------------
 
-export const ROUND_NAMES = ['the first round', 'the last four', 'the final'];
+/** "the first round", "the last four", "the final" — by riders left in it. */
+export function roundName(ev, r) {
+  const left = Object.keys(ev.riders).length / Math.pow(2, r);
+  if (ev.tier === 'pas') return 'the pas at the bridge';
+  if (left === 2) return 'the final';
+  if (r === 0) return 'the first round';
+  return left === 4 ? 'the last four' : 'the last eight';
+}
+export function roundCount(ev) { return Math.log2(Object.keys(ev.riders).length); }
 
 function courseRng(state, roundIdx, pairIdx, courseNo) {
   const ev = state.event;
-  return streamFor(state.seed, ev.season, `course:${ev.serial}:${roundIdx}:${pairIdx}:${courseNo}`);
+  return streamFor(state.seed, ev.year, `course:${ev.serial}:${roundIdx}:${pairIdx}:${courseNo}`);
 }
 
 /**
@@ -197,7 +255,7 @@ function courseRng(state, roundIdx, pairIdx, courseNo) {
  * order, and you watch them — which is how you learn a rider's habits. Then
  * either your bout is set in the lists, or (if you are out) the round closes.
  */
-function openRound(state) {
+export function openRound(state) {
   const ev = state.event;
   const r = ev.round;
   const pairs = ev.rounds[r];
@@ -206,7 +264,7 @@ function openRound(state) {
     if (p.winner) return;
     if (p.a === YOU || p.b === YOU) { ev.current = i; return; }
     ridePairing(state, r, i);
-    for (const id of [p.a, p.b]) ev.intel[id] = Math.max(ev.intel[id], 1);
+    for (const id of [p.a, p.b]) state.intel[id] = Math.max(state.intel[id] || 0, 1);
   });
   if (ev.current != null) {
     const p = pairs[ev.current];
@@ -215,24 +273,34 @@ function openRound(state) {
     } else {
       p.bout = newBout(p.a, p.b);
       ev.stage = STAGE.BOUT;
+      squireScouts(state, p.b);
       return;
     }
   }
   closeRound(state);
 }
 
-/** A withdrawn rider gives his opponent the bout. Returns true if it applied. */
+/** Your squire asks among the grooms about a man you know nothing of. */
+function squireScouts(state, id) {
+  const ev = state.event;
+  if (!state.squire || (state.intel[id] || 0) > 0) return;
+  const rng = streamFor(state.seed, ev.year, `scout:${ev.serial}:${ev.round}`);
+  const p = SQUIRE.scoutBase + SQUIRE.scoutPerWits * (state.squire.wits - 8);
+  if (rng.next() < p) {
+    state.intel[id] = 1;
+    ev.notes.push(`${state.squire.name} asked among the grooms, and tells you how ${ev.riders[id].name} rides.`);
+  }
+}
+
 function walkover(ev, p) {
   const wa = ev.withdrawn[p.a];
   const wb = ev.withdrawn[p.b];
   if (!wa && !wb) return false;
-  // Both withdrawn: the first named goes forward, and will give a walkover in turn.
   p.winner = wa && !wb ? p.b : p.a;
   p.bout = { ...newBout(p.a, p.b), done: true, winner: p.winner === p.a ? 'a' : 'b', how: 'walkover' };
   return true;
 }
 
-/** Ride a bout between two rivals, start to finish, from their own habits. */
 function ridePairing(state, r, i) {
   const ev = state.event;
   const p = ev.rounds[r][i];
@@ -259,6 +327,7 @@ function rollWounds(ev, A, B, res, rng) {
     } else if (hitBy === 'helm') {
       p = WOUNDS.helmStruck;
     }
+    p *= rider.woundMult || 1;
     const roll = rng.next();
     if (roll >= p) continue;
     const serious = canBeSerious && rng.next() < WOUNDS.seriousShare;
@@ -292,11 +361,41 @@ export function playCourse(state, choice) {
       him: B.wound !== woundBefore.b ? B.wound : null,
     },
   };
-  if (p.bout.done) {
-    p.winner = p.bout.winner === 'a' ? p.a : p.b;
-    ev.stage = STAGE.RESULT;
-  }
+  if (p.bout.done) finishBout(state, p);
   return { ok: true, course: ev.lastCourse, done: p.bout.done };
+}
+
+/** Your bout is decided: his reaction, your wager, your practice. */
+function finishBout(state, p) {
+  const ev = state.event;
+  p.winner = p.bout.winner === 'a' ? p.a : p.b;
+  ev.stage = STAGE.RESULT;
+  const won = p.winner === YOU;
+  const him = knightById(state, p.b);
+  const fell = p.bout.how === 'unhorse' && won;
+  if (him) {
+    const r = reactionFor(him, won ? (fell ? 'lostFall' : 'lost') : 'won');
+    adjustRegard(state, him.id, r.regard);
+    ev.reactions.push({ round: ev.round, text: r.text, regard: r.regard });
+  }
+  if (ev.wager && !ev.wager.settled) {
+    ev.wager.settled = true;
+    charge(state, won ? 'Your wager, won' : 'Your wager, lost', won ? ev.wager.amount : -ev.wager.amount);
+  }
+  addMarks(state, 'lance', TRAINING.boutMarks);
+  addMarks(state, 'seat', TRAINING.boutMarks);
+}
+
+/** What moment, if any, the end of your bout calls for. */
+export function momentFor(state) {
+  const ev = state.event;
+  const p = ev.rounds[ev.round][ev.current];
+  const won = p.winner === YOU;
+  if (won && p.bout.how === 'forfeit') return 'moment.forfeit';
+  if (won && ev.withdrawn[p.b]) return 'moment.hurt';
+  if (won && p.bout.how === 'unhorse') return 'moment.unhorsed';
+  if (!won && p.bout.how === 'unhorse') return 'moment.beaten';
+  return null;
 }
 
 /** After your bout's result: on to the next round, or to the end. */
@@ -307,7 +406,6 @@ export function continueTourney(state) {
   return { ok: true };
 }
 
-/** Close a round whose bouts are all decided; open the next, or finish. */
 function closeRound(state) {
   const ev = state.event;
   const pairs = ev.rounds[ev.round];
@@ -316,7 +414,7 @@ function closeRound(state) {
   const winners = pairs.map((p) => p.winner);
   for (const id of winners) {
     const r = ev.riders[id];
-    r.fatigue = Math.max(0, r.fatigue - recovery(r));
+    r.fatigue = Math.max(0, r.fatigue - recovery(r) - (r.groom ? 1.5 : 0));
   }
   const next = [];
   for (let i = 0; i < winners.length; i += 2) next.push(pairing(winners[i], winners[i + 1]));
@@ -326,10 +424,9 @@ function closeRound(state) {
 }
 
 // ---------------------------------------------------------------------------
-// Prizes, and the herald's entry
+// Prizes, the field's reckoning, and the herald's entry
 // ---------------------------------------------------------------------------
 
-/** Every bout a rider rode in this event, with his side in it. */
 export function boutsOf(ev, id) {
   const out = [];
   ev.rounds.forEach((pairs, r) => pairs.forEach((p) => {
@@ -342,24 +439,27 @@ function helmCount(ev, id) {
   return boutsOf(ev, id).reduce((s, { pairing, side }) => s + (pairing.bout ? pairing.bout.helms[side] : 0), 0);
 }
 
+function placingFor(ev, lost) {
+  if (!lost) return 'champion';
+  const left = Object.keys(ev.riders).length / Math.pow(2, lost.round);
+  if (left === 2) return 'runnerUp';
+  if (lost.round === 0) return 'first';
+  return left === 4 ? 'semi' : 'quarter';
+}
+
 function finishTourney(state) {
   const ev = state.event;
+  const tier = TIERS[ev.tier];
   const final = ev.rounds[ev.rounds.length - 1][0];
   ev.champion = final.winner;
-  const runnerUp = final.winner === final.a ? final.b : final.a;
 
-  // The helm prize: the most helm strikes of the day, if one rider has them alone.
   const helms = Object.keys(ev.riders).map((id) => [id, helmCount(ev, id)]).sort((x, y) => y[1] - x[1]);
-  ev.helmPrize = helms[0][1] > 0 && helms[0][1] > helms[1][1] ? helms[0][0] : null;
+  ev.helmPrize = tier.prizes.helm && helms[0][1] > 0 && helms[0][1] > helms[1][1] ? helms[0][0] : null;
 
   const mine = boutsOf(ev, YOU);
   const lost = mine.find(({ pairing }) => pairing.winner !== YOU);
-  ev.placing = ev.champion === YOU ? 'champion'
-    : runnerUp === YOU ? 'runnerUp'
-    : lost && lost.round === 1 ? 'semi'
-    : 'quarter';
+  ev.placing = placingFor(ev, lost);
 
-  const tier = PROVINCIAL;
   let renown = 0;
   let honour = 0;
   let lances = 0;
@@ -369,11 +469,14 @@ function finishTourney(state) {
   let helmsStruck = 0;
   let boutsWon = 0;
   let courses = 0;
+  const met = new Set();
   for (const { pairing, side } of mine) {
     const b = pairing.bout;
     if (!b) continue;
     const other = side === 'a' ? 'b' : 'a';
-    const him = ev.riders[pairing[other]];
+    const himId = pairing[other];
+    const him = ev.riders[himId];
+    if (b.how !== 'walkover') met.add(himId);
     lances += b.lances[side];
     helmsStruck += b.helms[side];
     courses += b.courses.length;
@@ -386,43 +489,81 @@ function finishTourney(state) {
   }
   unhorsed = [...new Set(unhorsed)];
   renown += unhorsed.length * tier.renown.unhorse;
-  honour += horseStrikes * tier.honour.horseStrike;
+  honour -= horseStrikes * 4;
 
-  charge(state, `Lances broken: ${lances} at ${tier.lancePrice}d`, -lances * tier.lancePrice);
-  if (ev.riders[YOU].wound === 'serious') charge(state, 'The surgeon', -WOUNDS.surgeon);
+  // The season's wear on your horse.
+  const wear = met.size * CONDITION.perBout + (ev.travelDays > CONDITION.longRoadDays ? 1 : 0);
+  state.horse.condition = Math.max(0, (state.horse.condition ?? CONDITION.max) - wear);
+
+  if (lances && tier.lancePrice) charge(state, `Lances broken: ${lances} at ${tier.lancePrice}d`, -lances * tier.lancePrice);
+  if (ev.riders[YOU].wound === 'serious') {
+    charge(state, 'The surgeon', -WOUNDS.surgeon);
+    state.knight.injuredUntil = monthIndex(ev.year, ev.month) + WOUNDS.seriousMonths;
+  }
   if (ev.placing === 'champion') {
-    charge(state, `Prize: ${tier.prizeLabels.champion}`, tier.prizes.champion);
+    if (tier.prizes.champion) charge(state, `Prize: ${tier.prizeLabels.champion}`, tier.prizes.champion);
     renown += tier.renown.champion;
   }
   if (ev.placing === 'runnerUp') {
-    charge(state, `Prize: ${tier.prizeLabels.runnerUp}`, tier.prizes.runnerUp);
+    if (tier.prizes.runnerUp) charge(state, `Prize: ${tier.prizeLabels.runnerUp}`, tier.prizes.runnerUp);
     renown += tier.renown.runnerUp;
   }
   if (ev.helmPrize === YOU) {
-    charge(state, `Prize: ${tier.prizeLabels.helm}`, tier.prizes.helm);
+    charge(state, `Prize: ${tier.prizeLabels.helm}, for the most helm strikes`, tier.prizes.helm);
     renown += tier.renown.helmPrize;
   }
+  if (ev.token) renown += boutsWon;
+  if (boutsWon && state.retinue.includes('minstrel')) renown += 1;
 
+  // Vows made at the feast.
+  const vows = [];
+  for (const id of ev.vows) {
+    const name = ev.riders[id]?.name || knightById(state, id)?.name;
+    if (unhorsed.includes(name)) { renown += 3; vows.push({ name, kept: true }); }
+    else if (met.has(id)) { honour -= 2; vows.push({ name, kept: false }); }
+    else vows.push({ name, kept: null });
+  }
+
+  const beneath = state.renown >= tier.beneath;
+  if (beneath) renown = Math.min(renown, 0);
   state.renown = Math.max(0, state.renown + renown);
   state.honour += honour;
 
+  // The field's own reckoning: renown and wounds for everyone else.
+  const res = {};
+  for (const id of Object.keys(ev.riders)) {
+    if (id === YOU) continue;
+    const theirs = boutsOf(ev, id);
+    const theirLoss = theirs.find(({ pairing }) => pairing.winner !== id);
+    res[id] = {
+      boutsWon: theirs.filter(({ pairing }) => pairing.winner === id && pairing.bout.how !== 'walkover').length,
+      unhorses: theirs.filter(({ pairing }) => pairing.winner === id && pairing.bout.how === 'unhorse').length,
+      // Rounds from the end, as runBracket counts them: 0 = champion, 1 = lost the final.
+      out: theirLoss ? roundCount(ev) - theirLoss.round : 0,
+      hurt: ev.riders[id].wound === 'serious',
+    };
+  }
+  creditField(state, { tier: ev.tier, year: ev.year, month: ev.month }, res);
+
   const c = state.career;
-  c.tourneys += 1;
-  c.bouts += mine.filter(({ pairing }) => pairing.bout && pairing.bout.how !== 'walkover').length;
+  if (ev.tier !== 'pas') c.tourneys += 1;
+  c.bouts += met.size;
   c.boutsWon += boutsWon;
   c.courses += courses;
   c.lances += lances;
   c.unhorsed += unhorsed.length;
   if (fellTo) c.falls += 1;
-  if (ev.placing === 'champion') c.championships += 1;
+  if (ev.placing === 'champion' && ev.tier !== 'pas') c.championships += 1;
 
   const net = ev.ledger.reduce((s, l) => s + l.amount, 0);
   const entry = {
     serial: ev.serial,
-    season: ev.season,
+    year: ev.year,
+    tier: ev.tier,
+    name: ev.name,
     feast: ev.feast,
-    town: ev.town,
-    host: ev.host,
+    town: TOWNS[ev.town].name,
+    host: ev.host.name,
     placing: ev.placing,
     champion: ev.riders[ev.champion].name,
     beatenBy: lost ? ev.riders[lost.pairing.winner].name : null,
@@ -433,6 +574,8 @@ function finishTourney(state) {
     horseStrikes,
     helmPrize: ev.helmPrize === YOU,
     withdrew: ev.riders[YOU].wound === 'serious',
+    vows,
+    beneath,
     renown,
     honour,
     net,
@@ -444,44 +587,34 @@ function finishTourney(state) {
   state.eventsEntered += 1;
 }
 
-// ---------------------------------------------------------------------------
-// Between tourneys
-// ---------------------------------------------------------------------------
-
-/**
- * Ride on to the next tourney. Counts off the season; at its end the knight
- * winters and ages a year. A knight who cannot pay the next entry is ruined.
- */
-export function rideOn(state) {
-  if (state.event && state.event.stage !== STAGE.DONE) {
-    return { ok: false, reason: 'Finish this tourney first.' };
-  }
-  if (state.event) {
-    state.eventInSeason += 1;
-    if (state.eventInSeason >= EVENTS_PER_SEASON) {
-      state.eventInSeason = 0;
-      state.season += 1;
-      state.knight.age += 1;
-      state.log.push({ season: state.season, text: `Winter. ${fullName(state.knight)} is ${state.knight.age}.` });
-    }
-  }
-  state.event = newTourney(state);
-  if (!canEnter(state)) {
-    state.status = 'ruined';
-    state.outcome = {
-      kind: 'ruined',
-      season: state.season,
-      text: 'You cannot pay to ride. There is always a lord who needs a sword, and you will be selling yours.',
-    };
-  }
-  return { ok: true };
-}
-
 /** Current rider and his opponent in your bout, for the lists screen. */
 export function currentBout(state) {
   const ev = state.event;
   if (!ev || ev.current == null) return null;
   const p = ev.rounds[ev.round][ev.current];
   if (!p || !p.bout) return null;
-  return { pairing: p, bout: p.bout, you: ev.riders[p.a], him: ev.riders[p.b], roundName: ROUND_NAMES[ev.round] };
+  return { pairing: p, bout: p.bout, you: ev.riders[p.a], him: ev.riders[p.b], roundName: roundName(ev, ev.round) };
+}
+
+// ---------------------------------------------------------------------------
+// Training marks (bouts count as practice)
+// ---------------------------------------------------------------------------
+
+export function markCost(level) {
+  return TRAINING.costBase + Math.max(0, Math.floor((level - 8) / TRAINING.costStep));
+}
+
+/** Put marks against a skill; raise it when they reach the cost. Returns rises. */
+export function addMarks(state, skill, n) {
+  const k = state.knight;
+  if (!k.marks) k.marks = { lance: 0, seat: 0, vigour: 0, courtesy: 0, lore: 0 };
+  const factor = k.age >= TRAINING.declineFrom ? 0.5 : 1;
+  k.marks[skill] = Math.round((k.marks[skill] + n * factor) * 100) / 100;
+  const rises = [];
+  while (k.stats[skill] < 20 && k.marks[skill] >= markCost(k.stats[skill])) {
+    k.marks[skill] = Math.round((k.marks[skill] - markCost(k.stats[skill])) * 100) / 100;
+    k.stats[skill] += 1;
+    rises.push(k.stats[skill]);
+  }
+  return rises;
 }
