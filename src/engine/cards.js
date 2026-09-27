@@ -19,7 +19,7 @@
 //   effects: purse renown honour favour traits stats marks regard intel
 //            intelField fatigue wound flags memory squire vow wager token
 //            largesse pas travelDays serve patronTarget reveal clearMaster heart
-//            balance lean oath battle peril manor pardon
+//            balance lean oath battle peril manor pardon trial
 //   favour:  a faction, or 'host' (the event's or court's house), or
 //            'patron' (whoever you serve), or 'side' (the house you are sworn to)
 //   check:   { stat | trait, dc }
@@ -32,10 +32,12 @@ import {
   battleSpec, battlePreview, fightBattle, battleLines, pardon, grantManor,
 } from './realm.js';
 import { CLAIMANTS, DEATHS } from '../data/realm.data.js';
+import { trialPreview } from './derive.js';
 import { REALM_CARDS, SETTLEMENT_CARDS } from '../data/cards.realm.data.js';
 import { PATRONS } from '../data/court.data.js';
 import { lsdSigned, lsd } from './money.js';
-import { fullName } from './knight.js';
+import { fullName, driftTrait } from './knight.js';
+export { driftTrait };
 import { FEAST_CARDS, ARRIVAL_CARDS } from '../data/cards.court.data.js';
 import { ROAD_CARDS, MOMENT_CARDS, PRIZE_CARDS, WINTER_CARDS, COURT_CARDS } from '../data/cards.road.data.js';
 import { PATRON_CARDS, CHURCH_CARDS, STORY_CARDS } from '../data/cards.story.data.js';
@@ -59,10 +61,10 @@ export const EFFECT_KEYS = [
   'purse', 'renown', 'honour', 'favour', 'traits', 'stats', 'marks', 'regard', 'intel', 'intelField',
   'fatigue', 'wound', 'flags', 'memory', 'squire', 'vow', 'wager', 'token', 'largesse', 'pas', 'travelDays',
   'serve', 'patronTarget', 'reveal', 'clearMaster', 'heart',
-  'balance', 'lean', 'oath', 'battle', 'peril', 'manor', 'pardon',
+  'balance', 'lean', 'oath', 'battle', 'peril', 'manor', 'pardon', 'trial',
 ];
 // Effects that only make sense with a tourney ahead or under way.
-export const EVENT_EFFECTS = ['intel', 'intelField', 'fatigue', 'wound', 'vow', 'wager', 'token', 'largesse', 'pas', 'travelDays'];
+export const EVENT_EFFECTS = ['intel', 'intelField', 'fatigue', 'wound', 'vow', 'wager', 'token', 'largesse', 'pas', 'travelDays', 'trial'];
 
 export function cardById(id) {
   const c = CARDS.find((x) => x.id === id);
@@ -347,6 +349,11 @@ export function describeEffects(state, inst, effects) {
     out.push(b.peril > 0 ? `Risk of death: ${pct(b.peril)}` : 'No risk to you');
     if (b.capture) out.push(`If your side loses: ${pct(b.capture)} you are taken, ransom ${lsd(b.ransom)}`);
   }
+  if (e.trial && inst.cast.rival) {
+    const t = trialPreview(state, inst.cast.rival);
+    out.push(`Trial by combat à outrance with ${nameOf(state, inst.cast.rival)}: your chance, by your squire’s reckoning, ${pct(t.win)}`);
+    out.push(`If he beats you, he kills you: ${pct(t.quarter)}`);
+  }
   if (e.pardon === 'pay') out.push(`Purse ${lsdSigned(-(state.realm?.war?.settlement?.fine || 0))}; your name is struck from the list`);
   if (e.pardon === 'mercy') out.push('Pardoned, without the fine');
   if (e.pardon === 'exile') out.push('Exile: the career ends');
@@ -422,20 +429,7 @@ export function choicesView(state, inst) {
 // Applying an answer
 // ---------------------------------------------------------------------------
 
-const clampTrait = (v) => Math.max(0, Math.min(20, v));
 
-/**
- * A trait moves toward the middle freely and away from it grudgingly: a
- * step is worth two-thirds of itself past 12 (or under 8), and a third past
- * 15 (or under 5). Character sets slowly, and a byname at 18 is earned over
- * years of acting the same way, not by a season of bold answers.
- */
-export function driftTrait(cur, d) {
-  const away = (d > 0 && cur >= 10) || (d < 0 && cur <= 10);
-  const dist = Math.abs(cur - 10);
-  const f = !away ? 1 : dist >= 5 ? 1 / 3 : dist >= 2 ? 2 / 3 : 1;
-  return clampTrait(Math.round((cur + d * f) * 100) / 100);
-}
 const clampStat = (v) => Math.max(1, Math.min(20, v));
 
 /**

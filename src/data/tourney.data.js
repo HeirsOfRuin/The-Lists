@@ -21,6 +21,7 @@ export const TIERS = {
     field: { minRenown: 0, maxRenown: 14, provinceWeight: 4 },
     eligibility: null,
     beneath: 30, // a knight of this renown gains nothing here, and is thought to be picking on boys
+    days: ['joust'],
   },
   regional: {
     id: 'regional',
@@ -34,6 +35,7 @@ export const TIERS = {
     field: { minRenown: 0, maxRenown: 34, provinceWeight: 2 },
     eligibility: null,
     beneath: 60,
+    days: ['joust', 'melee'],
   },
   high: {
     id: 'high',
@@ -49,6 +51,7 @@ export const TIERS = {
     invitation: true, // by letter: see INVITATIONS in realm.data.js
     retinueExpected: true,
     beneath: 999,
+    days: ['joust', 'melee', 'barriers'],
   },
   grand: {
     id: 'grand',
@@ -64,6 +67,7 @@ export const TIERS = {
     retinueExpected: true,
     helmShow: true,
     beneath: 999,
+    days: ['joust', 'melee', 'barriers'],
   },
 };
 
@@ -81,7 +85,64 @@ TIERS.pas = {
   field: null,
   eligibility: null,
   beneath: 999,
+  days: ['joust'],
 };
+
+// The Great Pas: once in a career, a famous knight holds a fountain for a
+// month against all comers, as Jacques de Lalaing held the Fountain of Tears
+// at Chalon in 1449-50. A comer touches the black shield to run courses with
+// him, the white shield to fight him at the barriers, or both. Every man who
+// touches a shield is given a gold ring and his name in the book of the pas.
+TIERS.greatpas = {
+  id: 'greatpas',
+  label: 'The Great Pas',
+  entrants: 2,
+  costs: { entry: 0, lodging: 60, stabling: 24, largesse: 60 },
+  lancePrice: 12,
+  prizes: { champion: 10 * 240, runnerUp: 0, helm: 0 },
+  prizeLabels: { champion: 'a golden lance-head and ten pounds', runnerUp: '', helm: '' },
+  renown: { boutWon: 6, unhorse: 2, helmPrize: 0, champion: 0, runnerUp: 0 },
+  field: null,
+  eligibility: null,
+  beneath: 999,
+  days: ['joust', 'barriers'],
+  optionalDays: true,
+  touched: { renown: 2 }, // for every shield touched, win or lose
+};
+export const GREAT_PAS = { year: 7, month: 7, town: 'hollinMoor', name: 'The Pas of the Weeping Fountain' };
+
+// Trial by combat: not a tourney, but the lists are where it is fought.
+TIERS.trial = {
+  id: 'trial',
+  label: 'Trial by combat',
+  entrants: 2,
+  costs: { entry: 0, lodging: 0, stabling: 0, largesse: 0 },
+  lancePrice: 0,
+  prizes: { champion: 0, runnerUp: 0, helm: 0 },
+  prizeLabels: { champion: '', runnerUp: '', helm: '' },
+  renown: { boutWon: 0, unhorse: 0, helmPrize: 0, champion: 0, runnerUp: 0 },
+  field: null,
+  eligibility: null,
+  beneath: 999,
+  days: ['barriers'],
+  ord: 'outrance',
+};
+
+// The barriers: the day of foot combat at the high tourneys and the King's.
+// Four men by lot, two rounds, and a prize to the last man standing.
+export const BARRIERS = {
+  entrants: 4,
+  prizes: { high: 3 * 240, grand: 6 * 240, greatpas: 10 * 240 },
+  prizeLabels: {
+    high: 'a pollaxe with a gilded head and three pounds',
+    grand: 'a golden axe from the king’s hand and six pounds',
+    greatpas: 'a golden axe and ten pounds',
+  },
+  renown: { win: { high: 1, grand: 1, greatpas: 6, trial: 0 }, champion: { high: 2, grand: 3, greatpas: 0, trial: 0 } },
+};
+
+// A night between the days of a tourney: what a man gets back.
+export const OVERNIGHT = { fatigue: 4, perVigour: 0.3 };
 
 export const TIER_ORDER = ['local', 'regional', 'high', 'grand'];
 

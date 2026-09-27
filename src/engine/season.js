@@ -13,7 +13,9 @@ import { streamFor } from './rng.js';
 import {
   newTourney, takeRoad, arrive, payEntry, openRound, playCourse, continueTourney, momentFor,
   charge, travelCost, entryCost, addMarks, YOU, STAGE,
+  beginDays, enterDay, standDown, meleeAct, settleRansoms, playExchange, continueFoot, trialMercy, newTrial,
 } from './tourney.js';
+import { footSquireCall } from './derive.js';
 import { drawCard, drawById, answerCard } from './cards.js';
 import { route } from './calendar.js';
 import {
@@ -125,8 +127,8 @@ export function enter(state) {
   const ev = state.event;
   if (state.patron && isPatronTourney(state, ev)) state.patron.attended = true;
   const inst = drawCard(state, 'feast', eventCtx(state), `feast:${ev.serial}`);
-  if (inst) state.pending = { inst, then: 'openRound' };
-  else openRound(state);
+  if (inst) state.pending = { inst, then: 'beginDays' };
+  else beginDays(state);
   return ok();
 }
 
@@ -172,7 +174,10 @@ export function onward(state) {
   if (state.pending) return no('Answer what is in front of you first.');
   const r = continueTourney(state);
   if (!r.ok) return r;
-  if (state.event.stage === STAGE.DONE) prizeMoment(state);
+  if (state.event.jousted && !state.event.prizeMoment) {
+    state.event.prizeMoment = true;
+    prizeMoment(state);
+  }
   return r;
 }
 
@@ -184,14 +189,58 @@ function prizeMoment(state) {
   if (inst) state.pending = { inst, then: 'none' };
 }
 
-/** Leave the tourney: on to the tourney the pas interrupted, or home for the month. */
+// ---------------------------------------------------------------------------
+// The days after the jousts: the mêlée and the barriers
+// ---------------------------------------------------------------------------
+
+/** Ride in the day's event. `opts.men`: your men-at-arms in the mêlée. */
+export function rideDay(state, opts = {}) {
+  if (state.pending) return no('Answer what is in front of you first.');
+  if (state.event?.stage !== STAGE.DAY) return no('There is no day to ride in.');
+  return enterDay(state, opts);
+}
+
+export function standDownDay(state) {
+  if (state.pending) return no('Answer what is in front of you first.');
+  return standDown(state);
+}
+
+/** A pass of the mêlée: which man, and what to do with him. */
+export function meleeTurn(state, index, action) {
+  if (state.pending) return no('Answer what is in front of you first.');
+  return meleeAct(state, index, action);
+}
+
+export function ransom(state, terms) { return settleRansoms(state, terms); }
+
+/** One exchange at the barriers. */
+export function exchange(state, choice) {
+  if (state.pending) return no('Answer what is in front of you first.');
+  return playExchange(state, choice);
+}
+
+/** Fight the rest of the combat as your squire calls it. */
+export function fightOutFoot(state) {
+  let guard = 0;
+  while (state.event?.stage === STAGE.FOOT && guard++ < 12) exchange(state, footSquireCall(state));
+  return ok();
+}
+
+export function footOnward(state) { return continueFoot(state); }
+
+/** A man beaten à outrance is at your mercy. */
+export function mercy(state, spare) { return trialMercy(state, spare); }
+
+/** Leave the tourney: back to the one a pas or a trial interrupted, or home for the month. */
 export function leave(state) {
   const ev = state.event;
   if (!ev || ev.stage !== STAGE.DONE || state.pending) return no('The tourney is not over.');
   if (state.detour) {
+    const resume = ev.resume || (state.detour.stage === STAGE.TRAVEL ? 'arrive' : null);
     state.event = state.detour;
     state.detour = null;
-    doArrive(state);
+    if (resume === 'arrive') doArrive(state);
+    else if (resume === 'beginDays' || resume === 'openRound') beginDays(state);
     return ok();
   }
   state.event = null;
@@ -434,6 +483,7 @@ export function answer(state, index) {
   const pend = state.pending;
   if (!pend) return no('There is nothing to answer.');
   const where = { feast: 'At the feast', road: 'On the road', arrival: 'On arrival', prize: 'At the prize-giving' }[pend.inst.context] || 'In the lists';
+  const before = state.event;
   const res = answerCard(state, pend.inst, index, {
     marks: (skill, n) => addMarks(state, skill, n),
     event: (e, inst) => eventEffects(state, e, inst),
@@ -442,10 +492,17 @@ export function answer(state, index) {
   });
   state.lastResult = { title: null, ...res };
   state.pending = null;
-  const detoured = !!state.detour && state.event?.tier === 'pas' && state.event.stage === STAGE.BOUT;
+  // A pas at a bridge or a trial by combat takes over the event in hand; what
+  // this card was leading to waits until it is done.
+  if (state.detour && state.event !== before) {
+    state.event.resume = pend.then;
+    return ok({ result: res });
+  }
+  if (state.status !== 'active') return ok({ result: res });
   switch (pend.then) {
-    case 'arrive': if (!detoured) doArrive(state); break;
-    case 'openRound': openRound(state); break;
+    case 'arrive': doArrive(state); break;
+    case 'openRound':
+    case 'beginDays': beginDays(state); break;
     case 'endMonth': endMonth(state); break;
     default: break;
   }
@@ -469,6 +526,16 @@ function eventEffects(state, e, inst) {
   if (e.largesse) charge(state, 'Largesse to the heralds and minstrels', -Math.round(inst.ctx.prize * e.largesse));
   if (e.travelDays) takeRoad(state, e.travelDays);
   if (e.pas && inst.cast[e.pas]) startPas(state, inst.cast[e.pas]);
+  if (e.trial && inst.cast.rival) startTrial(state, inst.cast.rival, e.trial);
+}
+
+/** A trial by combat, fought before the tourney goes on. */
+function startTrial(state, rivalId, cause) {
+  const main = state.event;
+  state.detour = main;
+  state.event = newTrial(state, rivalId, cause, main.town);
+  state.event.stage = STAGE.FEAST;
+  beginDays(state);
 }
 
 /** A knight holds the bridge: three courses before you may go on. */

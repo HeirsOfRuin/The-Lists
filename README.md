@@ -29,6 +29,72 @@ python3 -m http.server 8000
 
 ## What this build is
 
+Phase 5 is the other lists: the mêlée, foot combat at the barriers, the Great
+Pas, and trial by combat.
+
+- **Tourneys of several days.**
+  - *Local* jousts are one day.
+  - *Regional* tourneys add the mêlée on the second day.
+  - *High* tourneys and the King's add the mêlée and then the barriers.
+
+  One entry covers every day. After the jousts, each day is yours to ride in
+  or watch. Fatigue carries over the night, less what sleep gives back, and a
+  serious wound puts you in the stands. The month's tourney cards list each
+  one's days, and the Book of Feats tells all of them.
+- **A sixth skill, the sword**, for the mêlée and the barriers. It is trained
+  like the others and practised in both.
+  - Creation: "The axe at the barriers" now gives sword +2 and vigour +1, and
+    the veteran master gives sword +1.
+  - The field: every knight has a sword and a style at the barriers.
+- **The mêlée.** Two sides: the host's men and the comers. There are three
+  passes; in each you choose a man and what to do with him.
+  - *The choices:* take him for ransom, beat him from the saddle, ride to rescue
+    a comrade, or rest in the recet (the roped-off safe ground).
+  - *The openings:* one man each pass is cut off from his side, and weaker for
+    it.
+  - *The risk:* a knight who overreaches is taken himself, and pays his
+    ransom.
+  - *Your men-at-arms* can ride with you, up to 2, 3 or 4 by tier. Each adds
+    weight in the press and takes a capture meant for you.
+  - *Every button* shows the chance of taking him, being beaten off, losing a
+    man, being taken, and a wound. Those are the numbers rolled.
+  - *The squire's counsel* marks the answer with the best expected return.
+  - *Afterwards* you choose the terms for your prisoners: full ransom, half on
+    their word, or free. Letting them go is generosity, honour and their
+    regard.
+  - *It pays in money,* not renown. The jousts stay the prestige event.
+- **The barriers.** Foot combat with the pollaxe across a waist-high barrier:
+  four men by lot, two rounds, and a prize.
+  - Each exchange is a stroke (head, thrust or hook) and a guard (stand,
+    close, or give ground).
+  - A man driven to his knee or disarmed loses outright. A hook below the
+    barrier is a foul.
+  - Every man of the field has a style (axeman, wrestler, fencer, brawler, or
+    schooled) with tells. What you know of a man covers his riding and his
+    fighting on foot.
+  - The odds preview and the squire's reckoning come from the same single
+    function as the resolver, exactly as in the lists.
+- **The Great Pas**, once, in July of the seventh year: the Pas of the
+  Weeping Fountain at Hollin Moor, held by the first lance of the Roll. It is
+  modelled on Jacques de Lalaing's Fountain of Tears.
+  - Touch the black shield for three courses with him, the white for the axe,
+    or both.
+  - Every shield touched earns a gold ring and your name in the book of the
+    pas. Beating him earns a golden lance-head or a golden axe.
+- **Trial by combat à outrance.** Sharp axes; a man is beaten when he is down,
+  disarmed, or twice struck on the head. If neither is beaten by the ninth
+  exchange, the king throws down his baton.
+  - *Two ways in:* accusing the man of Ambry Cross ("prove it on his body"), or
+    a knight with a grudge accusing you at the helm-show.
+  - *The accusation shows* your chance by the squire's reckoning, and the
+    chance he kills you if he wins. The second is the number rolled.
+  - *Win,* and he is at your mercy: spare him or finish it.
+  - *Lose,* and you may not live. If you do, the accusation's verdict stands
+    against you.
+- **Saves carry forward.** A phase-four save opens with the sword skill, and
+  the field fitted out for the barriers. A tourney in progress finishes as
+  the one-day tourney it began as.
+
 Phase 4 of 6 is the realm: ten years of a peace wearing thin, and then the war.
 
 - **The succession.** King Aldric has no son. His cousin, Duke Robert of
@@ -359,6 +425,75 @@ makes the bot refuse risk it does not need.
   A neutral who stays on the hill takes no risk at all. The risk is on every
   button before you press it.
 
+### Do the other lists hold up? (measured at phase 5)
+
+**The barriers.** `node sim/foot-curve.js --bouts=1000` runs the same
+experiment as the joust curve: 1000 combats per cell, against all five
+styles. One standard error is 1.6 points.
+
+| policy | gap −4 | gap −2 | even | gap +2 | gap +4 |
+|---|---|---|---|---|---|
+| thrust, stand, every exchange | 40.0% | 47.7% | 56.6% | 63.6% | 72.3% |
+| random | 26.7% | 34.8% | 43.4% | 50.9% | 60.6% |
+| squire's call, man unknown | 42.2% | 51.6% | 62.1% | 65.0% | 74.6% |
+| squire's call, habits known | 48.9% | 57.0% | 66.8% | 68.6% | 77.6% |
+| squire's call, herald's read | 49.7% | 58.1% | 67.7% | 72.7% | 79.9% |
+
+- **Knowing the man matters more on foot than in the saddle.** His habits are
+  worth about 5 points here, against about 3 in the lists.
+- **Choosing well** beats the fixed stroke by 2 to 5 points. Random choices
+  cost 13.
+- **The à outrance curve** is too slow to run in full: each reckoning looks
+  nine exchanges ahead. The tests check its death roll and its outcomes
+  instead.
+
+**The mêlée.** `node sim/melee-curve.js --days=3000`: eight a side at a high
+tourney, even skill.
+
+| how the knight chooses | net a day | taken | prize |
+|---|---|---|---|
+| the squire's counsel | +58s | 29% | 25% |
+| always the first man, to take him | +12s | 53% | 4% |
+| at random | +4s | 24% | 2% |
+| always the recet | 0 | 0% | 0% |
+
+- **The choice is which man, and whether.** Weighing the openings is worth
+  about 46 shillings a day over taking the first man you see.
+- **Three passes of tuning:**
+  - *Too harsh.* The first version took a careful knight prisoner half the
+    time.
+  - *Nothing to take.* A first-year knight met only veterans and could do
+    nothing but rest. The man in trouble each pass fixed that.
+  - *Too generous.* The man in trouble then made the mêlée pay more than the
+    jousts. Ransoms were halved and the prizes cut. Before that cut, the
+    money bought so much land and so many men that half the bot's careers
+    were councillors of war by year ten.
+
+**The career.** Eight-year careers bring home about £29, against £15 before
+phase 5, and end with renown 123 against 88.
+- **Renown fades a tenth each winter,** so a knight's renown settles near ten
+  times what he earns in a year, and every point a year the new days add
+  shows up tenfold.
+- **Where the gap comes from:**
+  - The mêlée's renown was cut to almost nothing, and it and the barriers no
+    longer train the lance or the seat, which lifted the joust win rate at
+    first. The joust win rate is back to 60%.
+  - Most of what remains is the barriers (about 18 renown over eight years),
+    the Great Pas, and money buying better horses and harness sooner.
+- **Standing at the outbreak,** 100 careers of thirteen years:
+
+| rank | before phase 5 | now |
+|---|---|---|
+| household knight | 24% | 13% |
+| banneret | 31% | 27% |
+| captain | 33% | 35% |
+| councillor of war | 11% | 25% |
+
+  The new days' money becomes land and men. That is the path the design
+  intends, so the rank thresholds are unchanged.
+- **The bot is a strong player,** and a human will gain less. Renown's scale
+  is marked for the balance phase.
+
 ## The instruments
 
 There are two separate things, answering two different questions (the same
@@ -394,11 +529,26 @@ true:
   the attainted in a paid pardon or exile. Oaths cost what they say.
 - Land comes from patrons as stated, and men are kept only as land allows.
 - A phase-three save opens in the realm and plays on into the war.
+- Every tier runs its days in order, and the book tells all of them. You may
+  stand down from any day but the jousts you came for.
+- A mêlée engagement comes out at the odds its button shows (5000 draws per
+  case). Men riding with you take the captures meant for you. Ransoms go
+  through the ledger.
+- Every exchange at the barriers sums to one. Every combat ends with one
+  winner inside its ordinance. With the herald's read, the preview is the
+  truth.
+- The Great Pas comes in the seventh year, held by the first lance of the
+  Roll.
+- Beaten à outrance, a knight dies at the chance the accusation showed. Won,
+  the man of Ambry Cross is at your mercy and the master's name is cleared.
+- A phase-four save opens in the middle of a tourney and plays on.
 
 **Is it balanced?**
 
 ```
 node sim/joust-curve.js --bouts=2000     # does choosing matter; is knowing worth paying for
+node sim/foot-curve.js --bouts=1000      # the same question at the barriers
+node sim/melee-curve.js --days=3000      # and in the mêlée
 node sim/run.js --runs=100 --compare     # eight-year careers, by policy
 node tools/smoke.mjs                     # drive the real page at phone width
 node tools/check-bundle.mjs              # does the single file work from disk
@@ -413,8 +563,10 @@ everything.
 ```
 src/engine/   pure, deterministic, no DOM
   joust.js      THE odds (strikeOdds), habits, the course, the bout, the squire's reckoning
+  foot.js       the barriers: THE odds (footOdds), styles, the exchange, both ordinances, the reckoning
+  melee.js      the mêlée: THE odds (engageOdds), openings, passes, ransoms, the squire's counsel
   derive.js     every number the lists screen shows, from joust.js
-  tourney.js    the road, arrival, the draw, rounds, prizes, the ledger, for every tier
+  tourney.js    the road, arrival, the draw, rounds, the days after, prizes, the ledger, trials
   season.js     the months and winter: every action a player can take
   calendar.js   the year's tourneys and the roads
   realm.js      the succession: tension, balance, invitations, land, standing, the war, the settlement

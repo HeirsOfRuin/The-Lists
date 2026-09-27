@@ -9,7 +9,7 @@
 
 import { streamFor } from './rng.js';
 import { buildKnight, fullName } from './knight.js';
-import { generateRoster, seedHistory, assignAllegiance } from './field.js';
+import { generateRoster, seedHistory, assignAllegiance, fitOut } from './field.js';
 import { takeService } from './court.js';
 import { yearCalendar } from './calendar.js';
 import { freshRealm, grantManor, pickRumour, sendInvitations } from './realm.js';
@@ -17,7 +17,7 @@ import { WORLD, PROVINCES, FIRST_MONTH } from '../data/world.data.js';
 import { HARNESS } from '../data/household.data.js';
 
 export const SAVE_KEY = 'the-lists.save.v1';
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 export const STATUS = {
   ACTIVE: 'active',
@@ -26,7 +26,7 @@ export const STATUS = {
   EXILED: 'exiled', // attainted, and would not or could not buy a pardon
 };
 
-function freshMarks() { return { lance: 0, seat: 0, vigour: 0, courtesy: 0, lore: 0 }; }
+function freshMarks() { return { lance: 0, seat: 0, sword: 0, vigour: 0, courtesy: 0, lore: 0 }; }
 
 /** The parts of a career that phase two added, built from the seed. */
 function worldFor(state) {
@@ -195,6 +195,29 @@ export function migrate(s) {
     if (s.heart === 'married') grantManor(s, null, 'dower');
     for (const e of s.book) if ((e.tier === 'high' || e.tier === 'grand') && e.placing === 'champion') s.career.greatPrizes = (s.career.greatPrizes || 0) + 1;
     s.version = 4;
+  }
+  if (s.version === 4) {
+    // Phase five: a sixth skill, the sword, for the mêlée and the barriers.
+    // A knight taught the axe by his master, or raised by a veteran, starts
+    // with what that would have given him. The field is fitted out the same
+    // way a new roster is; a tourney in hand becomes a tourney of one day.
+    const k = s.knight;
+    if (k.stats.sword == null) k.stats.sword = 8 + (s.answers?.taught === 'barriers' ? 2 : 0) + (s.answers?.master === 'veteran' ? 1 : 0);
+    k.marks = { ...freshMarks(), ...(k.marks || {}) };
+    for (const r of s.roster.knights) fitOut(s.seed, r);
+    for (const ev of [s.event, s.detour]) {
+      if (!ev || ev.days) continue;
+      ev.days = ['joust'];
+      ev.day = 0;
+      ev.dayResults = {};
+      ev.touched = 0;
+      for (const [id, r] of Object.entries(ev.riders)) {
+        const src = id === 'you' ? null : s.roster.knights.find((x) => x.id === id);
+        if (r.sword == null) r.sword = id === 'you' ? k.stats.sword : src?.sword ?? Math.round((r.lance + r.seat) / 2);
+        if (!r.footStyle) r.footStyle = id === 'you' ? 'schooled' : src?.footStyle || 'schooled';
+      }
+    }
+    s.version = 5;
   }
   return s;
 }

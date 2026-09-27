@@ -230,3 +230,16 @@ export function buildKnight(answers, name, rng) {
 export function fullName(k) { return `Sir ${k.given} ${k.house}${k.epithet ? ` ${k.epithet}` : ''}`; }
 export function provinceName(id) { return PROVINCES[id]?.name || id; }
 export function cadencyNote(arms) { return CADENCY[arms.cadency]; }
+
+/**
+ * A trait moves toward the middle freely and away from it grudgingly: a
+ * step is worth two-thirds of itself past 12 (or under 8), and a third past
+ * 15 (or under 5). Character sets slowly, and a byname at 18 is earned over
+ * years of acting the same way, not by a season of bold answers.
+ */
+export function driftTrait(cur, d) {
+  const away = (d > 0 && cur >= 10) || (d < 0 && cur <= 10);
+  const dist = Math.abs(cur - 10);
+  const f = !away ? 1 : dist >= 5 ? 1 / 3 : dist >= 2 ? 2 / 3 : 1;
+  return Math.max(0, Math.min(20, Math.round((cur + d * f) * 100) / 100));
+}

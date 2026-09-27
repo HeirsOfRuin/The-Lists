@@ -10,13 +10,15 @@
 //   random   — any of the nine, uniformly
 
 import { CHOICES, choiceByKey } from '../src/engine/joust.js';
-import { squireCall } from '../src/engine/derive.js';
-import { currentBout, buyHeraldRead, canEnter, STAGE } from '../src/engine/tourney.js';
+import { squireCall, footSquireCall } from '../src/engine/derive.js';
+import { currentBout, buyHeraldRead, canEnter, STAGE, meleeMenOption } from '../src/engine/tourney.js';
+import { squireCounsel } from '../src/engine/melee.js';
 import {
   monthOptions, rideTo, enter, withdraw, ride, onward, leave, train, serve, answer, isFree, PHASE,
   summonsOption, answerSummons, pilgrimage, visitCourt, courtOptions,
   setFocus, setSquireFocus, takeSquire, dubSquire, hire, buyHarness, buyHorse, keepBorrowedHorse,
   borrowedHorsePrice, horseTradeIn, endWinter,
+  rideDay, standDownDay, meleeTurn, ransom, exchange, footOnward, mercy,
 } from '../src/engine/season.js';
 import { cardById, holds } from '../src/engine/cards.js';
 import { oathTerms, riskOf, battlePreview, companyMax } from '../src/engine/realm.js';
@@ -194,6 +196,25 @@ export function step(state, policy, rng) {
         return 'course';
       }
       case STAGE.RESULT: onward(state); return 'onward';
+      case STAGE.DAY: {
+        // Every day it is fit for; its men-at-arms ride in the mêlée if it keeps any.
+        const men = ev.days[ev.day] === 'melee' ? meleeMenOption(state).max : 0;
+        if (rideDay(state, { men }).ok) return 'day';
+        standDownDay(state); return 'standDown';
+      }
+      case STAGE.MELEE: {
+        const m = ev.melee;
+        const c = m.openings.length ? squireCounsel(m, ev.tier, state.renown) : { index: 0, action: 'recet' };
+        meleeTurn(state, c.index, c.action);
+        return 'melee';
+      }
+      // Full ransom, always: the neutral answer, so the bot's own habits do not make its bynames.
+      case STAGE.RANSOM: ransom(state, 'full'); return 'ransom';
+      case STAGE.FOOT: exchange(state, footSquireCall(state)); return 'exchange';
+      case STAGE.FOOT_RESULT:
+        if (ev.foot.mercy === 'pending') mercy(state, conduct !== 'worldly');
+        footOnward(state);
+        return 'footOnward';
       case STAGE.DONE: leave(state); return 'leave';
       default: throw new Error(`The bot does not know what to do at stage ${ev.stage}`);
     }

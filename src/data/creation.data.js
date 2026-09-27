@@ -8,7 +8,7 @@
 // having at least one real effect.
 //
 // Effect keys (all additive unless under `sets`):
-//   lance, seat, vigour, courtesy, lore   — skills, on a 1-20 scale
+//   lance, seat, sword, vigour, courtesy, lore — skills, on a 1-20 scale
 //   purse                                 — pence
 //   renown, honour, lineage               — standing
 //   favour: { crown, aumbry, stane, church, cities }
@@ -19,7 +19,7 @@
 
 export const BASE_KNIGHT = {
   age: 21,
-  stats: { lance: 8, seat: 8, vigour: 8, courtesy: 8, lore: 8 },
+  stats: { lance: 8, seat: 8, sword: 8, vigour: 8, courtesy: 8, lore: 8 },
   purse: 6 * 240, // six pounds: what a landless knight might ride out with
   renown: 0,
   honour: 10,
@@ -38,7 +38,7 @@ export const TRAIT_PAIRS = [
 ];
 
 export const STAT_LABELS = {
-  lance: 'Lance', seat: 'Seat', vigour: 'Vigour', courtesy: 'Courtesy', lore: 'Lore',
+  lance: 'Lance', seat: 'Seat', sword: 'Sword', vigour: 'Vigour', courtesy: 'Courtesy', lore: 'Lore',
 };
 
 // What each skill does in the lists TODAY. Shown on the knight's sheet, so a
@@ -46,6 +46,7 @@ export const STAT_LABELS = {
 export const STAT_USES = {
   lance: 'How often your lance lands, and how hard.',
   seat: 'Keeping your saddle, and keeping your lance off the tilt.',
+  sword: 'Sword and axe: landing your strokes on foot at the barriers, and holding your own in the press of the mêlée.',
   vigour: 'How long before fatigue tells, and how well you take a fall.',
   courtesy: 'The heralds like a well-mannered knight: their read of a rival costs you less.',
   lore: 'Knowing arms and reputations: at 12 or more you know every rival’s habits on arrival.',
@@ -155,7 +156,7 @@ export const QUESTIONS = [
       {
         id: 'veteran', title: 'A veteran of the war',
         blurb: 'Sir Warin Hollin held the March in the last war. He taught you to last, and not much about mercy.',
-        effects: { vigour: 2, seat: 1, traits: { merciful: -2, valorous: 1 } },
+        effects: { vigour: 2, sword: 1, traits: { merciful: -2, valorous: 1 } },
         sets: { master: 'veteran' },
       },
       {
@@ -180,8 +181,8 @@ export const QUESTIONS = [
       },
       {
         id: 'barriers', title: 'The axe at the barriers',
-        blurb: 'Foot combat, and the wind to last it. The barriers themselves come to the circuit in a later build; the wind is yours now.',
-        effects: { vigour: 2 },
+        blurb: 'Foot combat, and the wind to last it: the pollaxe across the barrier, and the sword in the press.',
+        effects: { sword: 2, vigour: 1 },
       },
       {
         id: 'manners', title: 'Manners', blurb: 'Precedence, the dance, and how to speak to a herald.',

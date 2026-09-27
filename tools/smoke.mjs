@@ -109,6 +109,7 @@ let steps = 0;
 let courses = 0;
 let cards = 0;
 let winters = 0;
+let melees = 0;
 for (; steps < 400; steps++) {
   if (await has('[data-answer]')) { await shot('card'); await page.locator('[data-answer]').first().click(); cards += 1; continue; }
   if (await has('[data-act="enter"]')) { await shot('arrival'); await page.click('[data-act="enter"]'); continue; }
@@ -120,6 +121,12 @@ for (; steps < 400; steps++) {
     continue;
   }
   if (await has('[data-act="continue"]')) { await shot('result'); await page.click('[data-act="continue"]'); continue; }
+  if (await has('[data-act="day-ride"]')) { await shot('day'); await page.click('[data-act="day-ride"]'); continue; }
+  if (await has('[data-melee]')) { await shot('melee'); melees += 1; await page.locator('[data-melee]').first().click(); continue; }
+  if (await has('[data-ransom]')) { await shot('ransom'); await page.locator('[data-ransom]').first().click(); continue; }
+  if (await has('[data-act="foot-go"]')) { await shot('foot'); await page.click('[data-act="foot-auto"]'); continue; }
+  if (await has('[data-act="spare"]')) { await page.click('[data-act="spare"]'); continue; }
+  if (await has('[data-act="foot-on"]')) { await shot('foot-result'); await page.click('[data-act="foot-on"]'); continue; }
   if (await has('[data-act="leave"]')) {
     await shot('done');
     const entry = await text('.entry');
@@ -143,6 +150,7 @@ for (; steps < 400; steps++) {
 }
 check('played through winter in the browser', winters >= 1, `${steps} steps, ${courses} bouts or courses, ${cards} cards, ${winters} winters`);
 check('cards came up in play', cards >= 3);
+check('the mêlée was ridden in the page', melees >= 1, `${melees} passes`);
 const endYear = await text('.banner .fact:last-child .k');
 check('the year advanced', endYear !== startYear, `${startYear} -> ${endYear}`);
 report('play');
@@ -170,6 +178,42 @@ check('a phase-one save opens and resumes', /David/.test(name), name);
 check('it opens on the map', await has('svg.map'));
 await page.screenshot({ path: `${SHOTS}/2-migrated.png`, fullPage: true });
 report('migration');
+
+// The barriers: a career played by the bot to the day of foot combat at a
+// great tourney, then fought in the page.
+function barriersSave() {
+  for (let seed = 5; seed < 40; seed++) {
+    const rng = makeRng(seed * 7919 + 1);
+    const s = newGame({ seed, answers: randomAnswers(rng), name: randomName(rng) });
+    let guard = 0;
+    while (s.status === 'active' && guard++ < 20000) {
+      if (s.event?.stage === 'day' && s.event.days[s.event.day] === 'barriers' && !s.pending) return serialize(s);
+      step(s, 'squire', rng);
+    }
+  }
+  throw new Error('no career reached the barriers');
+}
+await page.evaluate((raw) => localStorage.setItem('the-lists.save.v1', raw), barriersSave());
+await page.reload({ waitUntil: 'load' });
+check('a career opens on the day of the barriers', await has('[data-act="day-ride"]'));
+await page.click('[data-act="day-ride"]');
+check('the barriers show their odds and the squire\u2019s reckoning', /Squire.s reckoning/i.test(await page.locator('main').innerText()));
+await page.screenshot({ path: `${SHOTS}/8-barriers.png`, fullPage: true });
+check('no sideways scroll at the barriers', (await overflow()) <= 1);
+await page.click('[data-act="foot-call"]');
+await page.click('[data-act="foot-go"]');
+let footSteps = 0;
+while (footSteps++ < 30) {
+  if (await has('[data-act="foot-go"]')) { await page.click('[data-act="foot-go"]'); continue; }
+  if (await has('[data-act="spare"]')) { await page.click('[data-act="spare"]'); continue; }
+  if (await has('[data-act="foot-on"]')) { await page.screenshot({ path: `${SHOTS}/9-barriers-result.png`, fullPage: true }); await page.click('[data-act="foot-on"]'); continue; }
+  if (await has('[data-answer]')) { await page.locator('[data-answer]').first().click(); continue; }
+  break;
+}
+check('the barriers ran to the end of the tourney', await has('[data-act="leave"]'), `${footSteps} steps`);
+const book = await text('.entry');
+check('the herald writes the barriers into the book', /barriers/.test(book), book.slice(0, 120));
+report('barriers');
 
 // The tenth year: a career played by the reference bot up to Lady Day, then
 // the king's death, the muster, the ford, the siege and the battle in the page.

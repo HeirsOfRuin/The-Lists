@@ -20,7 +20,7 @@ import {
 import { CLAIMANTS, COMPANY } from '../data/realm.data.js';
 import { esc, ordinal, cap, days, tierChip, shield } from './view.js';
 
-const TIER_COLOUR = { local: 'var(--tier-local)', regional: 'var(--tier-regional)', high: 'var(--tier-high)', grand: 'var(--tier-grand)' };
+const TIER_COLOUR = { local: 'var(--tier-local)', regional: 'var(--tier-regional)', high: 'var(--tier-high)', grand: 'var(--tier-grand)', greatpas: 'var(--gules)' };
 
 // ---------------------------------------------------------------------------
 // The map
@@ -86,10 +86,13 @@ function horseLine(state) {
 function optionCard(state, o, selected) {
   const t = TIERS[o.cal.tier];
   const sel = o.cal.id === selected;
-  const prize = t.prizes.champion ? `${lsd(t.prizes.champion)} to the winner` : 'Renown only';
+  const prize = o.cal.tier === 'greatpas' ? `a gold ring for every shield touched, ${lsd(t.prizes.champion)} to beat him`
+    : t.prizes.champion ? `${lsd(t.prizes.champion)} to the winner` : 'Renown only';
+  const dayWord = { joust: 'jousts', melee: 'mêlée', barriers: 'barriers' };
+  const who = o.cal.tier === 'greatpas' ? 'one holder, all comers' : `${t.entrants} riders`;
   return `
   <article class="opt ${sel ? 'sel' : ''} ${o.open ? '' : 'closed'}" data-sel="${o.cal.id}">
-    <div class="spread">${tierChip(o.cal.tier)}<span class="small muted">${t.entrants} riders</span></div>
+    <div class="spread">${tierChip(o.cal.tier)}<span class="small muted">${who}${t.days.length > 1 && o.cal.tier !== 'greatpas' ? ` · ${t.days.map((d) => dayWord[d]).join(', ')}` : ''}</span></div>
     <div class="subhead">${esc(o.cal.name)}</div>
     ${state.patron && isPatronTourney(state, o.cal) ? `<div class="small patronmark">${esc(cap(patronDef(state).name))} expects you here${state.patron.attended ? ' (you have already ridden for him this year)' : ''}.</div>` : ''}
     <div class="small muted">${esc(TOWNS[o.cal.town].name)} · ${esc(o.cal.host.name)} · ${o.days ? `${days(o.days)}’ ride` : 'here'}</div>

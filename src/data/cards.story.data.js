@@ -165,6 +165,8 @@ export const STORY_CARDS = [
       { label: 'Accuse him on your own word.', check: { trait: 'honest', dc: 14 },
         success: { effects: { clearMaster: true, regard: { rival: -10 } }, result: 'Nobody who knows you believes you would lie. After a long silence, {rival} leaves the hall.' },
         failure: { effects: { honour: -3, regard: { rival: -6 } }, result: 'It is your word against his, and his is older. The heralds take no notice, and the host asks you to sit down.' } },
+      { label: 'Give him the lie, and offer to prove it on his body.', effects: { trial: 'ambry', traits: { valorous: 1 } },
+        result: 'He does not deny it. He throws down his gauntlet instead. The judges of the field are sent for, and the barriers are cleared by torchlight.' },
       { label: 'Vow to bear him down tomorrow, and let God judge.', effects: { vow: 'rival', flags: ['ordealVow'], traits: { valorous: 2, pious: 1 } },
         result: 'You say it before the whole hall. If God is just, he will be in the sand by noon.' },
       { label: 'Say nothing yet.', effects: { traits: { constant: 1 } },

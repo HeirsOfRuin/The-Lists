@@ -10,7 +10,7 @@ import {
 } from '../src/engine/state.js';
 import { squireCall } from '../src/engine/derive.js';
 import { choiceByKey } from '../src/engine/joust.js';
-import { knight, toLists, answerFirst, badNumbers } from './helpers.js';
+import { knight, toLists, answerFirst, badNumbers, dayStep } from './helpers.js';
 import { assertProgress, ProgressError, playCareer } from '../sim/run.js';
 import { step } from '../sim/bot.js';
 import { makeRng } from '../src/engine/rng.js';
@@ -23,6 +23,7 @@ function finish(s, pick = (st) => squireCall(st)) {
     if (s.pending) answerFirst(s);
     else if (s.event.stage === STAGE.BOUT) ride(s, pick(s));
     else if (s.event.stage === STAGE.RESULT) onward(s);
+    else dayStep(s);
   }
 }
 

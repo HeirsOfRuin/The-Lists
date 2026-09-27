@@ -156,11 +156,12 @@ export function pickRumour(state) {
  * and why — or why not, in words that say what would change it.
  */
 export function invitation(state, cal) {
-  if (cal.tier !== 'high' && cal.tier !== 'grand') return { invited: true, why: null };
+  if (!BY_LETTER.has(cal.tier)) return { invited: true, why: null };
   const side = sideOf(state);
   if (disgraced(state)) {
     return { invited: false, why: null, need: 'The heralds will not cry the name of a disgraced knight at a great tourney. A pilgrimage would begin to mend it.' };
   }
+  if (cal.tier === 'greatpas') return { invited: true, why: 'Its articles admit any knight of name and arms.' };
   const I = INVITATIONS[cal.tier];
   if (cal.tier === 'high') {
     const house = cal.host.faction;
@@ -191,6 +192,7 @@ export function admitted(state, cal) {
 }
 
 function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+const BY_LETTER = new Set(['high', 'grand', 'greatpas']);
 
 /** Letters for next month's great tourneys, sent as a month begins. */
 export function sendInvitations(state) {
@@ -209,7 +211,7 @@ function monthWord(m) { return { 3: 'March', 4: 'April', 5: 'May', 6: 'June', 7:
 
 /** Whether you hold a letter for this tourney (a month's notice, or still qualifying now). */
 export function hasInvitation(state, cal) {
-  if (cal.tier !== 'high' && cal.tier !== 'grand') return { ok: true };
+  if (!BY_LETTER.has(cal.tier)) return { ok: true };
   // A letter stands, unless the knight it was sent to has since been disgraced.
   if (state.invitations?.[cal.id] && !disgraced(state)) return { ok: true, why: state.invitations[cal.id].why };
   const inv = invitation(state, cal);

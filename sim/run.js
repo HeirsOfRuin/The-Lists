@@ -172,6 +172,7 @@ function realmSummary(results) {
   const n = war.length;
   const count = (xs) => Object.entries(xs.reduce((m, x) => { m[x] = (m[x] || 0) + 1; return m; }, {})).map(([k, v]) => `${k} ${v}`).join(', ');
   const decided = war.filter((r) => r.victor);
+  if (!n) return { reachedWar: `0 of ${results.length}` };
   return {
     reachedWar: `${n} of ${results.length}`,
     firstHighYear: `${median(results.map((r) => r.firstHigh))} (never ${results.filter((r) => r.firstHigh === 99).length})`,

@@ -16,7 +16,11 @@ import {
   rideTo, enter, withdraw, ride, rideOutBout, onward, leave, train, serve, rest, visitCourt, passMonth,
   answer, setFocus, setSquireFocus, takeSquire, dubSquire, hire, dismiss, buyHarness, buyHorse,
   keepBorrowedHorse, endWinter, PHASE, answerSummons, pilgrimage, resignService, buyManor, hireMan, dismissMan,
+  rideDay, standDownDay, meleeTurn, ransom, exchange, fightOutFoot, footOnward, mercy,
 } from '../engine/season.js';
+import { footSquireCall } from '../engine/derive.js';
+import { meleeMenOption } from '../engine/tourney.js';
+import { renderDay, renderMelee, renderRansom, renderFoot, renderFootResult } from './days.js';
 import { WORLD, MONTHS, TOWNS } from '../data/world.data.js';
 import { lsd } from '../engine/money.js';
 import { esc, ordinal, resetIds, shield } from './view.js';
@@ -32,6 +36,8 @@ let create = null;
 const ui = {
   tab: 'now',
   pick: { aim: 'shield', seat: 'balanced' },
+  foot: { stroke: 'thrust', guard: 'stand' },
+  men: null,
   trainSkill: 'lance',
   selected: null,
   charging: false,
@@ -68,10 +74,9 @@ function renderTitle() {
     </section>` : ''}
     ${!saved.ok && !/no saved|no storage/.test(saved.reason) ? `<p class="small neg">A saved knight could not be read: ${esc(saved.reason)}</p>` : ''}
     <button class="btn ${s ? '' : 'primary'} wide" data-act="new">A new knight</button>
-    <p class="small faint build-note">The fourth of six builds: your knight, the circuit, the field of rivals, feasts
-      and the road, your squire and household, the court, and now the realm: ten years of a peace wearing thin, the
-      great tourneys by invitation, land and men, and the war that comes in the tenth year. The mêlée and the Order
-      come after.</p>
+    <p class="small faint build-note">The fifth build: your knight, the circuit, the field of rivals, feasts and the
+      road, your squire and household, the court, the realm and its war, and now the other lists: the mêlée, foot combat
+      at the barriers, the Great Pas, and trial by combat. A life's ending, the Order and the fairs come next.</p>
   </div>`;
 }
 
@@ -204,6 +209,11 @@ function renderNow() {
     else if (ev.stage === STAGE.BOUT) body = renderBout(state, ui);
     else if (ev.stage === STAGE.RESULT) body = renderResult(state, ui);
     else if (ev.stage === STAGE.DONE) body = renderDone(state);
+    else if (ev.stage === STAGE.DAY) body = renderDay(state, ui);
+    else if (ev.stage === STAGE.MELEE) body = renderMelee(state);
+    else if (ev.stage === STAGE.RANSOM) body = renderRansom(state);
+    else if (ev.stage === STAGE.FOOT) body = renderFoot(state, ui);
+    else if (ev.stage === STAGE.FOOT_RESULT) body = renderFootResult(state);
     else body = `<section class="card"><p class="empty">The tourney is at a stage this build does not show (${esc(ev.stage)}). Reload the page.</p></section>`;
     return `${refusal}${note}${body}`;
   }
@@ -278,7 +288,7 @@ function runCourse() {
 // ---------------------------------------------------------------------------
 
 app.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-act],[data-opt],[data-aim],[data-seat],[data-tab],[data-read],[data-ride],[data-sel],[data-train-pick],[data-court],[data-answer],[data-focus],[data-sqfocus],[data-squire],[data-hire],[data-dismiss],[data-harness],[data-horse]');
+  const t = e.target.closest('[data-act],[data-opt],[data-aim],[data-seat],[data-tab],[data-read],[data-ride],[data-sel],[data-train-pick],[data-court],[data-answer],[data-focus],[data-sqfocus],[data-squire],[data-hire],[data-dismiss],[data-harness],[data-horse],[data-men],[data-melee],[data-ransom],[data-stroke],[data-guard]');
   if (!t || t.disabled) return;
   const d = t.dataset;
   let top = true;
@@ -300,6 +310,11 @@ app.addEventListener('click', (e) => {
   else if (d.dismiss) { act(dismiss, d.dismiss); top = false; }
   else if (d.harness) { act(buyHarness, d.harness); top = false; }
   else if (d.horse) { act(buyHorse, d.horse); top = false; }
+  else if (d.men != null) { ui.men = Number(d.men); top = false; }
+  else if (d.melee) { const [i, a] = d.melee.split(':'); act(meleeTurn, Number(i), a); }
+  else if (d.ransom) act(ransom, d.ransom);
+  else if (d.stroke) { ui.foot.stroke = d.stroke; top = false; }
+  else if (d.guard) { ui.foot.guard = d.guard; top = false; }
   else {
     switch (d.act) {
       case 'resume': {
@@ -345,6 +360,20 @@ app.addEventListener('click', (e) => {
       case 'auto': act(rideOutBout); break;
       case 'continue': act(onward); ui.pick = { aim: 'shield', seat: 'balanced' }; break;
       case 'leave': act(leave); break;
+      case 'day-ride': {
+        const men = Math.min(ui.men ?? meleeMenOption(state).max, meleeMenOption(state).max);
+        act(rideDay, { men });
+        ui.men = null;
+        ui.foot = { stroke: 'thrust', guard: 'stand' };
+        break;
+      }
+      case 'day-stand': act(standDownDay); break;
+      case 'foot-go': act(exchange, { ...ui.foot }); break;
+      case 'foot-call': { const c = footSquireCall(state); if (c) ui.foot = { stroke: c.stroke, guard: c.guard }; top = false; break; }
+      case 'foot-auto': act(fightOutFoot); break;
+      case 'foot-on': act(footOnward); ui.foot = { stroke: 'thrust', guard: 'stand' }; break;
+      case 'spare': act(mercy, true); break;
+      case 'finish': act(mercy, false); break;
       case 'train': act(train, ui.trainSkill); break;
       case 'serve': act(serve); break;
       case 'rest': act(rest); break;

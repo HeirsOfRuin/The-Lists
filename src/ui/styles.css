@@ -401,6 +401,7 @@ p { margin: 0; }
 }
 .tier-local { color: var(--tier-local); } .tier-regional { color: var(--tier-regional); }
 .tier-high { color: var(--tier-high); } .tier-grand { color: var(--tier-grand); } .tier-pas { color: var(--ink-2); }
+.tier-greatpas, .tier-trial { color: var(--gules); }
 
 .opt {
   background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius);
@@ -467,3 +468,8 @@ p { margin: 0; }
 .meter.tension > i { background: var(--gules); }
 .rumour { margin: 0; padding-left: 10px; border-left: 2px solid var(--rule-2); color: var(--ink-2); font-style: italic; }
 .terms td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---------- the other lists ---------- */
+.days-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.opt.stack { gap: 8px; }
+.answer .bar { margin-top: 6px; }

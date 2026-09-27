@@ -276,4 +276,20 @@ export const ARRIVAL_CARDS = [
         result: 'He sulks, but your horse has never been better turned out.' },
     ],
   },
+  {
+    id: 'arrival.accused', context: 'arrival', weight: 3, once: true,
+    when: { minYear: 3, tier: ['regional', 'high', 'grand'] },
+    cast: { rival: { from: 'field', regardMax: -5 } },
+    text: 'At the helm-show {rival} stands before the heralds and accuses you: he says your lance was weighted with lead at your last tourney, and that every man you beat was cheated. It is a lie, and he knows that you know it.',
+    choices: [
+      { label: 'Give him the lie, and prove it on his body.', effects: { trial: 'accused', traits: { valorous: 1 } },
+        result: 'You throw down your gauntlet, and he picks it up. The judges of the field are sent for.' },
+      { label: 'Put yourself on the heralds\u2019 inquiry.', check: { stat: 'lore', dc: 12 },
+        success: { effects: { honour: 1, regard: { rival: -2 } }, result: 'The heralds weigh every lance you broke that day, and find every one of them honest. They say so, loudly.' },
+        failure: { effects: { honour: -2 }, result: 'The heralds find nothing, and say so, but not loudly. People remember the accusation longer than the verdict.' } },
+      { label: 'Laugh it off before the whole hall.', check: { stat: 'courtesy', dc: 12 },
+        success: { effects: { renown: 1, regard: { rival: -1 } }, result: 'The hall laughs with you. {rival} does not.' },
+        failure: { effects: { honour: -1 }, result: 'Nobody laughs. It looks like a man with something to hide.' } },
+    ],
+  },
 ];

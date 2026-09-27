@@ -68,13 +68,27 @@ Ties after three courses run up to two more. After that the heralds decide:
 fewer faults, then more helm strikes, then their own judgement. A bout always
 ends with exactly one winner, and there is a test for it.
 
-### Other kinds of combat (later builds)
+### Other kinds of combat (built in phase 5)
 
-- **Mêlée:** team rounds, taking prisoners for ransom, and retinue size matters.
-  Rough, lucrative and lower in status.
-- **Foot combat at the barriers:** pas d'armes challenges.
-- **À plaisance versus à outrance:** blunted weapons versus sharp ones. Rare,
-  chosen and high-stakes.
+A great tourney runs over several days, as they did: the jousts, then the
+tourney in the field, then the barriers. Each is a different decision.
+
+- **The mêlée** is about choosing a target, not beating him. Every opening
+  shows its odds. The question is which man, and whether: a famous knight is
+  a rich ransom and a strong arm, and a man cut off from his side is cheap
+  and safe. A comrade in the enemy's hands is worth more to your name than to
+  your purse, and every engagement costs wind that the last pass will want.
+  Your men-at-arms ride with you and stand between you and capture. It pays
+  in money more than renown.
+- **Foot combat at the barriers** is the joust's structure with different
+  verbs: stroke by guard, three by three. The styles and tells make knowing
+  your man worth more on foot than in the saddle.
+- **À plaisance versus à outrance.** The barriers' articles use blunted axes
+  and points. Trial by combat uses sharp axes, fought until a man is down,
+  disarmed or twice struck on the head. The loser is at the victor's mercy,
+  and the chance of none is shown before you accuse.
+- **The Great Pas** (year seven) is Lalaing's Fountain of Tears: one holder,
+  shields to touch, and a ring for every comer.
 
 ## 3. Money: historically, tourneying ruined knights
 
@@ -264,7 +278,7 @@ before the court, and the card engine planned for phase 3 arrived here.
    - The Ambry Cross and betrothal threads.
    - House allegiance in the field.
    - Creation cut to six questions.
-4. **The realm and the war**: this build. Playing phase three showed the
+4. **The realm and the war**: done. Playing phase three showed the
    story needed a spine the player could see coming, so the succession
    crisis became it.
    - Tension on a schedule, rumours, and eight beats in the ten years.
@@ -274,11 +288,26 @@ before the court, and the card engine planned for phase 3 arrived here.
      visible sum and rank.
    - The war with odds, death and capture on every button, then the
      settlement, pardon or exile, and the coronation tourney.
-5. **Story:** the remaining tentpoles (the Great Pas, the accusation à
-   outrance), the master's threads, endings, and a reachability test.
-6. **Breadth, balance and polish:** mêlée and ransom, pas d'armes, vows,
-   romance, heraldry in full, the Order, then ablations, verifying the
-   backgrounds, the tutorial, deploying to Pages, and sources.
+5. **The other lists**: this build.
+   - Tourneys of several days.
+   - The mêlée with ransom and your men riding with you.
+   - Foot combat at the barriers, with the sword as a sixth skill.
+   - The Great Pas.
+   - Trial by combat à outrance, from the Ambry Cross accusation or one made
+     against you.
+   - Each form measured for whether choosing matters.
+6. **A life:**
+   - retirement and the epilogue from the Book of Feats, and the named
+     endings;
+   - the Order, with its seats, vacancies and vote;
+   - vows;
+   - the popinjay shoot and horse races at the fairs;
+   - archers in your war company;
+   - something to do in the war months.
+7. **Balance and polish:**
+   - renown's scale after phase 5;
+   - ablations, and verifying the backgrounds;
+   - the tutorial, deploying to Pages, and sources.
 
 ## 11. Rules the code is organised around (inherited from Centennial Farm)
 

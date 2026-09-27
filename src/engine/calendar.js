@@ -6,7 +6,7 @@
 // there to see them or not.
 
 import { streamFor } from './rng.js';
-import { TIERS, CALENDAR, LOCAL_HOSTS } from '../data/tourney.data.js';
+import { TIERS, CALENDAR, LOCAL_HOSTS, GREAT_PAS } from '../data/tourney.data.js';
 import { TOWNS, ROADS, GREAT_HOUSES, FEASTS, MONTHS, WORLD } from '../data/world.data.js';
 import { GIVEN_NAMES, HOUSE_NAMES } from '../data/names.data.js';
 
@@ -65,6 +65,10 @@ export function yearCalendar(seed, year) {
     const house = GREAT_HOUSES[h.host];
     add({ tier: 'high', month: h.month, town: h.town, host: { kind: 'house', faction: h.host, name: house.name },
       name: `${cap(house.name)}’s Tourney` });
+  }
+  if (year === GREAT_PAS.year) {
+    add({ tier: 'greatpas', month: GREAT_PAS.month, town: GREAT_PAS.town, host: { kind: 'knight', faction: null, name: 'the champion of the Roll' },
+      name: `${GREAT_PAS.name} at ${TOWNS[GREAT_PAS.town].name}` });
   }
   const plainTowns = Object.values(TOWNS).filter((t) => !t.seat).map((t) => t.id);
   const place = (months, towns) => {

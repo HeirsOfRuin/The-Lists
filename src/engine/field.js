@@ -15,6 +15,7 @@ import { GIVEN_NAMES, HOUSE_NAMES } from '../data/names.data.js';
 import { TOWNS, PROVINCES } from '../data/world.data.js';
 import { ROLL_LENGTH } from '../data/household.data.js';
 import { PATRONS } from '../data/court.data.js';
+import { FOOT_STYLES } from '../data/foot.data.js';
 import { partisan, creditBalance } from './realm.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(v)));
@@ -75,6 +76,18 @@ export function assignAllegiance(state) {
   }
 }
 
+/**
+ * A knight's sword and his way of fighting at the barriers. Drawn from a
+ * stream of his own, so adding them did not change who anyone else is, and an
+ * old save's field can be fitted out the same way.
+ */
+export function fitOut(seed, k) {
+  if (k.sword != null && k.footStyle) return;
+  const rng = streamFor(seed, 0, `foot:${k.id}`);
+  k.sword = clamp((k.lance + k.seat) / 2 + rng.normal(0, 1.5), 4, ROSTER.statMax);
+  k.footStyle = rng.pick(FOOT_STYLES).id;
+}
+
 /** The field at the start of a career. */
 export function generateRoster(seed, playerName) {
   const rng = streamFor(seed, 0, 'roster');
@@ -87,6 +100,7 @@ export function generateRoster(seed, playerName) {
       n += 1;
     }
   }
+  for (const k of roster) fitOut(seed, k);
   return { knights: roster, nextId: n };
 }
 
@@ -162,6 +176,7 @@ export function riderFrom(k) {
     given: k.given, house: k.house,
     name: k.name,
     lance: k.lance, seat: k.seat, vigour: k.vigour,
+    sword: k.sword ?? Math.round((k.lance + k.seat) / 2), footStyle: k.footStyle || 'schooled',
     horse: { ...k.horse },
     renown: k.renown,
     archetype: k.archetype,
@@ -237,6 +252,7 @@ export function simulateMonth(state, events, busy) {
     if (cal.id === busy?.calId) continue;
     const rng = streamFor(state.seed, cal.year, `sim:${cal.id}`);
     const exclude = new Set(busy?.riders || []);
+    if (cal.tier === 'greatpas') continue; // one man holds it; he is not in a bracket
     const n = TIERS[cal.tier].entrants;
     const field = pickField(state, cal, n, exclude, rng);
     if (field.length < n) continue;
@@ -282,8 +298,13 @@ export function reactionFor(k, result) {
 // Winter: the field ages, and the heralds publish the Roll
 // ---------------------------------------------------------------------------
 
+function swordDrift(age, rng) {
+  return age < 25 ? rng.normal(0.6, 0.5) : age <= 33 ? rng.normal(0.1, 0.4) : rng.normal(-0.5, 0.5);
+}
+
 export function winterField(state) {
   const rng = streamFor(state.seed, state.year, 'field-winter');
+  const frng = streamFor(state.seed, state.year, 'field-winter-foot');
   const used = new Set(state.roster.knights.map((k) => `${k.given} ${k.house}`));
   const notes = [];
   for (const k of state.roster.knights) {
@@ -293,6 +314,7 @@ export function winterField(state) {
     const drift = k.age < 25 ? rng.normal(0.6, 0.5) : k.age <= 33 ? rng.normal(0.1, 0.4) : rng.normal(-0.5, 0.5);
     k.lance = clamp(k.lance + drift, 3, ROSTER.statMax);
     k.seat = clamp(k.seat + (k.age < 25 ? rng.normal(0.6, 0.5) : k.age <= 33 ? rng.normal(0.1, 0.4) : rng.normal(-0.5, 0.5)), 3, ROSTER.statMax);
+    k.sword = clamp((k.sword ?? k.lance) + swordDrift(k.age, frng), 3, ROSTER.statMax);
     const retire = k.age >= ROSTER.retireAlways || (k.age >= ROSTER.retireFrom && rng.chance(ROSTER.retireChance));
     if (retire) {
       k.active = false;
@@ -307,6 +329,7 @@ export function winterField(state) {
       const k = newKnight(rng, `k${state.roster.nextId}`, p, rng.range(19, 22), used);
       k.renown = rng.range(0, 3);
       k.allegiance = rng.weighted(ALLEGIANCE).id;
+      fitOut(state.seed, k);
       state.roster.nextId += 1;
       state.roster.knights.push(k);
       counts[p] += 1;

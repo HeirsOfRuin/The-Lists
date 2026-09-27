@@ -24,7 +24,7 @@ let uid = 0;
 export function resetIds() { uid = 0; }
 export function shield(arms, size) { return shieldSvg(arms, { size, uid: `s${++uid}` }); }
 
-export const TIER_SHORT = { local: 'Local', regional: 'Regional', high: 'High', grand: 'The King’s', pas: 'A pas' };
+export const TIER_SHORT = { local: 'Local', regional: 'Regional', high: 'High', grand: 'The King’s', pas: 'A pas', greatpas: 'The Great Pas', trial: 'Trial by combat' };
 export function tierChip(tier) {
   return `<span class="tier tier-${tier}">${TIER_SHORT[tier] || esc(TIERS[tier]?.label || tier)}</span>`;
 }

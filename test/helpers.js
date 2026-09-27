@@ -4,9 +4,13 @@
 import { newGame, STATUS } from '../src/engine/state.js';
 import { randomAnswers, randomName } from '../src/engine/knight.js';
 import { makeRng } from '../src/engine/rng.js';
-import { monthOptions, rideTo, enter, answer, passMonth, ride, onward, leave, PHASE } from '../src/engine/season.js';
-import { squireCall } from '../src/engine/derive.js';
+import {
+  monthOptions, rideTo, enter, answer, passMonth, ride, onward, leave, PHASE,
+  rideDay, meleeTurn, ransom, exchange, footOnward, mercy,
+} from '../src/engine/season.js';
+import { squireCall, footSquireCall } from '../src/engine/derive.js';
 import { STAGE } from '../src/engine/tourney.js';
+import { squireCounsel } from '../src/engine/melee.js';
 import { cardById, holds } from '../src/engine/cards.js';
 
 export function knight(seed = 1, answers = null) {
@@ -61,4 +65,30 @@ export function badNumbers(obj, path = '$', out = []) {
     for (const [k, v] of Object.entries(obj)) badNumbers(v, `${path}.${k}`, out);
   }
   return out;
+}
+
+/**
+ * One step through the days after the jousts, the way a careful player takes
+ * them: ride in every day, follow the squire's counsel in the mêlée, ask full
+ * ransom, fight at the barriers as the squire calls it, and spare a man at
+ * your mercy. Returns false if there was nothing of that kind to do.
+ */
+export function dayStep(s) {
+  const ev = s.event;
+  switch (ev?.stage) {
+    case STAGE.DAY: rideDay(s, { men: 0 }); return true;
+    case STAGE.MELEE: {
+      const m = ev.melee;
+      const c = m.openings.length ? squireCounsel(m, ev.tier, s.renown) : { index: 0, action: 'recet' };
+      meleeTurn(s, c.index, c.action);
+      return true;
+    }
+    case STAGE.RANSOM: ransom(s, 'full'); return true;
+    case STAGE.FOOT: exchange(s, footSquireCall(s)); return true;
+    case STAGE.FOOT_RESULT:
+      if (ev.foot.mercy === 'pending') mercy(s, true);
+      footOnward(s);
+      return true;
+    default: return false;
+  }
 }

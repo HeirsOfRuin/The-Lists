@@ -1,6 +1,7 @@
 // The tourney screens: arrival, the lists, a bout's result, the prize-giving.
 
-import { TIERS } from '../data/tourney.data.js';
+import { TIERS, BARRIERS } from '../data/tourney.data.js';
+import { MELEE_PRIZE_LABELS } from '../data/melee.data.js';
 import { AIMS, SEATS, ORDINANCE } from '../data/joust.data.js';
 import { TOWNS, FACTION_LABELS } from '../data/world.data.js';
 import { TEMPERAMENTS } from '../data/field.data.js';
@@ -48,6 +49,7 @@ export function renderArrival(state) {
       <p class="voice subhead">${esc(ev.name)}, at the invitation of ${esc(ev.host.name)}. ${Object.keys(ev.riders).length} knights, ${roundCount(ev)} rounds, under ${esc(ORDINANCE.name)}.</p>
     </div>
     ${notes(ev)}
+    ${daysBlock(ev)}
     <div class="stack">
       <div class="eyebrow">Prizes</div>
       <table class="ledger"><tbody>
@@ -72,6 +74,19 @@ export function renderArrival(state) {
   </section>
   ${renderField(state)}
   ${renderDraw(state)}`;
+}
+
+/** The days of a tourney, and what each offers. */
+export function daysBlock(ev) {
+  if (ev.days.length < 2 || ev.tier === 'greatpas') return '';
+  const line = {
+    joust: 'The jousts. The draw is made tonight; this is what you pay to enter.',
+    melee: `The tourney in the field: two sides, prisoners for ransom, and ${MELEE_PRIZE_LABELS[ev.tier]} to the best of the day.`,
+    barriers: `The barriers: the pollaxe on foot, four men by lot, and ${BARRIERS.prizeLabels[ev.tier]} to the last man standing.`,
+  };
+  return `<div class="stack"><div class="eyebrow">${ev.days.length} days</div>
+    <ol class="small days-list">${ev.days.map((d) => `<li>${esc(line[d])}</li>`).join('')}</ol>
+    <p class="small muted">The entry covers every day. After the jousts, each day is yours to ride in or to watch.</p></div>`;
 }
 
 export function riderLine(state, id, r) {
@@ -286,14 +301,19 @@ export function renderResult(state, ui) {
 export function renderDone(state) {
   const ev = state.event;
   const e = ev.entry;
-  const pas = ev.tier === 'pas';
-  const verdict = pas ? (e.placing === 'champion' ? 'You ride through' : 'Turned back') : PLACING[e.placing];
+  const pas = ev.tier === 'pas' || ev.tier === 'greatpas' || ev.tier === 'trial';
+  const won = e.placing === 'champion' || e.foot?.champion;
+  const verdict = ev.tier === 'pas' ? (e.placing === 'champion' ? 'You ride through' : 'Turned back')
+    : ev.tier === 'trial' ? (e.placing === 'champion' ? 'God has judged for you' : 'Judged against')
+    : ev.tier === 'greatpas' ? (won ? 'You have the better of the holder' : ev.touched ? 'Your name is in the book of the pas' : 'You leave the shields hanging')
+    : PLACING[e.placing];
+  const renownGained = ev.renownStart != null ? state.renown - ev.renownStart : e.renown;
   const onward = state.detour ? `Ride on to ${esc(TOWNS[state.detour.town].name)}` : 'Ride home for the month';
   return `
   <section class="card lift stack-lg">
     <div class="stack">
       <div class="spread">${tierChip(ev.tier)}<span class="small muted">${esc(TOWNS[ev.town].name)}, ${esc(ev.feast)}</span></div>
-      <div class="verdict ${e.placing === 'champion' ? 'win' : ''}">${verdict}</div>
+      <div class="verdict ${won ? 'win' : ''}">${verdict}</div>
     </div>
     <div class="stack">
       <div class="eyebrow">The Book of Feats</div>
@@ -305,7 +325,7 @@ export function renderDone(state) {
         ${ev.ledger.map((l) => `<tr><td>${esc(l.label)}</td><td class="${l.amount >= 0 ? 'pos' : 'neg'}">${lsdSigned(l.amount)}</td></tr>`).join('')}
         <tr class="total"><td>Net</td><td class="${e.net >= 0 ? 'pos' : 'neg'}">${lsdSigned(e.net)}</td></tr>
       </tbody></table></div>` : ''}
-    <p class="small muted">Renown ${signed(e.renown)}${e.honour ? ` · Honour ${signed(e.honour)}` : ''} · Purse now ${lsd(state.purse)} · ${esc(state.horse.name)} ${state.horse.condition}/10</p>
+    <p class="small muted">Renown ${signed(renownGained || 0)}${e.honour ? ` · Honour ${signed(e.honour)}` : ''} · Purse now ${lsd(state.purse)} · ${esc(state.horse.name)} ${state.horse.condition}/10</p>
     <button class="btn primary wide" data-act="leave">${onward}</button>
   </section>
   ${pas ? '' : renderDraw(state)}`;

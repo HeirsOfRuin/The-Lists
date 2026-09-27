@@ -9,7 +9,12 @@
 import {
   expectedStrike, reckonBout, beliefMix, trueMix, situation, archetype, activeTells, CHOICES,
 } from './joust.js';
-import { currentBout } from './tourney.js';
+import { currentBout, currentFoot, playerRider } from './tourney.js';
+import {
+  newFootBout, reckonFoot, beliefFootMix, trueFootMix, footSituation, footStyle, expectedFoot, activeFootTells, noQuarter,
+} from './foot.js';
+import { riderFrom } from './field.js';
+import { FOOT_STYLES, FOOT_GRUDGE } from '../data/foot.data.js';
 import { knightById, regardLabel } from './field.js';
 import { ARCHETYPES } from '../data/joust.data.js';
 import { GRUDGE_TELL } from '../data/field.data.js';
@@ -92,3 +97,87 @@ export function tellsInPlay(state) {
 }
 
 export { CHOICES };
+
+// ---------------------------------------------------------------------------
+// The barriers: the same single source, for foot combat
+// ---------------------------------------------------------------------------
+
+/** What you know of a man's way of fighting at the barriers. */
+export function knownFootOf(state, id) {
+  const k = knightById(state, id);
+  const level = state.intel[id] || 0;
+  const st = FOOT_STYLES.find((x) => x.id === k?.footStyle);
+  return {
+    level,
+    label: level >= 1 && st ? st.label : null,
+    habit: level >= 1 && st ? st.habit : null,
+    tells: level >= 2 && st ? st.tells.map((t) => t.text) : [],
+    noTells: level >= 2 && st && st.tells.length === 0,
+  };
+}
+
+function footMixAt(state, him) {
+  const intel = state.intel[him.id] || 0;
+  const st = footStyle(him.footStyle);
+  return (sit) => beliefFootMix(st, sit, intel);
+}
+
+/** The odds for one choice this exchange: your stroke, his at you, and the squire's reckoning. */
+export function footPreview(state, choice, reckoning = null) {
+  const cf = currentFoot(state);
+  if (!cf) return null;
+  const { bout, you, him } = cf;
+  const mixAt = footMixAt(state, him);
+  const belief = mixAt(footSituation(him, you, bout, 'b'));
+  const r = reckoning || reckonFoot(bout, you, him, 'a', mixAt);
+  return {
+    mine: expectedFoot(you, him, choice, belief),
+    his: expectedFoot(you, him, choice, belief, { reverse: true }),
+    win: r.byChoice[choice.key],
+    intel: state.intel[him.id] || 0,
+  };
+}
+
+export function footReckonNow(state) {
+  const cf = currentFoot(state);
+  if (!cf) return null;
+  return reckonFoot(cf.bout, cf.you, cf.him, 'a', footMixAt(state, cf.him));
+}
+
+export function footSquireCall(state) {
+  const r = footReckonNow(state);
+  return r ? r.best : null;
+}
+
+/** The truth, for tests. */
+export function trueFootMixNow(state) {
+  const cf = currentFoot(state);
+  if (!cf) return null;
+  return trueFootMix(footStyle(cf.him.footStyle), footSituation(cf.him, cf.you, cf.bout, 'b'));
+}
+
+export function footTellsInPlay(state) {
+  const cf = currentFoot(state);
+  if (!cf) return [];
+  const sit = footSituation(cf.him, cf.you, cf.bout, 'b');
+  const out = [];
+  if (sit.grudge) out.push(FOOT_GRUDGE.text);
+  if ((state.intel[cf.him.id] || 0) >= 2) out.push(...activeFootTells(footStyle(cf.him.footStyle), sit).map((t) => t.text));
+  return out;
+}
+
+/**
+ * A trial à outrance against this man, before it is offered: your chance by
+ * the squire's reckoning, and the chance he kills you if he wins. The second
+ * is the number rolled; the first assumes you fight it as the squire would.
+ */
+export function trialPreview(state, rivalId) {
+  const k = knightById(state, rivalId);
+  if (!k) return null;
+  const me = playerRider(state);
+  const him = { ...riderFrom(k), grudge: true };
+  const r = reckonFoot(newFootBout('you', k.id, 'outrance'), me, him, 'a', footMixAt(state, him));
+  const win = Math.max(...Object.values(r.byChoice));
+  const quarter = noQuarter(k, true);
+  return { win, quarter, death: (1 - win) * quarter };
+}
