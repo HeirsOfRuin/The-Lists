@@ -52,6 +52,9 @@ export const FLAG_LABELS = {
   culpritKnown: 'You know whose lance it really was at Ambry Cross.',
   ordealVow: 'You have vowed to bear the man of Ambry Cross down in the lists.',
   masterCleared: 'Your master\u2019s name is cleared.',
+  promisedMen: 'You promised the commissioner of array more men than you have.',
+  claimRestored: 'Your family\u2019s old manor is yours again.',
+  attainted: 'Your name is on the new crown\u2019s list of the attainted.',
 };
 
 const CADENCY_LABELS = {

@@ -9,7 +9,6 @@ import { streamFor } from './rng.js';
 import { TIERS, CALENDAR, LOCAL_HOSTS } from '../data/tourney.data.js';
 import { TOWNS, ROADS, GREAT_HOUSES, FEASTS, MONTHS, WORLD } from '../data/world.data.js';
 import { GIVEN_NAMES, HOUSE_NAMES } from '../data/names.data.js';
-import { isDisgraced } from './court.js';
 
 // ---------------------------------------------------------------------------
 // Roads
@@ -98,52 +97,3 @@ function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 function tierRank(t) { return ['local', 'regional', 'high', 'grand'].indexOf(t); }
 
 export function monthName(m) { return MONTHS[m]; }
-
-// ---------------------------------------------------------------------------
-// May you ride?
-// ---------------------------------------------------------------------------
-
-function clause(cond, state, host) {
-  const need = [];
-  const have = [];
-  let ok = true;
-  if (cond.renown != null) {
-    need.push(`renown ${cond.renown}`);
-    have.push(`renown ${state.renown}`);
-    if (state.renown < cond.renown) ok = false;
-  }
-  if (cond.lineage != null) {
-    need.push(`lineage ${cond.lineage}`);
-    have.push(`lineage ${state.lineage}`);
-    if (state.lineage < cond.lineage) ok = false;
-  }
-  if (cond.hostFavour != null) {
-    const f = host.faction ? state.favour[host.faction] || 0 : 0;
-    need.push(`the favour of ${host.name} at ${cond.hostFavour}`);
-    have.push(`favour ${f}`);
-    if (f < cond.hostFavour) ok = false;
-  }
-  if (cond.crownFavour != null) {
-    need.push(`the Crown’s favour at ${cond.crownFavour}`);
-    have.push(`Crown favour ${state.favour.crown || 0}`);
-    if ((state.favour.crown || 0) < cond.crownFavour) ok = false;
-  }
-  return { ok, need: need.join(' and '), have: have.join(', ') };
-}
-
-/** Whether the heralds will admit you, and if not, why not in words. */
-export function admitted(state, ev) {
-  if ((ev.tier === 'high' || ev.tier === 'grand') && isDisgraced(state)) {
-    return { ok: false, reason: 'The heralds will not cry the name of a disgraced knight at a great tourney. A pilgrimage would begin to mend it.' };
-  }
-  // A man in a house's service rides at that house's tourney.
-  if (state.patron && ev.host?.faction === state.patron.id) return { ok: true, reason: null };
-  const rule = TIERS[ev.tier].eligibility;
-  if (!rule) return { ok: true, reason: null };
-  const clauses = rule.anyOf.map((c) => clause(c, state, ev.host));
-  if (clauses.some((c) => c.ok)) return { ok: true, reason: null };
-  return {
-    ok: false,
-    reason: `The heralds admit a knight with ${clauses.map((c) => c.need).join('; or ')}.`,
-  };
-}

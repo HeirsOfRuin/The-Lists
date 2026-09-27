@@ -46,7 +46,7 @@ export const TIERS = {
     renown: { boutWon: 2, unhorse: 2, helmPrize: 2, champion: 8, runnerUp: 4 },
     field: { minRenown: 8, maxRenown: 999, provinceWeight: 1 },
     // Any one of these admits you.
-    eligibility: { anyOf: [{ renown: 15 }, { hostFavour: 8 }, { lineage: 14 }] },
+    invitation: true, // by letter: see INVITATIONS in realm.data.js
     retinueExpected: true,
     beneath: 999,
   },
@@ -60,7 +60,7 @@ export const TIERS = {
     prizeLabels: { champion: 'a ruby from the king’s hand and forty pounds', runnerUp: 'ten pounds', helm: 'two pounds' },
     renown: { boutWon: 3, unhorse: 3, helmPrize: 3, champion: 15, runnerUp: 8 },
     field: { minRenown: 12, maxRenown: 999, provinceWeight: 1 },
-    eligibility: { anyOf: [{ renown: 30 }, { renown: 18, lineage: 12 }, { crownFavour: 10 }] },
+    invitation: true, // by letter: see INVITATIONS in realm.data.js
     retinueExpected: true,
     helmShow: true,
     beneath: 999,

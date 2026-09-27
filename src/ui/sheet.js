@@ -13,6 +13,8 @@ import { conductOf, patronDef, threadsOf } from '../engine/court.js';
 import { THREADS } from '../data/court.data.js';
 import { markCost } from '../engine/tourney.js';
 import { cardById, fill, choicesView } from '../engine/cards.js';
+import { importance, manorDef } from '../engine/realm.js';
+import { CLAIMANTS } from '../data/realm.data.js';
 import { esc, cap, pct, shield, signed, chips, tierChip, ordinal } from './view.js';
 import { rollTable } from './hub.js';
 
@@ -76,10 +78,12 @@ export function renderSheet(s, { inGame, confirmAbandon = false }) {
         <dt>Renown</dt><dd>${s.renown} <span class="small faint">— won in the lists; a tenth fades each winter</span></dd>
         <dt>Honour</dt><dd>${s.honour} \u00b7 <b>${esc(conductOf(s.honour).label)}</b> <span class="small faint">\u2014 ${esc(conductOf(s.honour).does)}</span></dd>
         ${inGame ? `<dt>Service</dt><dd>${s.patron ? `${esc(cap(patronDef(s).name))}, in ${esc(patronDef(s).livery)}, since year ${s.patron.since}` : 'You serve no one'}</dd>` : ''}
-        <dt>Lineage</dt><dd>${s.lineage} <span class="small faint">— opens the high tourneys at 14</span></dd>
+        <dt>Lineage</dt><dd>${s.lineage} <span class="small faint">— counts toward your standing in the realm</span></dd>
         ${favours.length ? `<dt>Favour</dt><dd>${favours.map(([f, v]) => `${esc(FACTION_LABELS[f])} ${signed(v)}`).join(', ')}</dd>` : ''}
       </dl>
     </div>
+
+    ${inGame ? renderStanding(s) : ''}
 
     <div class="stack">
       <div class="eyebrow">Character</div>
@@ -119,6 +123,25 @@ export function renderSheet(s, { inGame, confirmAbandon = false }) {
       : '<button class="btn quiet" data-act="abandon">Abandon this knight and start another</button>'}
     </div>` : ''}
   </section>`;
+}
+
+/** Where you would stand if the realm came to swords, and why, term by term. */
+function renderStanding(s) {
+  const imp = importance(s);
+  const r = s.realm;
+  const lands = s.lands || [];
+  return `
+    <div class="stack">
+      <div class="eyebrow">Standing in the realm</div>
+      <p><b>${esc(imp.rank.label)}</b>. ${esc(imp.rank.does)}</p>
+      <table class="ledger terms"><tbody>
+        ${imp.terms.map((t) => `<tr><td>${esc(t.label)}</td><td>${t.value ? `+${Math.round(t.value * 10) / 10}` : '<span class="faint">0</span>'}</td></tr>`).join('')}
+        <tr class="total"><td>Standing</td><td>${imp.score}</td></tr>
+      </tbody></table>
+      <p class="small muted">${imp.next ? `At ${imp.next.min}, ${esc(imp.next.label.toLowerCase())}: ${esc(imp.next.does.toLowerCase())}` : 'There is no higher place in a claimant’s counsel.'} Land and the men it keeps count for most; renown counts only so far.</p>
+      ${lands.length ? `<p class="small">Lands: ${lands.map((l) => `${esc(manorDef(l.id).name)}${l.heldOf ? ` (of ${esc(FACTION_LABELS[l.heldOf])})` : ''}`).join(', ')}.</p>` : ''}
+      ${r.war?.battles?.length ? `<p class="small">The war: ${r.war.battles.map((b) => `${esc(cap(b.name))}, won by ${esc(CLAIMANTS[b.victor].short)}${b.side ? (b.side === b.victor ? ', your side' : ', against your side') : ''}`).join('; ')}.</p>` : ''}
+    </div>`;
 }
 
 // Story flags the threads above already tell; the list shows only the rest.
@@ -186,7 +209,7 @@ export function renderBook(state) {
 
 const CONTEXT_LABEL = {
   feast: 'The eve feast', arrival: 'On arrival', road: 'On the road', prize: 'The prize-giving',
-  winter: 'Winter', court: 'At court',
+  winter: 'Winter', court: 'At court', realm: 'The realm', war: 'The war',
 };
 
 export function renderCard(state) {
@@ -216,7 +239,7 @@ export function renderCard(state) {
 export function renderResultNote(state) {
   const r = state.lastResult;
   const notices = (state.notices || []).length
-    ? `<section class="card resultnote warnnote stack"><div class="eyebrow">Word from your patron</div>${state.notices.map((n) => `<p class="small">${esc(n)}</p>`).join('')}</section>`
+    ? `<section class="card resultnote warnnote stack"><div class="eyebrow">Word comes</div>${state.notices.map((n) => `<p class="small">${esc(n)}</p>`).join('')}</section>`
     : '';
   if (!r) return notices;
   return `${notices}

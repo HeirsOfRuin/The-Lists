@@ -10,21 +10,23 @@
 // Usage:
 //   node sim/run.js --runs=200 --years=8
 //   node sim/run.js --compare          # every joust policy, same seeds
+//   node sim/run.js --years=13 --war=careful   # through the war, refusing needless risk
 
 import { newGame, STATUS } from '../src/engine/state.js';
 import { randomAnswers, randomName } from '../src/engine/knight.js';
 import { makeRng } from '../src/engine/rng.js';
 import { lsd } from '../src/engine/money.js';
 import { rollOfArms } from '../src/engine/field.js';
-import { step, POLICIES, setConduct } from './bot.js';
+import { step, POLICIES, setConduct, setWar } from './bot.js';
+import { importance, menOf } from '../src/engine/realm.js';
 
 export class ProgressError extends Error {}
 
 export function assertProgress(r) {
-  if (r.yearsPlayed === 0 && !r.ruined) {
+  if (r.yearsPlayed === 0 && !r.ended) {
     throw new ProgressError(`Career ${r.seed} never reached a winter. The months are not advancing.`);
   }
-  if (r.tourneys === 0 && !r.ruined) {
+  if (r.tourneys === 0 && !r.ended) {
     throw new ProgressError(`Career ${r.seed} rode ${r.yearsPlayed} years and entered no tourney. Nothing was played.`);
   }
   if (r.tourneys > 0 && (r.bouts === 0 || r.courses === 0)) {
@@ -48,11 +50,17 @@ export function playCareer({ seed, policy = 'squire', years = 8, answers = null 
   const counts = {};
   let guard = 0;
   const lastYear = state.year + years;
+  let atWar = null; // the knight as the king dies: how much he matters
   while (state.status === STATUS.ACTIVE && state.year < lastYear) {
     if (++guard > 20000) throw new ProgressError(`Career ${seed} took 20000 steps without finishing ${years} years.`);
     const did = step(state, policy, rng);
     counts[did] = (counts[did] || 0) + 1;
+    if (!atWar && state.realm.war) {
+      const imp = importance(state);
+      atWar = { rank: imp.rank.id, score: imp.score, men: menOf(state), lands: (state.lands || []).length, balance: state.realm.balance, will: state.realm.will };
+    }
   }
+  const w = state.realm.war;
   const byTier = {};
   const placings = {};
   for (const e of state.book) {
@@ -64,6 +72,7 @@ export function playCareer({ seed, policy = 'squire', years = 8, answers = null 
     seed, policy, answers: state.answers,
     yearsPlayed: state.year - 1,
     ruined: state.status === STATUS.RUINED,
+    ended: state.status !== STATUS.ACTIVE,
     tourneys: state.career.tourneys,
     bouts: state.career.bouts,
     boutsWon: state.career.boutsWon,
@@ -92,6 +101,18 @@ export function playCareer({ seed, policy = 'squire', years = 8, answers = null 
     harness: state.harness.quality,
     lance: state.knight.stats.lance,
     seat: state.knight.stats.seat,
+    dead: state.status === 'dead',
+    exiled: state.status === 'exiled',
+    atWar,
+    oath: state.realm.oath,
+    warSide: w?.side || null,
+    victor: w?.victor || null,
+    battles: w?.battles.length || 0,
+    attainted: !!w?.settlement?.attainted,
+    landsEnd: (state.lands || []).length,
+    firstHigh: Math.min(...state.book.filter((e) => e.tier === 'high').map((e) => e.year), 99),
+    firstGrand: Math.min(...state.book.filter((e) => e.tier === 'grand').map((e) => e.year), 99),
+    diedIn: state.status === 'dead' ? (/fell at the Battle/.test(state.outcome.text) ? 'battle' : 'skirmish') : null,
   };
   assertProgress(r);
   return r;
@@ -142,6 +163,31 @@ export function summarise(results) {
     masterCleared: `${results.filter((r) => r.masterCleared).length} of ${results.filter((r) => r.masterDisgraced).length} with a disgraced master`,
     married: `${results.filter((r) => r.married).length} of ${results.filter((r) => r.promised).length} promised`,
     ridden,
+    realm: realmSummary(results),
+  };
+}
+
+function realmSummary(results) {
+  const war = results.filter((r) => r.atWar);
+  const n = war.length;
+  const count = (xs) => Object.entries(xs.reduce((m, x) => { m[x] = (m[x] || 0) + 1; return m; }, {})).map(([k, v]) => `${k} ${v}`).join(', ');
+  const decided = war.filter((r) => r.victor);
+  return {
+    reachedWar: `${n} of ${results.length}`,
+    firstHighYear: `${median(results.map((r) => r.firstHigh))} (never ${results.filter((r) => r.firstHigh === 99).length})`,
+    firstKingsYear: `${median(results.map((r) => r.firstGrand))} (never ${results.filter((r) => r.firstGrand === 99).length})`,
+    rankAtWar: count(war.map((r) => r.atWar.rank)),
+    medianScoreAtWar: median(war.map((r) => r.atWar.score)),
+    medianMenAtWar: median(war.map((r) => r.atWar.men)),
+    landedAtWar: pct(war.filter((r) => r.atWar.lands > 0).length, n),
+    willNamed: count(war.map((r) => r.atWar.will)),
+    medianBalance: median(war.map((r) => r.atWar.balance)),
+    oaths: count(war.map((r) => r.oath || 'unsworn')),
+    wonOnTheirSide: `${decided.filter((r) => r.warSide && r.warSide === r.victor).length} of ${decided.filter((r) => r.warSide).length} who fought`,
+    twoBattles: pct(war.filter((r) => r.battles >= 2).length, n),
+    died: `${pct(war.filter((r) => r.dead).length, n)} (${count(war.filter((r) => r.dead).map((r) => r.diedIn))})`,
+    attainted: pct(war.filter((r) => r.attainted).length, n),
+    exiled: pct(war.filter((r) => r.exiled).length, n),
   };
 }
 
@@ -156,17 +202,19 @@ function args() {
     years: Number(a.years || 8),
     compare: !!a.compare,
     conduct: a.conduct || 'chivalrous',
+    war: a.war || 'bold',
   };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const opt = args();
   setConduct(opt.conduct);
+  setWar(opt.war);
   const policies = opt.compare ? POLICIES : [opt.policy];
   const t0 = Date.now();
   for (const policy of policies) {
     const s = summarise(batch({ ...opt, policy }));
-    console.log(`\n== policy: ${policy}, ${opt.conduct}  (${opt.runs} careers, ${opt.years} years each)`);
+    console.log(`\n== policy: ${policy}, ${opt.conduct}, ${opt.war} in war  (${opt.runs} careers, ${opt.years} years each)`);
     for (const [k, v] of Object.entries(s)) {
       if (typeof v === 'object') {
         console.log(`  ${k}:`);

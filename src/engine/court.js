@@ -8,6 +8,8 @@
 
 import { streamFor } from './rng.js';
 import { adjustRegard, knightById } from './field.js';
+import { grantManor } from './realm.js';
+import { LANDS } from '../data/realm.data.js';
 import { fullName } from './knight.js';
 import { TOWNS } from '../data/world.data.js';
 import { TRAIT_PAIRS } from '../data/creation.data.js';
@@ -129,6 +131,12 @@ export function winterPatron(state, add, notes) {
     notes.push(`${cap(p.name)} notes that ${k ? k.name : 'the man he named'} is still unbeaten by you.`);
     state.favour[p.id] -= 1;
     state.patron.target = null;
+  }
+  // Years of faithful service, and his good opinion, are rewarded with land.
+  if (state.patron && state.year - state.patron.since + 1 >= LANDS.patronYears && (state.favour[p.id] || 0) >= LANDS.patronFavour
+    && !(state.lands || []).some((l) => l.heldOf === p.id)) {
+    const m = grantManor(state, p.id, 'patron');
+    if (m) notes.push(`${cap(p.name)} grants you the manor of ${m.name}, to hold of him: rents of £${m.income} a year, and ${m.men} men who owe you service.`);
   }
   if (state.patron) state.patron.attended = false;
 }

@@ -12,8 +12,9 @@ import { TRAIT_PAIRS } from '../src/data/creation.data.js';
 import { FACTIONS } from '../src/data/world.data.js';
 import { knight } from './helpers.js';
 import { generateRoster } from '../src/engine/field.js';
+import { beginWar, grantManor } from '../src/engine/realm.js';
 
-const CONTEXTS = ['feast', 'arrival', 'road', 'moment.unhorsed', 'moment.forfeit', 'moment.beaten', 'moment.hurt', 'prize', 'winter', 'court', 'summons'];
+const CONTEXTS = ['feast', 'arrival', 'road', 'moment.unhorsed', 'moment.forfeit', 'moment.beaten', 'moment.hurt', 'prize', 'winter', 'court', 'summons', 'realm', 'war'];
 const EVENT_CONTEXTS = ['feast', 'arrival', 'road', 'moment.unhorsed', 'moment.forfeit', 'moment.beaten', 'moment.hurt', 'prize'];
 const TRAIT_WORDS = TRAIT_PAIRS.flat();
 
@@ -43,7 +44,7 @@ test('every card is written in the engine’s vocabulary', () => {
         const e = b.effects || {};
         for (const k of Object.keys(e)) assert.ok(EFFECT_KEYS.includes(k), `${where}: unknown effect ${k}`);
         for (const k of Object.keys(e.favour || {})) {
-          assert.ok(k === 'host' || k === 'patron' || FACTIONS.includes(k), `${where}: unknown faction ${k}`);
+          assert.ok(k === 'host' || k === 'patron' || k === 'side' || FACTIONS.includes(k), `${where}: unknown faction ${k}`);
           if (k === 'patron') assert.ok(c.when?.patron, `${where}: favour of your patron on a card that can come up without one`);
         }
         for (const k of Object.keys(e.traits || {})) assert.ok(TRAIT_KEYS.includes(k), `${where}: unknown trait ${k}`);
@@ -71,7 +72,7 @@ test('every card is written in the engine’s vocabulary', () => {
         const guarded = c.when?.hasSquire || c.when?.squireOrigin || c.choices.some((ch) => ch.when?.hasSquire && texts.includes(t));
         assert.ok(guarded, `${where}: {squire} on a card that can come up without one`);
       }
-      assert.ok(!/\{(?!rival|opponent|lady|host|town|squire|master|horse|you|lord|patron|fee)[a-z]+\}/.test(t), `${where}: unknown placeholder in "${t}"`);
+      assert.ok(!/\{(?!rival|opponent|lady|host|town|squire|master|horse|you|lord|patron|fee|heir|other|leader)[a-z]+\}/.test(t), `${where}: unknown placeholder in "${t}"`);
     }
   }
 });
@@ -103,6 +104,16 @@ function satisfy(state, card) {
   if (w.minYear != null) state.year = Math.max(state.year, w.minYear);
   if (w.minPurse != null) state.purse = Math.max(state.purse, w.minPurse);
   for (const [f, v] of Object.entries(w.minFavour || {})) state.favour[f] = Math.max(state.favour[f] || 0, v);
+  // The realm.
+  if (card.context === 'war') beginWar(state);
+  if (w.side) state.realm.oath = [].concat(w.side)[0];
+  if (w.noOath) state.realm.oath = null;
+  if (w.oathSet) state.realm.oath = state.realm.oath || 'aumbry';
+  if (w.minRank) state.renown = Math.max(state.renown, 400);
+  if (w.minMen != null) state.company = w.minMen;
+  if (w.hasLands) grantManor(state, null, 'test');
+  if (w.hostIs) ctx.hostFaction = w.hostIs;
+  if (w.canPayFine) state.purse = Math.max(state.purse, 100 * 240);
   // A field and a roster with every kind of knight in it.
   const spec = card.cast?.rival;
   const pool = state.roster.knights;

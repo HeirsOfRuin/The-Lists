@@ -14,6 +14,8 @@ import { TIERS, WOUNDS } from '../data/tourney.data.js';
 import { GIVEN_NAMES, HOUSE_NAMES } from '../data/names.data.js';
 import { TOWNS, PROVINCES } from '../data/world.data.js';
 import { ROLL_LENGTH } from '../data/household.data.js';
+import { PATRONS } from '../data/court.data.js';
+import { partisan, creditBalance } from './realm.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(v)));
 const PROVINCE_IDS = Object.keys(PROVINCES);
@@ -129,7 +131,9 @@ export function pickField(state, cal, n, exclude, rng) {
   const tier = TIERS[cal.tier];
   const now = monthIndex(cal.year, cal.month);
   const province = TOWNS[cal.town].province;
-  const pool = state.roster.knights.filter((k) => k.active && !exclude.has(k.id) && !isInjured(k, now));
+  // With the realm dividing, a great house does not invite its rival's sworn men.
+  const barred = cal.tier === 'high' && partisan(state) ? PATRONS[cal.host?.faction]?.rival : null;
+  const pool = state.roster.knights.filter((k) => k.active && !exclude.has(k.id) && !isInjured(k, now) && (!barred || k.allegiance !== barred));
   const inBand = pool.filter((k) => k.renown >= tier.field.minRenown && k.renown <= tier.field.maxRenown);
   const weight = (k) => {
     let w = k.province === province ? tier.field.provinceWeight : 1;
@@ -215,7 +219,11 @@ export function creditField(state, cal, res) {
     const k = knightById(state, id);
     if (!k) continue;
     let gain = r.boutsWon * tier.renown.boutWon + r.unhorses * tier.renown.unhorse;
-    if (r.out === 0) { gain += tier.renown.champion; k.titles += 1; }
+    if (r.out === 0) {
+      gain += tier.renown.champion;
+      k.titles += 1;
+      creditBalance(state, cal.tier, k.allegiance);
+    }
     if (r.out === 1) gain += tier.renown.runnerUp;
     k.renown += gain;
     if (r.hurt) k.injuredUntil = now + WOUNDS.seriousMonths;

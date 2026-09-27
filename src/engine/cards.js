@@ -10,7 +10,8 @@
 //   when:    tier notTier minRenown maxRenown minHonour maxHonour minLineage
 //            maxLineage flag notFlag heart notHeart master masterFate hasSquire
 //            squireOrigin city minYear minPurse minFavour noPatron patron
-//            minHostFavour minTrait maxTrait
+//            minHostFavour minTrait maxTrait side noOath oathSet minRank minMen
+//            hasLands hostIs canPayFine
 //   cast:    rival { from: field|roster, temperament, unknown, maxRenown,
 //                    minRenown, regardMin, regardMax, lineageBelowYou,
 //                    notInField, culprit, allegiance: patronRival|<faction> }
@@ -18,13 +19,20 @@
 //   effects: purse renown honour favour traits stats marks regard intel
 //            intelField fatigue wound flags memory squire vow wager token
 //            largesse pas travelDays serve patronTarget reveal clearMaster heart
+//            balance lean oath battle peril manor pardon
 //   favour:  a faction, or 'host' (the event's or court's house), or
-//            'patron' (whoever you serve)
+//            'patron' (whoever you serve), or 'side' (the house you are sworn to)
 //   check:   { stat | trait, dc }
 
 import { streamFor } from './rng.js';
 import { knightById, adjustRegard } from './field.js';
-import { takeService, revealCulprit, clearMaster, clampHonour } from './court.js';
+import { takeService, leaveService, revealCulprit, clearMaster, clampHonour } from './court.js';
+import {
+  sideNow, importance, rankIndex, menOf, shiftBalance, oathTerms, swear, otherHouse, riskOf, rollPeril,
+  battleSpec, battlePreview, fightBattle, battleLines, pardon, grantManor,
+} from './realm.js';
+import { CLAIMANTS, DEATHS } from '../data/realm.data.js';
+import { REALM_CARDS, SETTLEMENT_CARDS } from '../data/cards.realm.data.js';
 import { PATRONS } from '../data/court.data.js';
 import { lsdSigned, lsd } from './money.js';
 import { fullName } from './knight.js';
@@ -39,16 +47,19 @@ import { TOWNS } from '../data/world.data.js';
 export const CARDS = [
   ...FEAST_CARDS, ...ARRIVAL_CARDS, ...ROAD_CARDS, ...MOMENT_CARDS,
   ...PRIZE_CARDS, ...WINTER_CARDS, ...COURT_CARDS, ...PATRON_CARDS, ...CHURCH_CARDS, ...STORY_CARDS,
+  ...REALM_CARDS, ...SETTLEMENT_CARDS,
 ];
 export const WHEN_KEYS = [
   'tier', 'notTier', 'minRenown', 'maxRenown', 'minHonour', 'maxHonour', 'minLineage', 'maxLineage',
   'flag', 'notFlag', 'heart', 'notHeart', 'master', 'masterFate', 'hasSquire', 'squireOrigin',
   'city', 'minYear', 'minPurse', 'minFavour', 'noPatron', 'patron', 'minHostFavour', 'minTrait', 'maxTrait',
+  'side', 'noOath', 'oathSet', 'minRank', 'minMen', 'hasLands', 'hostIs', 'canPayFine',
 ];
 export const EFFECT_KEYS = [
   'purse', 'renown', 'honour', 'favour', 'traits', 'stats', 'marks', 'regard', 'intel', 'intelField',
   'fatigue', 'wound', 'flags', 'memory', 'squire', 'vow', 'wager', 'token', 'largesse', 'pas', 'travelDays',
   'serve', 'patronTarget', 'reveal', 'clearMaster', 'heart',
+  'balance', 'lean', 'oath', 'battle', 'peril', 'manor', 'pardon',
 ];
 // Effects that only make sense with a tourney ahead or under way.
 export const EVENT_EFFECTS = ['intel', 'intelField', 'fatigue', 'wound', 'vow', 'wager', 'token', 'largesse', 'pas', 'travelDays'];
@@ -102,6 +113,14 @@ export function holds(state, when, ctx = {}) {
   }
   for (const [t, v] of Object.entries(w.minTrait || {})) if (traitValue(state, t) < v) return false;
   for (const [t, v] of Object.entries(w.maxTrait || {})) if (traitValue(state, t) > v) return false;
+  if (w.side && ![].concat(w.side).includes(sideNow(state))) return false;
+  if (w.noOath && state.realm?.oath) return false;
+  if (w.oathSet && !state.realm?.oath) return false;
+  if (w.minRank && rankIndex(importance(state).rank.id) < rankIndex(w.minRank)) return false;
+  if (w.minMen != null && menOf(state) < w.minMen) return false;
+  if (w.hasLands != null && ((state.lands || []).length > 0) !== w.hasLands) return false;
+  if (w.hostIs && ctx.hostFaction !== w.hostIs) return false;
+  if (w.canPayFine && state.purse < (state.realm?.war?.settlement?.fine || 0)) return false;
   return true;
 }
 
@@ -167,6 +186,19 @@ export function castIfEligible(state, cardId, ctx) {
   return cast;
 }
 
+/** A particular card, if it can come up: the realm's scheduled beats use this. */
+export function drawById(state, cardId, ctx = {}) {
+  const card = cardById(cardId);
+  if (!holds(state, card.when, ctx)) return null;
+  const cast = castCard(state, card, ctx, streamFor(state.seed, state.year, `beat:${cardId}`));
+  if (!cast || !card.choices.some((ch) => holds(state, ch.when, ctx))) return null;
+  state.cardSerial = (state.cardSerial || 0) + 1;
+  return {
+    uid: state.cardSerial, id: card.id, context: card.context, cast,
+    ctx: { tier: null, town: ctx.town || null, host: ctx.host || null, hostFaction: ctx.hostFaction || null, prize: 0 },
+  };
+}
+
 /**
  * Draw a card for a context, or null if none can come up. Cards already seen
  * are less likely; `once` cards come up at most once a career.
@@ -224,8 +256,16 @@ export function fill(state, inst, text) {
     .replaceAll('{horse}', state.horse.name)
     .replaceAll('{lord}', patronFor(state, inst)?.lord || 'your lord')
     .replaceAll('{patron}', patronFor(state, inst)?.name || 'your patron')
-    .replaceAll('{fee}', patronFor(state, inst) ? lsd(patronFor(state, inst).fee) : 'a fee');
+    .replaceAll('{fee}', patronFor(state, inst) ? lsd(patronFor(state, inst).fee) : 'a fee')
+    .replaceAll('{heir}', claimant(state.realm?.will) || 'the heir')
+    .replaceAll('{other}', claimant(otherHouse(state.realm?.will)) || 'the other claimant')
+    .replaceAll('{leader}', claimant(sideNow(state)) || 'your lord')
+    .replace(/^./, (c) => c.toUpperCase());
 }
+
+function claimant(id) { return CLAIMANTS[id]?.name || null; }
+function claimantShort(id) { return CLAIMANTS[id]?.short || null; }
+const pct = (p) => `${Math.round(p * 100)}%`;
 
 /** The patron a card is about: the one you serve, or the house whose court you are at. */
 function patronFor(state, inst) {
@@ -235,6 +275,10 @@ function patronFor(state, inst) {
 function factionOf(state, inst, f) {
   if (f === 'host') return inst.ctx.hostFaction || null;
   if (f === 'patron') return state.patron?.id || null;
+  if (f === 'side') {
+    const s = sideNow(state);
+    return s === 'aumbry' || s === 'stane' ? s : null;
+  }
   return f;
 }
 
@@ -288,9 +332,45 @@ export function describeEffects(state, inst, effects) {
     const words = { lance: 'lance', seat: 'seat', wits: 'wits', loyalty: 'loyalty' };
     out.push(`Your squire’s ${words[k]} ${signed(v)}`);
   }
+  if (e.balance) out.push(`The realm leans toward ${e.balance > 0 ? 'Aumbry' : 'Stane'} (+${Math.abs(e.balance)})`);
+  if (e.lean) {
+    const side = sideNow(state);
+    if (side === 'aumbry' || side === 'stane') out.push(`The realm leans toward ${side === 'aumbry' ? 'Aumbry' : 'Stane'} (+${e.lean})`);
+  }
+  if (e.oath) out.push(...oathLines(state, e.oath));
+  if (e.manor) out.push('Your family’s old manor is restored to you');
+  if (e.peril) out.push(`Risk of death: ${pct(riskOf(state, e.peril))}`);
+  if (e.battle) {
+    const b = battlePreview(state, e.battle);
+    if (b.side) out.push(`${claimantShort(b.side)}’s chance of the field: ${pct(b.win)}`);
+    else out.push(`Duke Robert’s chance of the field: ${pct(b.aumbry)}`);
+    out.push(b.peril > 0 ? `Risk of death: ${pct(b.peril)}` : 'No risk to you');
+    if (b.capture) out.push(`If your side loses: ${pct(b.capture)} you are taken, ransom ${lsd(b.ransom)}`);
+  }
+  if (e.pardon === 'pay') out.push(`Purse ${lsdSigned(-(state.realm?.war?.settlement?.fine || 0))}; your name is struck from the list`);
+  if (e.pardon === 'mercy') out.push('Pardoned, without the fine');
+  if (e.pardon === 'exile') out.push('Exile: the career ends');
   if (e.flags) out.push('The story moves on');
   return out;
 }
+
+/** What swearing an oath will do, before it is sworn. */
+function oathLines(state, which) {
+  const t = oathTerms(state, which);
+  const out = [];
+  if (t.oath === 'none') out.push('Sworn to nobody');
+  else if (t.oath === 'crown') out.push('Sworn to the king’s will, whatever it says');
+  else out.push(`Sworn to ${claimant(t.oath)}`);
+  if (t.house) out.push(`Favour of ${FACTION_LABELS[t.house]} +2, ${FACTION_LABELS[otherHouse(t.house)]} −2`);
+  if (t.turncoat) {
+    const was = t.prev === 'crown' ? 'the king’s will' : claimant(t.prev);
+    const lost = t.prev === 'aumbry' || t.prev === 'stane' ? `, favour of ${FACTION_LABELS[t.prev]} −5` : '';
+    out.push(`You break your oath to ${was}: honour −2${lost}`);
+  }
+  if (t.breaksService) out.push(`${cap(PATRONS[state.patron.id].name)}’s service ends`);
+  return out;
+}
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
 // ---------------------------------------------------------------------------
 // Checks
@@ -323,7 +403,7 @@ export function choicesView(state, inst) {
   const ctx = { ...inst.ctx };
   return card.choices.map((ch, i) => {
     const open = holds(state, ch.when, ctx);
-    const view = { index: i, label: ch.label, open };
+    const view = { index: i, label: fill(state, inst, ch.label), open };
     // An answer only a knight of strong character would think of says so.
     const gate = Object.entries(ch.when?.minTrait || {})[0] || Object.entries(ch.when?.maxTrait || {}).map(([t, v]) => [opposite(t), 20 - v])[0];
     if (gate) view.gate = { trait: gate[0], value: traitValue(state, gate[0]) };
@@ -364,6 +444,7 @@ const clampStat = (v) => Math.max(1, Math.min(20, v));
  */
 export function applyEffects(state, inst, effects, hooks = {}) {
   const e = effects || {};
+  const after = []; // what came of it, where that is only known once it is done
   if (e.purse) {
     if (hooks.purse) hooks.purse(e.purse);
     else state.purse += e.purse;
@@ -405,7 +486,36 @@ export function applyEffects(state, inst, effects, hooks = {}) {
   if (e.reveal === 'culprit') revealCulprit(state);
   if (e.clearMaster) clearMaster(state, 'Before the heralds, the truth of Ambry Cross was told.');
   if (e.heart) state.heart = e.heart;
+  if (e.heart === 'married' && !(state.lands || []).some((l) => l.how === 'dower')) {
+    const m = grantManor(state, null, 'dower');
+    if (m) after.push(`Her dower is the manor of ${m.name}.`);
+  }
+  // The realm.
+  if (e.balance) shiftBalance(state, e.balance);
+  if (e.lean) {
+    const side = sideNow(state);
+    if (side === 'aumbry') shiftBalance(state, e.lean);
+    if (side === 'stane') shiftBalance(state, -e.lean);
+  }
+  if (e.oath) {
+    const t = swear(state, e.oath);
+    if (t.breaksService && state.patron) {
+      const r = leaveService(state);
+      if (r.ok) after.push(r.text);
+    }
+  }
+  if (e.manor === 'claim') {
+    const m = grantManor(state, 'crown', 'claim');
+    if (m) after.push(`The manor of ${m.name} is yours.`);
+  }
+  if (e.pardon) pardon(state, e.pardon);
+  if (e.peril) rollPeril(state, e.peril, `${inst.id}:${inst.uid}`, DEATHS[inst.id]);
+  if (e.battle && state.status === 'active') {
+    const { mode, forSide } = battleSpec(state, e.battle);
+    after.push(...battleLines(state, fightBattle(state, mode, forSide)));
+  }
   hooks.event?.(e, inst);
+  return after;
 }
 
 /**
@@ -427,13 +537,13 @@ export function answerCard(state, inst, index, hooks = {}) {
     result = branch.result;
   }
   const lines = describeEffects(state, inst, effects);
-  applyEffects(state, inst, effects, hooks);
+  const after = applyEffects(state, inst, effects, hooks);
   state.cardsSeen = state.cardsSeen || {};
   state.cardsSeen[card.id] = (state.cardsSeen[card.id] || 0) + 1;
   return {
     prompt: fill(state, inst, card.text),
-    chose: ch.label,
-    text: fill(state, inst, result),
+    chose: fill(state, inst, ch.label),
+    text: [fill(state, inst, result), ...after].join(' '),
     lines,
     success,
   };

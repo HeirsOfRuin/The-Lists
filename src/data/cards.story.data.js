@@ -177,7 +177,7 @@ export const STORY_CARDS = [
     text: 'The wedding is set for the Sunday after Candlemas. Her family has spent a great deal, and is waiting to see whether you will.',
     choices: [
       { label: 'Marry her.', effects: { heart: 'married', flags: ['married'], purse: 7200, honour: 1, traits: { constant: 2 } },
-        result: 'You are married at the church door and feast for three days. Her dowry is thirty pounds, and her lands will pay you every winter.' },
+        result: 'You are married at the church door and feast for three days. Her dowry is thirty pounds, and her dower manor is yours to hold.' },
       { label: 'Break it off, and repay what her family spent.', effects: { heart: 'free', flags: ['betrothalBroken'], purse: -2400, honour: -3, traits: { constant: -3 } },
         result: 'Ten pounds, and a silence between two families that will last longer than you do.' },
     ],

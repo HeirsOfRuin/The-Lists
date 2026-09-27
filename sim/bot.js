@@ -19,6 +19,9 @@ import {
   borrowedHorsePrice, horseTradeIn, endWinter,
 } from '../src/engine/season.js';
 import { cardById, holds } from '../src/engine/cards.js';
+import { oathTerms, riskOf, battlePreview, companyMax } from '../src/engine/realm.js';
+import { COMPANY } from '../src/data/realm.data.js';
+import { buyManor, hireMan } from '../src/engine/season.js';
 import { isPatronTourney, isDisgraced, canPilgrimage } from '../src/engine/court.js';
 import { TIER_ORDER } from '../src/data/tourney.data.js';
 import { HARNESS, SQUIRE } from '../src/data/household.data.js';
@@ -44,8 +47,13 @@ export function chooseCourse(state, policy, rng) {
 // chivalrous knight weighs honour; the worldly one does not care about it.
 let conduct = 'chivalrous';
 export function setConduct(c) { conduct = c; }
+// In the war: 'bold' takes a 1% chance of death for about half a point of
+// renown; 'careful' wants ten times as much.
+let war = 'bold';
+export function setWar(w) { war = w; }
+const perilWeight = () => (war === 'careful' ? 800 : 80);
 
-function worth(e = {}) {
+function worth(state, e = {}) {
   let v = 0;
   const honourWeight = conduct === 'worldly' ? -0.5 : 1.5;
   v += (e.renown || 0) * 2 + (e.honour || 0) * honourWeight + (e.purse || 0) / 240;
@@ -61,6 +69,37 @@ function worth(e = {}) {
   if (e.clearMaster) v += 10;
   if (e.reveal) v += 2;
   if (e.heart === 'married') v += 3;
+  // The realm: swear where your bread is, and fight where you can live.
+  if (e.oath) v += oathWorth(state, e.oath);
+  if (e.lean) v += e.lean * 0.5;
+  if (e.manor) v += 6;
+  if (e.peril) v -= riskOf(state, e.peril) * perilWeight();
+  if (e.battle) {
+    const b = battlePreview(state, e.battle);
+    v += (b.win ?? 0.5) * 6 - b.peril * perilWeight();
+  }
+  if (e.pardon === 'pay') v += 10;
+  if (e.pardon === 'mercy') v += 8;
+  if (e.pardon === 'exile') v -= 40;
+  return v;
+}
+
+/** The bot's oath: its patron's house, else the house that likes it better, else the king's will. */
+function oathWorth(state, which) {
+  const t = oathTerms(state, which);
+  let v = t.turncoat ? -3 : 0;
+  if (t.breaksService) v -= 4;
+  const p = state.patron?.id;
+  const a = state.favour.aumbry || 0;
+  const b = state.favour.stane || 0;
+  let want;
+  if (p === 'aumbry' || p === 'stane') want = p;
+  else if (p === 'crown') want = state.realm.will || 'crown';
+  else if (Math.abs(a - b) >= 3) want = a > b ? 'aumbry' : 'stane';
+  else if (state.realm.will) want = state.realm.will;
+  else want = state.seed % 3 === 0 ? 'crown' : state.seed % 3 === 1 ? 'aumbry' : 'stane';
+  const now = t.oath === 'crown' ? (state.realm.will || 'crown') : t.oath;
+  if (now === want) v += 4;
   return v;
 }
 
@@ -70,7 +109,7 @@ export function answerPolicy(state) {
   let best = null;
   card.choices.forEach((ch, i) => {
     if (!holds(state, ch.when, inst.ctx)) return;
-    const v = ch.check ? 0.5 * worth(ch.success.effects) + 0.5 * worth(ch.failure.effects) : worth(ch.effects);
+    const v = ch.check ? 0.5 * worth(state, ch.success.effects) + 0.5 * worth(state, ch.failure.effects) : worth(state, ch.effects);
     if (!best || v > best.v) best = { i, v };
   });
   return best.i;
@@ -127,6 +166,11 @@ function winter(state) {
   const horse = [...w.horses].reverse().find((h) => h.quality > state.horse.quality + 1
     && state.purse + horseTradeIn(state) - h.price > reserve(state) * 2);
   if (horse) buyHorse(state, horse.id);
+  // Land when it can be afforded twice over; men to fill it.
+  if (w.manor && state.purse - w.manor.price > reserve(state) * 2) buyManor(state);
+  while (state.year >= 3 && state.company < companyMax(state) && state.purse > reserve(state) * 2 + COMPANY.wage * 3) {
+    if (!hireMan(state).ok) break;
+  }
   endWinter(state);
 }
 

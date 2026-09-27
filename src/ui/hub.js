@@ -1,7 +1,7 @@
 // The month: the map, this month's tourneys, and the other ways to spend it.
 // And winter: the accounts, the Roll, the squire, the retinue, the fair.
 
-import { TOWNS, ROADS, MONTHS, FIRST_MONTH, LAST_MONTH, WORLD } from '../data/world.data.js';
+import { TOWNS, ROADS, MONTHS, FIRST_MONTH, LAST_MONTH, WORLD, FACTION_LABELS } from '../data/world.data.js';
 import { TIERS } from '../data/tourney.data.js';
 import { RETINUE, RETINUE_ORDER, HARNESS, SQUIRE_ORIGINS, SQUIRE, CONDITION, SERVICE } from '../data/household.data.js';
 import { STAT_LABELS } from '../data/creation.data.js';
@@ -14,6 +14,10 @@ import { rollOfArms } from '../engine/field.js';
 import { markCost, expectedRetinue, horseOnTheDay } from '../engine/tourney.js';
 import { STAT_KEYS } from '../engine/knight.js';
 import { lsd, lsdSigned } from '../engine/money.js';
+import {
+  balanceWords, importance, sideOf, warSide, atWar, menOf, companyMax, manorDef,
+} from '../engine/realm.js';
+import { CLAIMANTS, COMPANY } from '../data/realm.data.js';
 import { esc, ordinal, cap, days, tierChip, shield } from './view.js';
 
 const TIER_COLOUR = { local: 'var(--tier-local)', regional: 'var(--tier-regional)', high: 'var(--tier-high)', grand: 'var(--tier-grand)' };
@@ -90,6 +94,7 @@ function optionCard(state, o, selected) {
     ${state.patron && isPatronTourney(state, o.cal) ? `<div class="small patronmark">${esc(cap(patronDef(state).name))} expects you here${state.patron.attended ? ' (you have already ridden for him this year)' : ''}.</div>` : ''}
     <div class="small muted">${esc(TOWNS[o.cal.town].name)} · ${esc(o.cal.host.name)} · ${o.days ? `${days(o.days)}’ ride` : 'here'}</div>
     <div class="small">Road ${lsd(o.road)} · Entry ${lsd(o.entry)} · ${prize}</div>
+    ${o.invite ? `<div class="small patronmark">By invitation. ${esc(o.invite)}</div>` : ''}
     ${o.open
       ? `<button class="btn primary wide" data-ride="${o.cal.id}">Ride to ${esc(TOWNS[o.cal.town].name)}</button>`
       : `<p class="small neg">${esc(o.reason)}</p>`}
@@ -115,7 +120,7 @@ export function renderMonth(state, ui) {
   }).filter(Boolean);
   return `
   <section class="card lift stack">
-    <div class="spread"><span class="eyebrow">Year ${state.year} · the ${ordinal(WORLD.peaceYear + state.year - 1)} year of the peace</span></div>
+    <div class="spread"><span class="eyebrow">Year ${state.year} · ${esc(eraLine(state))}</span></div>
     <div class="month-head"><span class="heading">${MONTHS[state.month]}</span>
       <span class="small muted">At ${esc(TOWNS[state.location].name)}</span></div>
     <p class="small muted">${horseLine(state)}.${hurt ? ' <span class="neg">You are still recovering from a wound.</span>' : ''}</p>
@@ -127,6 +132,8 @@ export function renderMonth(state, ui) {
     </div>
     ${news.length ? `<p class="small muted">Last month: ${news.join(' ')}</p>` : ''}
   </section>
+
+  ${renderRealm(state)}
 
   ${renderPatron(state)}
 
@@ -168,6 +175,55 @@ export function renderMonth(state, ui) {
 }
 
 function fmtMarks(n) { return Number.isInteger(n) ? String(n) : n.toFixed(1); }
+
+/** Which year this is, as the realm counts it. */
+export function eraLine(state) {
+  const r = state.realm;
+  if (atWar(state)) return `the ${ordinal(state.year - r.war.year + 1)} year of the war`;
+  if (r.ruler) return `the ${ordinal(Math.max(1, state.year - r.coronationYear + 1))} year of ${CLAIMANTS[r.ruler].crowned}`;
+  return `the ${ordinal(WORLD.peaceYear + state.year - 1)} year of the peace`;
+}
+
+function tensionWord(t) {
+  if (t >= 100) return 'At war';
+  if (t >= 75) return 'On the edge';
+  if (t >= 50) return 'Dividing';
+  if (t >= 25) return 'Uneasy';
+  return 'Quiet';
+}
+
+/** The realm: how near the war is, who leads, what they are saying, and where you stand. */
+function renderRealm(state) {
+  const r = state.realm;
+  const imp = importance(state);
+  if (r.ruler && !atWar(state)) {
+    return `<section class="card stack realm">
+      <div class="spread"><span class="eyebrow">The realm</span><span class="small muted">At peace</span></div>
+      <p class="small">${esc(CLAIMANTS[r.ruler].crowned)} reigns. ${r.war?.side === r.ruler ? 'You fought for the crown, and it remembers.' : r.war?.side ? 'You fought against the crown, and it remembers that too.' : 'You stood aside, and the crown remembers that as well.'}</p>
+    </section>`;
+  }
+  const side = r.war ? warSide(state) : sideOf(state);
+  const sworn = r.oath === 'none' ? 'You have sworn to nobody.'
+    : r.oath === 'crown' ? `You are sworn to the king’s will${r.will ? `: to ${CLAIMANTS[r.will].name}` : ', whatever it says'}.`
+    : r.oath ? `You are sworn to ${CLAIMANTS[r.oath].name}.`
+    : side && side !== 'crown' ? `You are counted ${FACTION_LABELS[side]}’s man, as your patron’s. You have sworn no oath.`
+    : 'You have sworn no oath, and nobody counts you as theirs.';
+  let war = '';
+  if (atWar(state)) {
+    const bs = r.war.battles;
+    war = `<p class="small"><b>The king is dead.</b> His will named ${esc(CLAIMANTS[r.will].name)}. ${bs.length
+      ? bs.map((b) => `${esc(cap(b.name))}: ${esc(CLAIMANTS[b.victor].short)} carried the field.`).join(' ')
+      : 'No battle has been fought yet.'} ${r.war.decided ? 'The war is decided; the reckoning comes in winter.' : ''}</p>`;
+  }
+  return `<section class="card stack realm">
+    <div class="spread"><span class="eyebrow">The realm</span><span class="small muted">${tensionWord(r.tension)}</span></div>
+    ${atWar(state) ? '' : `<div class="meter tension" title="Tension ${r.tension} of 100"><i style="width:${r.tension}%"></i></div>`}
+    ${war}
+    ${r.rumour ? `<p class="voice small rumour">${esc(r.rumour)}</p>` : ''}
+    <p class="small muted">${esc(balanceWords(state))} ${esc(sworn)}</p>
+    <p class="small">If it came to swords: <b>${esc(imp.rank.label)}</b>. ${esc(imp.rank.does)} <span class="faint">(standing ${imp.score}${imp.next ? `; ${imp.next.min} makes you ${imp.next.label.toLowerCase()}` : ''}; the Knight tab shows why)</span></p>
+  </section>`;
+}
 
 /** Your patron: what he pays, what he expects, and how you stand with him. */
 function renderPatron(state) {
@@ -277,6 +333,8 @@ export function renderWinter(state) {
     <button class="btn quiet" data-act="resign">Leave his service (his favour \u2212${-PATRONAGE.resignFavour})</button>
   </section>` : ''}
 
+  ${renderLands(state)}
+
   <section class="card stack">
     <div class="eyebrow">Your retinue</div>
     <p class="small muted">${expected ? `A knight of renown ${state.renown} is expected at the great tourneys with ${expected} in his retinue; you keep ${state.retinue.length}.` : 'Nobody yet expects you to arrive attended.'} Wages are paid a year in advance.</p>
@@ -311,6 +369,31 @@ export function renderWinter(state) {
   </section>
 
   <button class="btn primary wide" data-act="spring">Ride out in spring</button>`;
+}
+
+/** Land and men: what you hold, of whom, and the company it keeps. */
+function renderLands(state) {
+  const w = state.winter;
+  const lands = state.lands || [];
+  const max = companyMax(state);
+  const heldOf = (l) => (l.heldOf ? `held of ${FACTION_LABELS[l.heldOf]}` : 'your own');
+  const offer = w.manor;
+  return `<section class="card stack">
+    <div class="eyebrow">Lands and men</div>
+    ${lands.length ? lands.map((l) => {
+      const m = manorDef(l.id);
+      return `<div class="rider"><div style="flex:1"><div class="nm">${esc(m.name)} <span class="small muted">${esc(heldOf(l))}</span></div>
+        <div class="small muted">Rents ${lsd(m.income * 240)} a year · ${m.men} men owe you service</div></div></div>`;
+    }).join('') : '<p class="small muted">You hold no land. Land comes by marriage, by a lord’s grant after years of service, by the king’s hand, by purchase, or by war. Land held of a lord falls with him.</p>'}
+    <p class="small">Men-at-arms of your own: <b>${state.company || 0}</b> of the ${max} your lands can keep, at ${lsd(COMPANY.wage)} a year each. With your tenants you would bring <b>${menOf(state)}</b> men to a muster.</p>
+    <div class="row">
+      <button class="btn" data-act="hire-man" ${(state.company || 0) < max && state.purse >= COMPANY.wage ? '' : 'disabled'}>Take on a man (${lsdSigned(-COMPANY.wage)})</button>
+      <button class="btn quiet" data-act="dismiss-man" ${state.company ? '' : 'disabled'}>Let one go</button>
+    </div>
+    ${offer ? `<div class="card inset stack"><p class="small"><b>For sale:</b> the manor of ${esc(offer.name)}. Rents ${lsd(offer.income * 240)} a year, ${offer.men} men owe service, room for ${COMPANY.perManor} more of your own. ${lsd(offer.price)}.</p>
+      <button class="btn" data-act="buy-manor" ${state.purse >= offer.price ? '' : 'disabled'}>Buy ${esc(offer.name)}</button></div>`
+      : `<p class="small faint">${atWar(state) ? 'Nobody sells land in a war.' : 'No manor is for sale this winter.'}</p>`}
+  </section>`;
 }
 
 export function rollTable(rows) {

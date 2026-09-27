@@ -75,8 +75,9 @@ export const EPITHETS = {
 };
 export const EPITHET_AT = 18;
 
-// A marriage brings a dowry and the income of the lady's own lands.
-export const MARRIAGE = { dowry: 30 * 240, lands: 5 * 240, breakCost: 10 * 240 };
+// A marriage brings a dowry now, and her dower manor: rents every winter, and
+// men who owe service (see realm.data.js).
+export const MARRIAGE = { dowry: 30 * 240, breakCost: 10 * 240 };
 
 // Story threads, shown on the knight's sheet. Each stage is reached when its
 // flag is set; the sheet shows the furthest. {culprit} {master} {lady} are
@@ -97,7 +98,7 @@ export const THREADS = [
     stages: [
       { flag: null, text: 'You are promised to the lady {lady}.' },
       { flag: 'weddingSet', text: 'The wedding has a date.' },
-      { flag: 'married', text: 'You are married to {lady}. Her lands pay you every winter.' },
+      { flag: 'married', text: 'You are married to {lady}. Her dower manor pays you every winter.' },
       { flag: 'betrothalBroken', text: 'You broke your promise to {lady}. Her family has not forgotten.' },
     ],
   },

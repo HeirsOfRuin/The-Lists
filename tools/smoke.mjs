@@ -14,6 +14,10 @@ if (!chromium) throw new Error(`Could not load chromium from ${PW}`);
 import { createServer } from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
+import { newGame, serialize } from '../src/engine/state.js';
+import { randomAnswers, randomName } from '../src/engine/knight.js';
+import { makeRng } from '../src/engine/rng.js';
+import { step } from '../sim/bot.js';
 
 const ROOT = process.cwd();
 const SHOTS = process.env.SHOTS || '/tmp/shots';
@@ -166,6 +170,56 @@ check('a phase-one save opens and resumes', /David/.test(name), name);
 check('it opens on the map', await has('svg.map'));
 await page.screenshot({ path: `${SHOTS}/2-migrated.png`, fullPage: true });
 report('migration');
+
+// The tenth year: a career played by the reference bot up to Lady Day, then
+// the king's death, the muster, the ford, the siege and the battle in the page.
+function warSave() {
+  for (let seed = 5; seed < 40; seed++) {
+    const rng = makeRng(seed * 7919 + 1);
+    const s = newGame({ seed, answers: randomAnswers(rng), name: randomName(rng) });
+    while (s.status === 'active' && !s.realm.war) step(s, 'squire', rng);
+    if (s.status === 'active' && s.pending) return serialize(s);
+  }
+  throw new Error('no career reached the war');
+}
+await page.evaluate((raw) => localStorage.setItem('the-lists.save.v1', raw), warSave());
+await page.reload({ waitUntil: 'load' });
+check('a career at war opens', await has('.cardscene'));
+check('the king is dead', /king is dead/i.test(await text('.cardscene')));
+await page.screenshot({ path: `${SHOTS}/4-war-card.png`, fullPage: true });
+let battleSeen = false;
+let warSteps = 0;
+for (; warSteps < 60; warSteps++) {
+  if (await has('[data-answer]')) {
+    const scene = await text('.cardscene');
+    if (/shallow valley|banners from the hill/.test(scene)) {
+      battleSeen = true;
+      check('the battle shows its odds on the button', /chance of the field: \d+%/.test(scene));
+      check('and the risk of death', /Risk of death: \d+%|No risk to you/.test(scene));
+      await page.screenshot({ path: `${SHOTS}/5-battle.png`, fullPage: true });
+    }
+    await page.locator('[data-answer]').last().click();
+    continue;
+  }
+  if (battleSeen && await has('.realm')) break;
+  if (await has('[data-act="new-after-end"]')) { check('the war ended the career (a legitimate outcome)', true); break; }
+  if (await has('.realm') && !battleSeen) {
+    if (warSteps === 1 || warSteps === 2) await page.screenshot({ path: `${SHOTS}/6-realm.png`, fullPage: true });
+    await page.click('[data-act="pass"]');
+    continue;
+  }
+  if (await has('[data-act="spring"]')) break;
+  check('some way forward is offered in the war', false, (await page.locator('main').innerText()).slice(0, 200));
+  break;
+}
+check('the battle was reached in the page', battleSeen, `${warSteps} steps`);
+check('no sideways scroll in the war', (await overflow()) <= 1);
+await page.click('[data-tab="knight"]');
+await page.waitForTimeout(60);
+check('the Knight tab shows standing in the realm', /Standing in the realm/i.test(await page.locator('main').innerText()));
+await page.screenshot({ path: `${SHOTS}/7-standing.png`, fullPage: true });
+await page.click('[data-tab="now"]');
+report('war');
 
 await page.emulateMedia({ colorScheme: 'dark' });
 await page.waitForTimeout(80);

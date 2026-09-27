@@ -105,7 +105,9 @@ the pound, twelve pence to the shilling). Integer pence cannot drift.
 
 - **Renown:** prowess. It decays when you stop competing.
 - **Honour:** conduct. Slow to gain, fast to lose.
-- **Lineage:** your ancestry. Nearly fixed, and it gates the elite events.
+- **Lineage:** your ancestry. Nearly fixed. It no longer gates the elite
+  events (they are by invitation, on renown or a lord's favour), but it counts
+  toward standing in the realm.
 - **Favour:** standing with each faction (the Crown, the two great houses, the
   Church, the Cities).
 - **Six paired traits, Pendragon-style.** Each pair sums to 20 and drifts with
@@ -182,6 +184,27 @@ Twenty years ago a treaty ended the war your master's generation fought. The
 king is aging, the succession is contested, and the great houses fight it by
 proxy on the circuit.
 
+**The war comes in year ten, in every career.** What the player controls is
+where they stand when it does, not whether it comes.
+
+- *Tension* rises on a fixed schedule, read by the rumours and the eight
+  scripted beats of the ten years.
+- *The balance* between Aumbry and Stane moves with who wins the great
+  tourneys and what knights say and do. It decides whose name is in the will,
+  and so which side the Crown's knights ride for.
+- *Standing* is renown (capped), honour, lineage, land, men, service, favour,
+  byname and great prizes, summed and shown term by term. It decides the
+  knight's rank in the war:
+  - what they bring to the field;
+  - which answers are open;
+  - how exposed they are;
+  - what the victor gives, or the vanquished take.
+- *The war* is a muster, a ford, a siege and a battle, with a second year if
+  the first battle is close or an upset.
+- *The settlement* rewards by rank, forfeits land held of the loser, and
+  attaints. Pardon or exile follows, and the new crown holds a coronation
+  tourney.
+
 Tentpoles:
 
 1. The provincial debut.
@@ -200,9 +223,9 @@ Endings:
 - Lord by marriage.
 - Kingmaker.
 - Retired with a full Book of Feats.
-- Disgraced exile.
-- Ruined, and selling your sword.
-- Dead in the lists.
+- Disgraced exile, or attainted exile after the war (built).
+- Ruined, and selling your sword (built).
+- Dead in the lists, or in the war (built).
 
 ## 9. Grounding
 
@@ -232,7 +255,7 @@ before the court, and the card engine planned for phase 3 arrived here.
    - Horse condition, training, winter accounts, the squire, the retinue, the
      harness and the fair.
    - Paid service, and the migration of phase-one saves.
-3. **Court**: this build.
+3. **Court**: done.
    - Patrons with fees and obligations: their tourney, their summons, and
      dismissal after two strikes.
    - The heralds' judgement: four conduct ranks on a 0–20 honour scale, and
@@ -241,11 +264,21 @@ before the court, and the card engine planned for phase 3 arrived here.
    - The Ambry Cross and betrothal threads.
    - House allegiance in the field.
    - Creation cut to six questions.
-4. **Story:** tentpoles, the master's threads, endings, and a reachability test.
-5. **Breadth:** mêlée and ransom, pas d'armes, vows, romance and marriage,
-   heraldry in full, and the Order.
-6. **Balance and polish:** ablations, verifying the backgrounds, the tutorial,
-   deploying to Pages, and sources.
+4. **The realm and the war**: this build. Playing phase three showed the
+   story needed a spine the player could see coming, so the succession
+   crisis became it.
+   - Tension on a schedule, rumours, and eight beats in the ten years.
+   - The balance, moved by the great tourneys, deciding the will.
+   - The great tourneys by invitation, with partisan exclusion from year six.
+   - Land from six sources, men-at-arms kept as land allows, and standing as a
+     visible sum and rank.
+   - The war with odds, death and capture on every button, then the
+     settlement, pardon or exile, and the coronation tourney.
+5. **Story:** the remaining tentpoles (the Great Pas, the accusation à
+   outrance), the master's threads, endings, and a reachability test.
+6. **Breadth, balance and polish:** mêlée and ransom, pas d'armes, vows,
+   romance, heraldry in full, the Order, then ablations, verifying the
+   backgrounds, the tutorial, deploying to Pages, and sources.
 
 ## 11. Rules the code is organised around (inherited from Centennial Farm)
 

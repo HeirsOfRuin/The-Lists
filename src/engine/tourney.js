@@ -16,6 +16,8 @@ import {
   pickField, riderFrom, knightById, adjustRegard, reactionFor, creditField, monthIndex,
 } from './field.js';
 import { conductOf, targetBeaten, clearMaster, clampHonour } from './court.js';
+import { creditBalance, sideOf, grantManor } from './realm.js';
+import { LANDS } from '../data/realm.data.js';
 import { TIERS, WOUNDS, HERALD_READ, LORE_KNOWS_HABITS } from '../data/tourney.data.js';
 import { TOWNS } from '../data/world.data.js';
 import { TRAVEL, HARNESS, SQUIRE, TRAINING, RETINUE_EXPECTED, CONDITION } from '../data/household.data.js';
@@ -577,6 +579,15 @@ function finishTourney(state) {
   c.unhorsed += unhorsed.length;
   if (fellTo) c.falls += 1;
   if (ev.placing === 'champion' && ev.tier !== 'pas') c.championships += 1;
+  // A great tourney won is a blow in the proxy war, for whichever house you ride for.
+  if (ev.placing === 'champion' && (ev.tier === 'high' || ev.tier === 'grand')) {
+    c.greatPrizes = (c.greatPrizes || 0) + 1;
+    creditBalance(state, ev.tier, sideOf(state), { yours: true });
+    if (ev.tier === 'grand' && state.renown >= LANDS.royalGrantRenown && !(state.lands || []).some((l) => l.how === 'royal')) {
+      const m = grantManor(state, 'crown', 'royal');
+      if (m) ev.notes.push(`The king grants you the manor of ${m.name}, to hold of the Crown.`);
+    }
+  }
 
   const net = ev.ledger.reduce((s, l) => s + l.amount, 0);
   const entry = {

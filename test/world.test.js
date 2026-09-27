@@ -2,7 +2,10 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { yearCalendar, route, admitted } from '../src/engine/calendar.js';
+import { yearCalendar, route } from '../src/engine/calendar.js';
+import { admitted, sendInvitations } from '../src/engine/realm.js';
+import { takeService } from '../src/engine/court.js';
+import { INVITATIONS, PARTISAN_AT } from '../src/data/realm.data.js';
 import {
   generateRoster, pickField, runBracket, riderFrom, winterField, rollOfArms, monthIndex,
 } from '../src/engine/field.js';
@@ -50,21 +53,63 @@ test('the roads join every town, and the shortest road is the shortest', () => {
   }
 });
 
-test('the heralds admit by the rules they state, and say why they refuse', () => {
+test('the great tourneys are by invitation, on the terms the heralds state', () => {
   const s = knight(1);
   const grand = s.calendar.find((e) => e.tier === 'grand');
   const high = s.calendar.find((e) => e.tier === 'high');
-  s.renown = 0; s.lineage = 5; s.favour.crown = 0;
+  const house = high.host.faction;
+  s.renown = 0; s.lineage = 20; s.favour.crown = 0; s.favour[house] = 0; s.patron = null;
   const no = admitted(s, grand);
-  assert.equal(no.ok, false);
-  assert.match(no.reason, /renown 30/);
-  s.renown = 30;
-  assert.ok(admitted(s, grand).ok);
-  s.renown = 0; s.favour.crown = 10;
-  assert.ok(admitted(s, grand).ok);
-  s.favour.crown = 0; s.favour[high.host.faction] = 8;
-  assert.ok(admitted(s, high).ok, 'the host’s favour admits you to his own tourney');
-  for (const t of ['local', 'regional']) assert.ok(admitted(s, s.calendar.find((e) => e.tier === t)).ok);
+  assert.equal(no.ok, false, 'lineage alone does not bring a letter');
+  assert.match(no.reason, new RegExp(`renown ${INVITATIONS.grand.renown}`));
+  s.renown = INVITATIONS.grand.renown;
+  assert.ok(admitted(s, grand).ok, 'renown brings a letter');
+  s.renown = 0; s.favour.crown = INVITATIONS.grand.favour;
+  assert.ok(admitted(s, grand).ok, 'so does the Crown’s favour');
+  s.favour.crown = 0;
+  takeService(s, 'cities');
+  s.favour.cities = INVITATIONS.grand.train;
+  assert.match(admitted(s, grand).why, /train/, 'a great lord brings his man in his train');
+  s.patron = null;
+
+  assert.equal(admitted(s, high).ok, false);
+  assert.match(admitted(s, high).reason, new RegExp(`renown ${INVITATIONS.high.renown}`));
+  s.favour[house] = INVITATIONS.high.favour;
+  assert.ok(admitted(s, high).ok, 'the host’s favour brings a letter to his own tourney');
+  s.favour[house] = 0; s.renown = INVITATIONS.high.renown;
+  assert.ok(admitted(s, high).ok);
+  for (const t of ['local', 'regional']) {
+    s.renown = 0;
+    assert.ok(admitted(s, s.calendar.find((e) => e.tier === t)).ok, `${t}: no letter needed`);
+  }
+});
+
+test('a letter, once sent, stands; and a divided realm does not invite its rival’s men', () => {
+  const s = knight(4);
+  const high = s.calendar.find((e) => e.tier === 'high');
+  s.month = high.month - 1;
+  s.renown = 40;
+  sendInvitations(s);
+  assert.ok(s.invitations[high.id], 'the letter comes a month ahead');
+  s.renown = 0;
+  assert.ok(admitted(s, high).ok, 'and holds though renown falls');
+  s.honour = 0;
+  assert.equal(admitted(s, high).ok, false, 'but not for a knight disgraced since');
+
+  const t = knight(5);
+  const h = t.calendar.find((e) => e.tier === 'high');
+  const rival = h.host.faction === 'aumbry' ? 'stane' : 'aumbry';
+  t.renown = 60;
+  t.realm.oath = rival;
+  assert.ok(admitted(t, h).ok, 'before the realm divides, renown is enough');
+  t.realm.tension = PARTISAN_AT;
+  const r = admitted(t, h);
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /rival/);
+  // The field is barred the same way.
+  const rng = makeRng(3);
+  const field = pickField(t, h, 7, new Set(), rng);
+  assert.ok(field.every((k) => k.allegiance !== rival), 'no sworn man of the rival house rides');
 });
 
 test('the field is whole, and every knight in it is possible', () => {

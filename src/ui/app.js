@@ -15,7 +15,7 @@ import { reckonNow } from '../engine/derive.js';
 import {
   rideTo, enter, withdraw, ride, rideOutBout, onward, leave, train, serve, rest, visitCourt, passMonth,
   answer, setFocus, setSquireFocus, takeSquire, dubSquire, hire, dismiss, buyHarness, buyHorse,
-  keepBorrowedHorse, endWinter, PHASE, answerSummons, pilgrimage, resignService,
+  keepBorrowedHorse, endWinter, PHASE, answerSummons, pilgrimage, resignService, buyManor, hireMan, dismissMan,
 } from '../engine/season.js';
 import { WORLD, MONTHS, TOWNS } from '../data/world.data.js';
 import { lsd } from '../engine/money.js';
@@ -62,15 +62,16 @@ function renderTitle() {
       <div class="eyebrow">Carry on</div>
       <div class="arms-block">${shield(s.arms, 44)}
         <div><div class="subhead">${esc(fullName(s.knight))}</div>
-        <div class="muted small">Year ${s.year} · ${s.career.tourneys} tourney${s.career.tourneys === 1 ? '' : 's'} ridden · ${lsd(s.purse)}${s.status !== STATUS.ACTIVE ? ' · ruined' : ''}</div></div>
+        <div class="muted small">Year ${s.year} · ${s.career.tourneys} tourney${s.career.tourneys === 1 ? '' : 's'} ridden · ${lsd(s.purse)}${s.status !== STATUS.ACTIVE ? ` · ${ENDING_WORD[s.status] || 'over'}` : ''}</div></div>
       </div>
       <button class="btn primary" data-act="resume">${s.status === STATUS.ACTIVE ? 'Ride on' : 'See how it ended'}</button>
     </section>` : ''}
     ${!saved.ok && !/no saved|no storage/.test(saved.reason) ? `<p class="small neg">A saved knight could not be read: ${esc(saved.reason)}</p>` : ''}
     <button class="btn ${s ? '' : 'primary'} wide" data-act="new">A new knight</button>
-    <p class="small faint build-note">The third of six builds: your knight, the circuit and its calendar, the field of
-      rivals, feasts and the road, your squire and household, and the court: patrons, the heralds’ judgement, and the
-      first story threads. The succession, the mêlée and the Order come after.</p>
+    <p class="small faint build-note">The fourth of six builds: your knight, the circuit, the field of rivals, feasts
+      and the road, your squire and household, the court, and now the realm: ten years of a peace wearing thin, the
+      great tourneys by invitation, land and men, and the war that comes in the tenth year. The mêlée and the Order
+      come after.</p>
   </div>`;
 }
 
@@ -210,11 +211,14 @@ function renderNow() {
   return `${refusal}${note}${renderMonth(state, ui)}`;
 }
 
+const ENDING_WORD = { ruined: 'ruined', dead: 'dead', exiled: 'exiled' };
+const ENDING_TITLE = { ruined: 'Ruined', dead: 'Dead in the war', exiled: 'Exiled' };
+
 function renderEnding() {
   const o = state.outcome;
   return `
   <section class="card lift stack-lg">
-    <div class="verdict">Ruined</div>
+    <div class="verdict">${ENDING_TITLE[state.status] || 'The end'}</div>
     <p class="entry">${esc(o?.text || 'The career is over.')}</p>
     <dl class="kv">
       <dt>Years</dt><dd>${state.year}</dd>
@@ -350,6 +354,9 @@ app.addEventListener('click', (e) => {
       case 'pass': act(passMonth); break;
       case 'dub': act(dubSquire); top = false; break;
       case 'keep-horse': act(keepBorrowedHorse); top = false; break;
+      case 'buy-manor': act(buyManor); top = false; break;
+      case 'hire-man': act(hireMan); top = false; break;
+      case 'dismiss-man': act(dismissMan); top = false; break;
       case 'spring': act(endWinter); break;
       case 'abandon': ui.confirmAbandon = true; top = false; break;
       case 'abandon-no': ui.confirmAbandon = false; top = false; break;

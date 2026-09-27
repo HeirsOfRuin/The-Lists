@@ -461,3 +461,9 @@ p { margin: 0; }
 .warnnote { border-left-color: var(--gules); }
 .answer .gate { font-size: .8rem; font-weight: 700; color: var(--good); text-transform: uppercase; letter-spacing: .06em; }
 .thread { display: flex; flex-direction: column; gap: 2px; border-left: 2px solid var(--rule-2); padding-left: 10px; }
+
+/* ---------- the realm ---------- */
+.realm { border-left: 3px solid var(--gules); }
+.meter.tension > i { background: var(--gules); }
+.rumour { margin: 0; padding-left: 10px; border-left: 2px solid var(--rule-2); color: var(--ink-2); font-style: italic; }
+.terms td:last-child { text-align: right; font-variant-numeric: tabular-nums; }

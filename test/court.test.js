@@ -11,7 +11,7 @@ import {
   passMonth, answer, answerSummons, pilgrimage, resignService, endWinter, monthOptions, PHASE,
 } from '../src/engine/season.js';
 import { heraldReadCost } from '../src/engine/tourney.js';
-import { admitted } from '../src/engine/calendar.js';
+import { admitted, manorDef } from '../src/engine/realm.js';
 import { cardById, answerCard, castIfEligible } from '../src/engine/cards.js';
 import { deserialize, SAVE_VERSION } from '../src/engine/state.js';
 import { fullName } from '../src/engine/knight.js';
@@ -192,7 +192,7 @@ test('Ambry Cross: the rolls name the culprit, and a sworn witness clears the ma
   assert.equal(castIfEligible(s, 'feast.accuse', ctx), null, 'the thread does not reopen');
 });
 
-test('the wedding: a dowry now, and the lady’s lands every winter', () => {
+test('the wedding: a dowry now, and her dower manor’s rents every winter', () => {
   const answers = { people: 'heir', country: 'coast', master: 'courtier', taught: 'manners', spurs: 'field', heart: 'lordship' };
   const s = knight(11, answers);
   assert.equal(s.heart, 'promised');
@@ -202,8 +202,11 @@ test('the wedding: a dowry now, and the lady’s lands every winter', () => {
   answerCard(s, { id: w.id, uid: 1, cast: {}, ctx: { tier: null, town: null, host: null, hostFaction: null, prize: 0 } }, 0);
   assert.equal(s.heart, 'married');
   assert.equal(s.purse, purse + MARRIAGE.dowry);
+  const dower = s.lands.find((l) => l.how === 'dower');
+  assert.ok(dower, 'her dower is a manor');
   toWinter(s);
-  assert.ok(s.winter.ledger.some((l) => /lands/.test(l.label) && l.amount === MARRIAGE.lands));
+  const m = manorDef(dower.id);
+  assert.ok(s.winter.ledger.some((l) => l.label === `Rents of ${m.name}` && l.amount === m.income * 240));
 });
 
 test('a phase-two save opens: the retainer becomes service, the field swears to houses', () => {

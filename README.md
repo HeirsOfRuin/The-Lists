@@ -29,6 +29,79 @@ python3 -m http.server 8000
 
 ## What this build is
 
+Phase 4 of 6 is the realm: ten years of a peace wearing thin, and then the war.
+
+- **The succession.** King Aldric has no son. His cousin, Duke Robert of
+  Aumbry, claims by the male line; his daughter Isabeau, married into Stane,
+  claims by blood. He dies on Lady Day of your tenth year, every career, and
+  his sealed will names one of them.
+- **The ten years before.** Tension rises on a fixed schedule; nothing you do
+  stops it. The Now screen shows how near it is, what they are saying in the
+  halls that month, who leads, and where you stand. Eight scripted beats come
+  whether you ride or not:
+  - the Princess's wedding (year 2);
+  - a gatehouse at Ambry Cross (3);
+  - a brawl between the houses' men (4);
+  - the king's collapse and the regency council (5);
+  - the houses dividing the circuit (6);
+  - the council's loan and the guilds' refusal (7);
+  - the commissioners of array counting men (8);
+  - the demand for oaths (9).
+- **The proxy war on the circuit.** Every high tourney and King's Tourney won by
+  a house's sworn knight moves the balance toward that house. Your own wins
+  count half again. The balance decides whose name is in the will, and so which
+  side the Crown's knights ride for. Stane is the default heir: Aumbry needs the
+  balance clearly his way.
+- **Invitations.** The high tourneys and the King's are by letter, sent a month
+  ahead, and a letter once sent stands.
+  - *High:* renown 20, the host's favour at 8, or being his man.
+  - *The King's:* renown 35, the Crown's favour at 8, the Crown's service, or a
+    patron whose favour reaches 12 bringing you in his train.
+  - A disgraced knight gets none.
+  - From year six, with the realm dividing, a great house invites none of its
+    rival's sworn men, and the field is drawn the same way.
+  - Lineage no longer opens doors; it counts toward standing instead.
+- **Land and men.**
+  - *Manors* come by marriage (the dower), by a patron after three faithful
+    years with his favour at 14, by the king's hand to a King's Tourney
+    champion of renown 40, by reclaiming a fallen house's charters, by purchase,
+    or by war.
+  - *Rents and men:* each manor pays rents every winter and has tenants who owe
+    service.
+  - *Men-at-arms:* you can hire them in winter, up to what your land can keep.
+    A man who is not paid leaves rather than ruin you.
+  - *Forfeiture:* land held of a lord falls with him.
+- **Standing.** The Knight tab adds it up term by term: renown (capped),
+  honour, lineage, manors, men, service, the favour of your side, a virtuous
+  byname, and great prizes. It comes to a rank for when it comes to swords:
+  hedge knight, household knight, banneret, captain, or councillor of war. Rank
+  decides what you bring to a battle, which answers are open to you, how
+  exposed you are, and what the victor gives or the vanquished take.
+- **The war.** It lasts one year, or two if the first battle is close or an
+  upset. Each step is a choice:
+  - the king's death and the reading of the will, where the unsworn must choose;
+  - the muster;
+  - a ford;
+  - a siege;
+  - the battle.
+
+  Every answer shows your side's chance of the field, your own risk of death,
+  and, if your side loses, your chance of being taken and the ransom. Those are
+  the numbers the battle is fought at. A neutral fends off deserters and
+  requisitions, and can watch from the hill or ride in late.
+- **The settlement.**
+  - *The victor's men* are rewarded by rank: money, renown, and from banneret
+    upward, manors.
+  - *The vanquished* forfeit what they held of the losing house, and may be
+    attainted. An attainted knight pays the fine, begs mercy, or goes into
+    exile.
+  - *Neutrals* lose a little renown and are remembered for it.
+  - *The new crown* holds a coronation tourney the next spring.
+- **New endings:** dead in the war, and exiled.
+- **Saves carry forward.** A phase-three save opens at whatever year it has
+  reached, with the houses even. A married knight's wife's lands become her
+  dower manor.
+
 Phase 3 of 6 is the court. Creation is also down to six questions, and each
 answer tells a small story.
 
@@ -81,10 +154,8 @@ the joust.
   four regional tourneys and seven local jousts. That is far more than one knight
   can ride, so you choose each month by entry rules, costs, prizes, distance and
   the field.
-  - The high tourneys admit a knight with renown 15, or the host's favour, or
-    lineage 14.
-  - The King's admits one with renown 30, or renown 18 and lineage 12, or the
-    Crown's favour.
+  - The high tourneys and the King's had renown, favour and lineage gates here.
+    Phase 4 replaced them with invitations (above).
   - The heralds say exactly why they turn you away.
 - **A map and the road.** Twelve towns in three provinces, with travel in days
   that costs money for every mouth in your train. Long roads bring road cards.
@@ -235,6 +306,59 @@ with a knight who weighs money and renown and does not care about honour.
     rarely rode where you did. Once you know his name, he rides where you
     ride.
 
+### The ten years and the war (measured at phase 4)
+
+`node sim/run.js --runs=150 --years=13` plays careers through the war and past
+it. `--conduct=worldly` swaps the honour-blind character in. `--war=careful`
+makes the bot refuse risk it does not need.
+
+**Invitations.**
+- The first high tourney comes in year 2 (median) and the first King's in
+  year 4.
+- About 1 career in 50 never rides the King's in thirteen years.
+
+**Standing at the outbreak (chivalrous bot, 150 careers).**
+
+| rank | share |
+|---|---|
+| household knight | 24% |
+| banneret | 31% |
+| captain | 33% |
+| councillor of war | 11% |
+
+- 60% hold land at the outbreak.
+- The median knight brings 5 men.
+- **Conduct shows.** The worldly character reaches councillor half as often
+  (9 against 17), and three of its careers are still hedge knights. Honour is
+  a term in standing, and a disgraced name loses the invitations that build
+  the rest.
+- The bot is a strong jouster; a human who ignores land will stand lower. The
+  first version of the standing sum made 30% of careers councillors, because
+  renown counted without limit and honour counted double. Renown now counts
+  only to 150, and land and men carry more weight.
+
+**The war.**
+- The will named Stane in 70% of careers, yet the bot swears to Aumbry two
+  times in three.
+  - *Why:* by year nine, Aumbry is the bot's patron three times as often as
+    Stane (23 careers of 80 against 7), and its favour leads in 52 of 80. The
+    Duke recruits harder on the circuit, and his cards come up more.
+  - *Kept as the story:* Aumbry buys men while Stane has the law. It means
+    siding with the likelier loser is the common case, which is where the war's
+    stakes bite.
+- Knights won on their side 55% of the time.
+- The war ran to a second battle in 43% of careers.
+- About 1 in 9 were attainted, and 1 in 20 ended in exile.
+- **Death depends on how you fight:**
+
+| how the bot fights | died in the war |
+|---|---|
+| bold: storms the walls, charges the ford | 13% |
+| careful | 3% |
+
+  A neutral who stays on the hill takes no risk at all. The risk is on every
+  button before you press it.
+
 ## The instruments
 
 There are two separate things, answering two different questions (the same
@@ -258,6 +382,18 @@ true:
   heralds admit by the rules they state.
 - Winter's accounts are the purse's change. A phase-one save loads and plays on.
 - Eight-year careers leave nothing impossible behind.
+- The great tourneys admit by the letters the heralds describe. A letter
+  stands once sent, and a divided realm bars its rival's men, from the field
+  as well.
+- Tension follows its schedule. Every peace beat comes once, in its month. The
+  king dies in the tenth year of every career. The war calendar keeps only the
+  towns' jousts.
+- A battle is won, a knight dies, and a knight is taken at the chances the
+  button shows, counted over 400 battles. The second battle always decides.
+- The settlement pays by rank, forfeits what was held of the loser, and ends
+  the attainted in a paid pardon or exile. Oaths cost what they say.
+- Land comes from patrons as stated, and men are kept only as land allows.
+- A phase-three save opens in the realm and plays on into the war.
 
 **Is it balanced?**
 
@@ -280,7 +416,9 @@ src/engine/   pure, deterministic, no DOM
   derive.js     every number the lists screen shows, from joust.js
   tourney.js    the road, arrival, the draw, rounds, prizes, the ledger, for every tier
   season.js     the months and winter: every action a player can take
-  calendar.js   the year's tourneys, the roads, and who is admitted
+  calendar.js   the year's tourneys and the roads
+  realm.js      the succession: tension, balance, invitations, land, standing, the war, the settlement
+  court.js      patrons, conduct, bynames, the story threads
   field.js      the 48 knights: careers, brackets you do not ride, regard, the Roll
   cards.js      the card engine: conditions, casting, checks, effects
   knight.js     creation: answers in, knight out, and the lines that describe it
@@ -289,7 +427,7 @@ src/engine/   pure, deterministic, no DOM
   state.js      new career, the save contract (the-lists.save.v1)
   rng.js        named deterministic streams (from Centennial Farm)
 src/data/      logic-free tables: creation, joust, tourney, household, field, world,
-               names, and the cards themselves
+               names, court, realm, and the cards themselves
 src/ui/        the screens; reads the engine, computes nothing
 sim/           reference bot, career runner, joust curve
 test/          invariants

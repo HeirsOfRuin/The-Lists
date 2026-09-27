@@ -12,15 +12,18 @@ import { buildKnight, fullName } from './knight.js';
 import { generateRoster, seedHistory, assignAllegiance } from './field.js';
 import { takeService } from './court.js';
 import { yearCalendar } from './calendar.js';
+import { freshRealm, grantManor, pickRumour, sendInvitations } from './realm.js';
 import { WORLD, PROVINCES, FIRST_MONTH } from '../data/world.data.js';
 import { HARNESS } from '../data/household.data.js';
 
 export const SAVE_KEY = 'the-lists.save.v1';
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export const STATUS = {
   ACTIVE: 'active',
   RUINED: 'ruined', // could not pay the winter accounts
+  DEAD: 'dead',     // killed in the war
+  EXILED: 'exiled', // attainted, and would not or could not buy a pardon
 };
 
 function freshMarks() { return { lance: 0, seat: 0, vigour: 0, courtesy: 0, lore: 0 }; }
@@ -54,6 +57,14 @@ function courtFor(state) {
   state.notices = state.notices || [];
 }
 
+/** The parts of a career that phase four added: the realm, land and men. */
+function realmFor(state) {
+  state.realm = freshRealm(state.year);
+  state.lands = [];
+  state.company = 0;
+  state.invitations = {};
+}
+
 /**
  * A new career. Everything about it is a pure function of
  * (seed, answers, name) and the choices made after, which is what makes a
@@ -84,6 +95,10 @@ export function newGame({ seed = 1, answers, name }) {
   };
   worldFor(state);
   courtFor(state);
+  realmFor(state);
+  state.realm.rumour = pickRumour(state);
+  sendInvitations(state);
+  state.notices = [];
   state.lastResult = {
     title: `Spring, in the ${ordinal(WORLD.peaceYear)} year of the peace`,
     text: `${fullName(state.knight)} rides out on ${state.horse.name}, with ${state.master.name} ${state.master.fate === 'dead' ? 'in his grave' : 'still watching'}. The heralds have published the year’s tourneys.`,
@@ -170,6 +185,16 @@ export function migrate(s) {
       s.flags = s.flags.filter((f) => f !== 'aumbryRetainer');
     }
     s.version = 3;
+  }
+  if (s.version === 3) {
+    // Phase four: the realm, from the year the save has reached. The houses
+    // start even; a married knight's wife's lands become her dower manor; the
+    // letters for great tourneys start with next month's. A save already past
+    // the tenth year will see the king die at its next spring.
+    realmFor(s);
+    if (s.heart === 'married') grantManor(s, null, 'dower');
+    for (const e of s.book) if ((e.tier === 'high' || e.tier === 'grand') && e.placing === 'champion') s.career.greatPrizes = (s.career.greatPrizes || 0) + 1;
+    s.version = 4;
   }
   return s;
 }
