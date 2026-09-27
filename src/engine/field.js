@@ -58,6 +58,21 @@ function newKnight(rng, id, province, age, usedNames) {
   };
 }
 
+// Which house a knight is sworn to, if any. Drawn from its own stream, so
+// adding allegiance did not change who the knights of an old save are.
+const ALLEGIANCE = [
+  { id: 'aumbry', weight: 25 }, { id: 'stane', weight: 25 }, { id: 'crown', weight: 15 }, { id: null, weight: 35 },
+];
+
+/** Swear every knight who has no allegiance yet to a house, or to none. */
+export function assignAllegiance(state) {
+  const rng = streamFor(state.seed, 0, 'allegiance');
+  for (const k of state.roster.knights) {
+    if (k.allegiance !== undefined) continue;
+    k.allegiance = rng.weighted(ALLEGIANCE).id;
+  }
+}
+
 /** The field at the start of a career. */
 export function generateRoster(seed, playerName) {
   const rng = streamFor(seed, 0, 'roster');
@@ -283,6 +298,7 @@ export function winterField(state) {
     while (counts[p] < ROSTER.perProvince) {
       const k = newKnight(rng, `k${state.roster.nextId}`, p, rng.range(19, 22), used);
       k.renown = rng.range(0, 3);
+      k.allegiance = rng.weighted(ALLEGIANCE).id;
       state.roster.nextId += 1;
       state.roster.knights.push(k);
       counts[p] += 1;

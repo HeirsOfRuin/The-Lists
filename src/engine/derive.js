@@ -29,6 +29,7 @@ export function knownOf(state, riderId) {
     standing: k ? regardLabel(k.regard) : null,
     memory: k ? k.memory : [],
     temperament: k ? k.temperament : null,
+    allegiance: k ? k.allegiance : null,
   };
 }
 

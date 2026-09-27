@@ -2,7 +2,7 @@
 
 import { TIERS } from '../data/tourney.data.js';
 import { AIMS, SEATS, ORDINANCE } from '../data/joust.data.js';
-import { TOWNS } from '../data/world.data.js';
+import { TOWNS, FACTION_LABELS } from '../data/world.data.js';
 import { TEMPERAMENTS } from '../data/field.data.js';
 import {
   entryCost, heraldReadCost, canEnter, currentBout, roundName, roundCount, YOU,
@@ -76,7 +76,9 @@ export function renderArrival(state) {
 
 export function riderLine(state, id, r) {
   const k = knownOf(state, id);
-  const standing = k.standing ? `<span class="tag ${k.standing === 'grudge' || k.standing === 'cool' ? 'warn' : 'good'}">${k.standing}</span>` : '';
+  const standing = (k.standing ? `<span class="tag ${k.standing === 'grudge' || k.standing === 'cool' ? 'warn' : 'good'}">${k.standing}</span>` : '')
+    + (k.allegiance ? ` <span class="tag">${esc(FACTION_LABELS[k.allegiance])}\u2019s man</span>` : '')
+    + (state.story?.culprit === id && !state.flags.includes('masterCleared') ? ' <span class="tag warn">Ambry Cross</span>' : '');
   return `<div class="rider">${shield(r.arms, 28)}<div style="flex:1;min-width:0">
     <div class="nm">${esc(r.name)} ${standing}</div>
     <div class="small muted">Lance ${r.lance} · Seat ${r.seat} · Horse ${r.horse.quality}${r.horse.temper === 'hot' ? ', hot' : ''} · Renown ${r.renown}</div>

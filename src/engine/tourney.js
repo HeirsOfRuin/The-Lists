@@ -15,6 +15,7 @@ import { route } from './calendar.js';
 import {
   pickField, riderFrom, knightById, adjustRegard, reactionFor, creditField, monthIndex,
 } from './field.js';
+import { conductOf, targetBeaten, clearMaster, clampHonour } from './court.js';
 import { TIERS, WOUNDS, HERALD_READ, LORE_KNOWS_HABITS } from '../data/tourney.data.js';
 import { TOWNS } from '../data/world.data.js';
 import { TRAVEL, HARNESS, SQUIRE, TRAINING, RETINUE_EXPECTED, CONDITION } from '../data/household.data.js';
@@ -87,6 +88,12 @@ export function newTourney(state, cal, opts = {}) {
   const field = opts.riders
     ? opts.riders.map((id) => knightById(state, id))
     : pickField(state, cal, tier.entrants - 1, new Set(), rng);
+  // Once you know it was his lance at Ambry Cross, he will not be seen
+  // avoiding you: he rides where you ride.
+  const culprit = state.story?.culprit && !state.flags.includes('masterCleared') ? knightById(state, state.story.culprit) : null;
+  if (!opts.riders && culprit && culprit.active && !field.includes(culprit) && culprit.injuredUntil <= monthIndex(cal.year, cal.month)) {
+    field[field.length - 1] = culprit;
+  }
   for (const k of field) riders[k.id] = riderFrom(k);
 
   // The draw: the two best-known riders are kept apart; the rest by lot.
@@ -163,6 +170,7 @@ export function takeRoad(state, extraDays = 0) {
 export function arrive(state) {
   const ev = state.event;
   ev.stage = STAGE.ARRIVAL;
+  ev.honourStart = state.honour;
   state.location = ev.town;
   const field = Object.keys(ev.riders).filter((id) => id !== YOU);
   if (state.knight.stats.lore >= LORE_KNOWS_HABITS || state.retinue.includes('pursuivant')) {
@@ -181,6 +189,7 @@ export function arrive(state) {
     const expected = expectedRetinue(state.renown);
     if (state.retinue.length < expected) {
       state.honour -= 1;
+      clampHonour(state);
       ev.notes.push(`A knight of your renown is expected with ${expected} in his retinue. You came with ${state.retinue.length}, and it was noticed. Honour −1.`);
     }
   }
@@ -216,7 +225,9 @@ export function payEntry(state) {
 /** What the herald's read of a rider costs you. */
 export function heraldReadCost(state) {
   const h = HERALD_READ;
-  return Math.max(h.min, h.base - h.perCourtesy * (state.knight.stats.courtesy - 8));
+  const cost = Math.max(h.min, h.base - h.perCourtesy * (state.knight.stats.courtesy - 8));
+  // A knight without reproach pays the heralds half.
+  return conductOf(state.honour).id === 'spotless' ? Math.max(h.min, Math.round(cost / 2)) : cost;
 }
 
 export function buyHeraldRead(state, riderId) {
@@ -377,6 +388,7 @@ function finishBout(state, p) {
     const r = reactionFor(him, won ? (fell ? 'lostFall' : 'lost') : 'won');
     adjustRegard(state, him.id, r.regard);
     ev.reactions.push({ round: ev.round, text: r.text, regard: r.regard });
+    if (won) targetBeaten(state, him.id, ev.notes);
   }
   if (ev.wager && !ev.wager.settled) {
     ev.wager.settled = true;
@@ -519,15 +531,26 @@ function finishTourney(state) {
   const vows = [];
   for (const id of ev.vows) {
     const name = ev.riders[id]?.name || knightById(state, id)?.name;
-    if (unhorsed.includes(name)) { renown += 3; vows.push({ name, kept: true }); }
-    else if (met.has(id)) { honour -= 2; vows.push({ name, kept: false }); }
-    else vows.push({ name, kept: null });
+    const ordeal = state.flags.includes('ordealVow') && id === state.story?.culprit;
+    if (unhorsed.includes(name)) {
+      renown += 3;
+      vows.push({ name, kept: true });
+      if (ordeal) ev.notes.push(clearMaster(state, `In the lists at ${TOWNS[ev.town].name}, God gave judgement.`));
+    } else if (met.has(id)) {
+      honour -= 2;
+      vows.push({ name, kept: false });
+      if (ordeal) state.flags = state.flags.filter((f) => f !== 'ordealVow');
+    } else vows.push({ name, kept: null });
   }
 
   const beneath = state.renown >= tier.beneath;
   if (beneath) renown = Math.min(renown, 0);
   state.renown = Math.max(0, state.renown + renown);
   state.honour += honour;
+  clampHonour(state);
+  // The heralds' judgement of your conduct, from arrival to the last course.
+  const judged = state.honour - (ev.honourStart ?? state.honour);
+  const judgement = judged >= 2 ? 'well' : judged <= -2 ? 'ill' : null;
 
   // The field's own reckoning: renown and wounds for everyone else.
   const res = {};
@@ -576,6 +599,7 @@ function finishTourney(state) {
     withdrew: ev.riders[YOU].wound === 'serious',
     vows,
     beneath,
+    judgement,
     renown,
     honour,
     net,

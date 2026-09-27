@@ -15,7 +15,7 @@ import { reckonNow } from '../engine/derive.js';
 import {
   rideTo, enter, withdraw, ride, rideOutBout, onward, leave, train, serve, rest, visitCourt, passMonth,
   answer, setFocus, setSquireFocus, takeSquire, dubSquire, hire, dismiss, buyHarness, buyHorse,
-  keepBorrowedHorse, endWinter, PHASE,
+  keepBorrowedHorse, endWinter, PHASE, answerSummons, pilgrimage, resignService,
 } from '../engine/season.js';
 import { WORLD, MONTHS, TOWNS } from '../data/world.data.js';
 import { lsd } from '../engine/money.js';
@@ -68,8 +68,9 @@ function renderTitle() {
     </section>` : ''}
     ${!saved.ok && !/no saved|no storage/.test(saved.reason) ? `<p class="small neg">A saved knight could not be read: ${esc(saved.reason)}</p>` : ''}
     <button class="btn ${s ? '' : 'primary'} wide" data-act="new">A new knight</button>
-    <p class="small faint build-note">The second of six builds: your knight, the circuit and its calendar, the field of
-      rivals, feasts and the road, your squire and household. The court, the story and the mêlée come after.</p>
+    <p class="small faint build-note">The third of six builds: your knight, the circuit and its calendar, the field of
+      rivals, feasts and the road, your squire and household, and the court: patrons, the heralds’ judgement, and the
+      first story threads. The succession, the mêlée and the Order come after.</p>
   </div>`;
 }
 
@@ -343,6 +344,9 @@ app.addEventListener('click', (e) => {
       case 'train': act(train, ui.trainSkill); break;
       case 'serve': act(serve); break;
       case 'rest': act(rest); break;
+      case 'summons': act(answerSummons); break;
+      case 'pilgrimage': act(pilgrimage); break;
+      case 'resign': act(resignService); top = false; break;
       case 'pass': act(passMonth); break;
       case 'dub': act(dubSquire); top = false; break;
       case 'keep-horse': act(keepBorrowedHorse); top = false; break;

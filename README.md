@@ -29,6 +29,50 @@ python3 -m http.server 8000
 
 ## What this build is
 
+Phase 3 of 6 is the court. Creation is also down to six questions, and each
+answer tells a small story.
+
+- **Six questions, not ten.** Four of them each answer two things:
+  - your people: birth and what the family gave;
+  - your country and your horse;
+  - how you parted from your master and won your spurs;
+  - what you want and who waits for you.
+
+  Your master and what he taught you best stay separate, so you still choose
+  your build.
+- **Patrons.** The Crown, the Duke of Aumbry, the Earl of Stane or the Guild of
+  St Barbara may take you into service once their favour reaches 8 and your
+  renown reaches 10. A patron pays a fee every winter and puts you in his
+  livery. In return:
+  - You ride at his tourney every year.
+  - You answer his summons within its two-month window. A summons is an escort,
+    a letter, an envoy, a quarrel to settle, a month in the king's guard, or a
+    rival of the house to put in the sand.
+  - His knights think better of you, and his rival's knights think worse.
+  - Miss two obligations and he lets you go, at a cost in honour.
+- **The heralds' judgement.** Honour runs from 0 to 20 and sets how the heralds
+  regard you:
+  - *Without reproach* (16+): their read of a rider costs half.
+  - *Of good name* (8–15).
+  - *Questioned* (3–7): accusations at the helm-show.
+  - *Disgraced* (2 or below): barred from the high tourneys and the King's
+    until a pilgrimage begins to mend it.
+
+  Each tourney's Book entry carries the heralds' view of your conduct there.
+- **Character that shows.** Traits move slowly, and more slowly the further
+  they are from the middle. Some answers are open only to a knight strong in
+  one ("Open to you because you are generous"). At 18 the heralds give you a
+  byname, such as the Generous, the Fox or the Hard, and a virtue that becomes a
+  byname is sung for renown every winter.
+- **The first story threads.**
+  - *Ambry Cross*: a witness, the heralds' old rolls, the name of the man whose
+    lance it really was, and the choice of accusing him before the heralds or
+    letting God judge in the lists.
+  - *The betrothal*: from a date set to a wedding, with a dowry and the lady's
+    lands, or a broken promise.
+- **Saves carry forward** from phases one and two. Aumbry's retainer becomes
+  service, and the field swears itself to houses.
+
 Phase 2 of 6 is the world around the lists. Phase 1 was the spine: creation and
 the joust.
 
@@ -131,7 +175,7 @@ opponent's seat decides your aim and his aim decides your seat:
 `sim/joust-curve.js` is the instrument that caught it, and it is the one to rerun
 after any change to `src/data/joust.data.js`.
 
-### What does a career look like?
+### What does a career look like? (measured at phase 2)
 
 `node sim/run.js --runs=100 --years=8 --compare` runs 100 random knights per
 joust policy, each for eight years of the full loop: calendar, road, cards,
@@ -163,6 +207,33 @@ winter, squire, retinue and fair.
   The field's best riders being too weak and too spread out was the larger
   cause.
 - **Cards** come up about 15 times a year, two or three per tourney.
+
+### Does conduct matter?
+
+`node sim/run.js --runs=100 --years=8 --conduct=worldly` runs the same careers
+with a knight who weighs money and renown and does not care about honour.
+
+| character | honour, year 8 | disgraced | ruined | tourneys a year | Roll rank | purse | byname |
+|---|---|---|---|---|---|---|---|
+| chivalrous | 20 | 0% | 0% | 4.5 | 2nd | +£15 | Generous, Valiant |
+| worldly | 4 | 10% | 4% | 3.8 | 3rd | +£10 | Valiant, Devout, Fox |
+
+- **The worldly knight does worse on every count, including money.** A
+  questioned name draws accusations at the helm-show. A disgraced one is shut
+  out of the tourneys that pay.
+- **The worldly knight who walks pilgrimages to mend his name ends up called
+  "the Devout".** Nobody designed that; it falls out of the rules.
+- **Three findings shaped the build:**
+  - *Honour inflated to a median of 43* before it was given the same 0–20
+    scale as a trait, so every knight was "without reproach" and the ranks
+    meant nothing.
+  - *Nine in ten knights were "the Valiant" by their first winter*, because
+    a dozen bold answers each push valour. Starting traits are now held to
+    15, bynames need 18, and traits resist moving away from the middle.
+    Bynames now arrive around year five and vary with how you play.
+  - *Ambry Cross finished in 2 careers of 17*, because the guilty knight
+    rarely rode where you did. Once you know his name, he rides where you
+    ride.
 
 ## The instruments
 

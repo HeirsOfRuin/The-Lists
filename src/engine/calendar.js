@@ -9,6 +9,7 @@ import { streamFor } from './rng.js';
 import { TIERS, CALENDAR, LOCAL_HOSTS } from '../data/tourney.data.js';
 import { TOWNS, ROADS, GREAT_HOUSES, FEASTS, MONTHS, WORLD } from '../data/world.data.js';
 import { GIVEN_NAMES, HOUSE_NAMES } from '../data/names.data.js';
+import { isDisgraced } from './court.js';
 
 // ---------------------------------------------------------------------------
 // Roads
@@ -132,6 +133,11 @@ function clause(cond, state, host) {
 
 /** Whether the heralds will admit you, and if not, why not in words. */
 export function admitted(state, ev) {
+  if ((ev.tier === 'high' || ev.tier === 'grand') && isDisgraced(state)) {
+    return { ok: false, reason: 'The heralds will not cry the name of a disgraced knight at a great tourney. A pilgrimage would begin to mend it.' };
+  }
+  // A man in a house's service rides at that house's tourney.
+  if (state.patron && ev.host?.faction === state.patron.id) return { ok: true, reason: null };
   const rule = TIERS[ev.tier].eligibility;
   if (!rule) return { ok: true, reason: null };
   const clauses = rule.anyOf.map((c) => clause(c, state, ev.host));

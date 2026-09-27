@@ -24,7 +24,7 @@ const SCALAR_KEYS = ['purse', 'renown', 'honour', 'lineage', 'horseQuality'];
 
 /** Every effect key the creation table may use. The tests hold the data to it. */
 export const EFFECT_KEYS = [...STAT_KEYS, ...SCALAR_KEYS, 'favour', 'traits'];
-export const SET_KEYS = ['cadency', 'province', 'master', 'horse', 'masterFate'];
+export const SET_KEYS = ['cadency', 'province', 'master', 'horse', 'masterFate', 'birth', 'advantage', 'heart', 'ambition'];
 export { STAT_KEYS, TRAIT_KEYS, FACTION_KEYS };
 
 export const FLAG_LABELS = {
@@ -46,6 +46,12 @@ export const FLAG_LABELS = {
   aumbryRetainer: 'You ride in Aumbry\u2019s livery, for ten pounds a year.',
   visitedMaster: 'You have seen your master at the priory.',
   weddingSet: 'Your wedding has a date.',
+  married: 'You are married.',
+  betrothalBroken: 'You broke your betrothal.',
+  readTheLetter: 'You read a letter about the succession that was not meant for you.',
+  culpritKnown: 'You know whose lance it really was at Ambry Cross.',
+  ordealVow: 'You have vowed to bear the man of Ambry Cross down in the lists.',
+  masterCleared: 'Your master\u2019s name is cleared.',
 };
 
 const CADENCY_LABELS = {
@@ -124,6 +130,9 @@ export function randomName(rng) {
 
 const clampStat = (v) => Math.max(STAT_MIN, Math.min(STAT_MAX, Math.round(v)));
 const clampTrait = (v) => Math.max(0, Math.min(TRAIT_MAX, Math.round(v)));
+// Nobody leaves squirehood already a byword: character is made in the lists.
+export const TRAIT_START_MAX = 15;
+const clampStartTrait = (v) => Math.max(20 - TRAIT_START_MAX, Math.min(TRAIT_START_MAX, Math.round(v)));
 
 /**
  * Build a knight from complete answers. Pure given (answers, name, rng).
@@ -163,7 +172,7 @@ export function buildKnight(answers, name, rng) {
   }
 
   for (const k of STAT_KEYS) stats[k] = clampStat(stats[k]);
-  for (const k of TRAIT_KEYS) traits[k] = clampTrait(traits[k]);
+  for (const k of TRAIT_KEYS) traits[k] = clampStartTrait(traits[k]);
 
   const h = HORSES[sets.horse];
   const horse = {
@@ -206,12 +215,15 @@ export function buildKnight(answers, name, rng) {
     master,
     arms,
     flags,
-    heart: answers.heart,
+    birth: sets.birth,
+    advantage: sets.advantage,
+    heart: sets.heart,
     betrothed: flags.includes('betrothed') ? rng.pick(LADY_NAMES) : null,
-    ambition: answers.ambition,
+    ambition: sets.ambition,
   };
 }
 
-export function fullName(k) { return `Sir ${k.given} ${k.house}`; }
+/** The name the heralds cry: with his byname, once he has earned one. */
+export function fullName(k) { return `Sir ${k.given} ${k.house}${k.epithet ? ` ${k.epithet}` : ''}`; }
 export function provinceName(id) { return PROVINCES[id]?.name || id; }
 export function cadencyNote(arms) { return CADENCY[arms.cadency]; }

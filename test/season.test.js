@@ -135,10 +135,11 @@ test('a squire serves his years, and is dubbed into the field as your friend', (
 });
 
 test('a borrowed horse goes back at spring unless it is bought', () => {
-  const answers = { birth: 'younger', advantage: 'wealth', province: 'march', master: 'veteran', taught: 'lance', spurs: 'field', incident: 'confronted', horse: 'borrowed', heart: 'free', ambition: 'champion' };
+  const answers = { people: 'younger', country: 'court', master: 'veteran', taught: 'lance', spurs: 'field', heart: 'champion' };
   const a = knight(7, answers);
   const b = knight(7, answers);
   for (const s of [a, b]) { toWinter(s); if (s.pending) answerFirst(s); }
+  b.purse = 100 * 240;
   assert.ok(keepBorrowedHorse(b).ok);
   endWinter(a); endWinter(b);
   assert.equal(a.horse.borrowed, false);
@@ -151,7 +152,10 @@ test('a knight who cannot close the winter accounts is ruined, and says why', ()
   const s = knight(8);
   s.month = LAST_MONTH;
   s.purse = 0;
-  s.answers.advantage = 'oldblood';
+  s.advantage = 'oldblood';
+  s.birth = 'younger';
+  s.patron = null;
+  s.squire = null;
   passMonth(s);
   assert.equal(s.status, STATUS.RUINED);
   assert.ok(s.outcome.text.length > 20);

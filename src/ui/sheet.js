@@ -1,6 +1,6 @@
 // The knight's sheet, the field, the Book of Feats, and the cards.
 
-import { QUESTIONS, STAT_LABELS, STAT_USES, TRAIT_PAIRS, HORSES } from '../data/creation.data.js';
+import { STAT_LABELS, STAT_USES, TRAIT_PAIRS, HORSES, HEART_LABELS, AMBITION_LABELS } from '../data/creation.data.js';
 import { FACTION_LABELS, TOWNS } from '../data/world.data.js';
 import { RETINUE, SQUIRE, CONDITION } from '../data/household.data.js';
 import { lsdSigned } from '../engine/money.js';
@@ -9,6 +9,8 @@ import { TEMPERS, ARCHETYPES } from '../data/joust.data.js';
 import { fullName, provinceName, FLAG_LABELS, STAT_KEYS } from '../engine/knight.js';
 import { blazon } from '../engine/heraldry.js';
 import { rollOfArms, regardLabel } from '../engine/field.js';
+import { conductOf, patronDef, threadsOf } from '../engine/court.js';
+import { THREADS } from '../data/court.data.js';
 import { markCost } from '../engine/tourney.js';
 import { cardById, fill, choicesView } from '../engine/cards.js';
 import { esc, cap, pct, shield, signed, chips, tierChip, ordinal } from './view.js';
@@ -22,8 +24,8 @@ export function renderSheet(s, { inGame, confirmAbandon = false }) {
   const k = s.knight;
   const h = s.horse;
   const horseDef = HORSES[h.kind];
-  const ambition = QUESTIONS.find((q) => q.id === 'ambition').options.find((o) => o.id === s.ambition);
-  const heart = QUESTIONS.find((q) => q.id === 'heart').options.find((o) => o.id === s.heart);
+  const ambition = AMBITION_LABELS[s.ambition];
+  const heart = HEART_LABELS[s.heart];
   const favours = Object.entries(s.favour).filter(([, v]) => v !== 0);
   const c = s.career;
   const marks = k.marks || {};
@@ -51,7 +53,7 @@ export function renderSheet(s, { inGame, confirmAbandon = false }) {
 
     <div class="stack">
       <div class="eyebrow">Horse and harness</div>
-      <p><span class="voice" style="font-size:1.1rem">${esc(h.name)}</span>${horseDef ? `, ${esc(horseDef.label.toLowerCase())}` : ''}.
+      <p><span class="voice" style="font-size:1.1rem">${esc(cap(h.name))}</span>${horseDef ? `, ${esc(horseDef.label.toLowerCase())}` : ''}.
         Quality ${h.quality}${h.potential > h.quality ? ` (can grow to ${h.potential})` : ''}, ${TEMPERS[h.temper].label}, ${h.age} years old${inGame ? `, condition ${h.condition ?? CONDITION.max}/10` : ''}.</p>
       <p class="small muted">${h.temper === 'hot'
         ? 'A hot horse gives a pressed charge more bite, and puts more lances on the tilt.'
@@ -72,7 +74,8 @@ export function renderSheet(s, { inGame, confirmAbandon = false }) {
       <div class="eyebrow">Standing</div>
       <dl class="kv">
         <dt>Renown</dt><dd>${s.renown} <span class="small faint">— won in the lists; a tenth fades each winter</span></dd>
-        <dt>Honour</dt><dd>${s.honour} <span class="small faint">— lost by conduct; the heralds remember</span></dd>
+        <dt>Honour</dt><dd>${s.honour} \u00b7 <b>${esc(conductOf(s.honour).label)}</b> <span class="small faint">\u2014 ${esc(conductOf(s.honour).does)}</span></dd>
+        ${inGame ? `<dt>Service</dt><dd>${s.patron ? `${esc(cap(patronDef(s).name))}, in ${esc(patronDef(s).livery)}, since year ${s.patron.since}` : 'You serve no one'}</dd>` : ''}
         <dt>Lineage</dt><dd>${s.lineage} <span class="small faint">— opens the high tourneys at 14</span></dd>
         ${favours.length ? `<dt>Favour</dt><dd>${favours.map(([f, v]) => `${esc(FACTION_LABELS[f])} ${signed(v)}`).join(', ')}</dd>` : ''}
       </dl>
@@ -82,19 +85,20 @@ export function renderSheet(s, { inGame, confirmAbandon = false }) {
       <div class="eyebrow">Character</div>
       <div class="traits">
         ${TRAIT_PAIRS.map(([a, b]) => `
-          <span class="l">${cap(a)} ${k.traits[a]}</span>
-          <span class="traitbar" title="${cap(a)} ${k.traits[a]}, ${cap(b)} ${20 - k.traits[a]}"><i style="left:${100 - (k.traits[a] / 20) * 100}%"></i></span>
-          <span>${cap(b)} ${20 - k.traits[a]}</span>`).join('')}
+          <span class="l">${cap(a)} ${Math.round(k.traits[a])}</span>
+          <span class="traitbar" title="${cap(a)} ${Math.round(k.traits[a])}, ${cap(b)} ${Math.round(20 - k.traits[a])}"><i style="left:${100 - (k.traits[a] / 20) * 100}%"></i></span>
+          <span>${cap(b)} ${Math.round(20 - k.traits[a])}</span>`).join('')}
       </div>
-      <p class="small faint">Your choices move these, and some trials test them: a denial before the heralds is judged on honesty.</p>
+      <p class="small faint">Your choices move these, slowly, and the further from the middle the slower. Some answers are open only to a knight strong in one; some trials test them. At 18 the heralds give you a byname.</p>
     </div>
 
     <div class="stack">
       <div class="eyebrow">Your story</div>
       <p class="voice">Squire to ${esc(s.master.name)}, ${esc(s.master.epithet)}${s.master.fate === 'dead' ? ', now in his grave' : ''}.</p>
-      ${heart ? `<p class="voice">Your heart: ${esc(heart.title.toLowerCase())}${s.betrothed ? `, to the lady ${esc(s.betrothed)}` : ''}.</p>` : ''}
-      ${ambition ? `<p class="voice">You want ${esc(ambition.title.charAt(0).toLowerCase() + ambition.title.slice(1))}.</p>` : ''}
-      ${s.flags.length ? `<ul class="small muted" style="margin:0;padding-left:18px">${s.flags.map((f) => `<li>${esc(FLAG_LABELS[f] || f)}</li>`).join('')}</ul>` : ''}
+      ${heart ? `<p class="voice">Your heart: ${esc(heart)}${s.betrothed && (s.heart === 'promised' || s.heart === 'married') ? `, to the lady ${esc(s.betrothed)}` : ''}.</p>` : ''}
+      ${ambition ? `<p class="voice">You want ${esc(ambition)}.</p>` : ''}
+      ${threadsOf(s).map((t) => `<div class="thread"><span class="eyebrow">${esc(t.title)}</span><p class="voice">${esc(t.text)}</p></div>`).join('')}
+      ${otherFlags(s).length ? `<ul class="small muted" style="margin:0;padding-left:18px">${otherFlags(s).map((f) => `<li>${esc(FLAG_LABELS[f] || f)}</li>`).join('')}</ul>` : ''}
     </div>
 
     ${inGame ? `
@@ -116,6 +120,13 @@ export function renderSheet(s, { inGame, confirmAbandon = false }) {
     </div>` : ''}
   </section>`;
 }
+
+// Story flags the threads above already tell; the list shows only the rest.
+const THREAD_FLAGS = new Set([
+  ...THREADS.flatMap((t) => t.stages.map((st) => st.flag).filter(Boolean)),
+  'betrothed', 'masterDisgraced', 'ordealVow', 'aumbryRetainer', 'aumbryMan',
+]);
+function otherFlags(s) { return s.flags.filter((f) => !THREAD_FLAGS.has(f)); }
 
 // ---------------------------------------------------------------------------
 // The field
@@ -139,7 +150,7 @@ export function renderField(state) {
       const lvl = state.intel[k.id] || 0;
       const st = regardLabel(k.regard);
       return `<div class="rider">${shield(k.arms, 28)}<div style="flex:1;min-width:0">
-        <div class="nm">${esc(k.name)} ${st ? `<span class="tag ${st === 'grudge' || st === 'cool' ? 'warn' : 'good'}">${st}</span>` : ''}${k.active ? '' : ' <span class="small faint">retired</span>'}</div>
+        <div class="nm">${esc(k.name)} ${st ? `<span class="tag ${st === 'grudge' || st === 'cool' ? 'warn' : 'good'}">${st}</span>` : ''}${k.allegiance ? ` <span class="tag">${esc(FACTION_LABELS[k.allegiance])}\u2019s man</span>` : ''}${k.active ? '' : ' <span class="small faint">retired</span>'}</div>
         <div class="small muted">${k.age} · renown ${k.renown} · lance ${k.lance}, seat ${k.seat} · ${TEMPERAMENTS[k.temperament].label} · of ${esc(provinceName(k.province))}</div>
         <div class="small">${lvl ? `${esc(cap(archOf(k).label))}: ${esc(archOf(k).habit)}${lvl >= 2 && archOf(k).tells.length ? ` ${esc(archOf(k).tells.map((t) => t.text).join(' '))}` : ''}` : '<span class="faint">Habits unknown</span>'}</div>
         ${k.memory.map((m) => `<div class="small memory">${esc(m)}</div>`).join('')}
@@ -192,7 +203,8 @@ export function renderCard(state) {
       ${views.filter((v) => v.open).map((v) => `
         <button class="answer" data-answer="${v.index}">
           <span class="t">${esc(fill(state, inst, v.label))}</span>
-          ${v.check ? `<span class="check">${esc(v.check.label)} ${v.check.value} against ${v.check.dc}: <b>${pct(v.check.chance)}</b></span>
+          ${v.gate ? `<span class="gate">Open to you because you are ${esc(v.gate.trait)} (${Math.round(v.gate.value)})</span>` : ''}
+          ${v.check ? `<span class="check">${esc(v.check.label)} ${Math.round(v.check.value)} against ${v.check.dc}: <b>${pct(v.check.chance)}</b></span>
             <span class="branch"><span class="small faint">If it goes well</span>${chips(v.success)}</span>
             <span class="branch"><span class="small faint">If not</span>${chips(v.failure, 'bad')}</span>`
           : chips(v.effects)}
@@ -203,8 +215,11 @@ export function renderCard(state) {
 
 export function renderResultNote(state) {
   const r = state.lastResult;
-  if (!r) return '';
-  return `
+  const notices = (state.notices || []).length
+    ? `<section class="card resultnote warnnote stack"><div class="eyebrow">Word from your patron</div>${state.notices.map((n) => `<p class="small">${esc(n)}</p>`).join('')}</section>`
+    : '';
+  if (!r) return notices;
+  return `${notices}
   <section class="card resultnote stack">
     ${r.title ? `<div class="eyebrow">${esc(r.title)}</div>` : r.chose ? `<div class="eyebrow">You chose: ${esc(r.chose)}</div>` : ''}
     ${r.success != null ? `<div class="small ${r.success ? 'pos' : 'neg'}">${r.success ? 'It went well.' : 'It did not go your way.'}</div>` : ''}

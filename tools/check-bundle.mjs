@@ -25,7 +25,7 @@ console.log('title renders from file://        ', title ? 'yes' : 'NO');
 if (title) {
   await page.click('[data-act="new"]');
   await page.click('[data-act="name-next"]');
-  for (let i = 0; i < 10; i++) await page.locator('[data-opt]').first().click();
+  while (await page.locator('[data-opt]').count()) await page.locator('[data-opt]').first().click();
   await page.click('[data-act="ride-out"]');
   const map = await page.locator('svg.map').count();
   console.log('the month opens on the map         ', map ? 'yes' : 'NO');

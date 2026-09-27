@@ -454,3 +454,10 @@ p { margin: 0; }
 .roll td.rn { text-align: right; font-weight: 700; }
 .roll tr.me td { color: var(--or); font-weight: 700; }
 .roll svg { display: block; }
+
+/* ---------- the court ---------- */
+.patron { border-left: 3px solid var(--azure); }
+.patronmark { color: var(--azure); font-weight: 600; }
+.warnnote { border-left-color: var(--gules); }
+.answer .gate { font-size: .8rem; font-weight: 700; color: var(--good); text-transform: uppercase; letter-spacing: .06em; }
+.thread { display: flex; flex-direction: column; gap: 2px; border-left: 2px solid var(--rule-2); padding-left: 10px; }

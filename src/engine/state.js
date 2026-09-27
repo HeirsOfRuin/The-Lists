@@ -9,13 +9,14 @@
 
 import { streamFor } from './rng.js';
 import { buildKnight, fullName } from './knight.js';
-import { generateRoster, seedHistory } from './field.js';
+import { generateRoster, seedHistory, assignAllegiance } from './field.js';
+import { takeService } from './court.js';
 import { yearCalendar } from './calendar.js';
 import { WORLD, PROVINCES, FIRST_MONTH } from '../data/world.data.js';
 import { HARNESS } from '../data/household.data.js';
 
 export const SAVE_KEY = 'the-lists.save.v1';
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export const STATUS = {
   ACTIVE: 'active',
@@ -43,6 +44,14 @@ function worldFor(state) {
   state.winter = null;
   state.news = [];
   state.cardsSeen = {};
+}
+
+/** The parts of a career that phase three added. */
+function courtFor(state) {
+  assignAllegiance(state);
+  if (state.patron === undefined) state.patron = null;
+  state.story = state.story || {};
+  state.notices = state.notices || [];
 }
 
 /**
@@ -74,6 +83,7 @@ export function newGame({ seed = 1, answers, name }) {
     lastResult: null,
   };
   worldFor(state);
+  courtFor(state);
   state.lastResult = {
     title: `Spring, in the ${ordinal(WORLD.peaceYear)} year of the peace`,
     text: `${fullName(state.knight)} rides out on ${state.horse.name}, with ${state.master.name} ${state.master.fate === 'dead' ? 'in his grave' : 'still watching'}. The heralds have published the year’s tourneys.`,
@@ -145,6 +155,21 @@ export function migrate(s) {
       lines: [],
     };
     s.version = 2;
+  }
+  if (s.version === 2) {
+    // Phase three: six creation questions set birth and family on the state
+    // itself; the field swears to houses; Aumbry's retainer becomes service.
+    s.honour = Math.max(-10, Math.min(20, s.honour));
+    s.birth = s.birth || s.answers?.birth;
+    s.advantage = s.advantage || s.answers?.advantage;
+    courtFor(s);
+    if (s.flags.includes('aumbryRetainer') && !s.patron) {
+      // He was already Aumbry's man. Service now has obligations, shown on the
+      // month's screen; the year has only begun, so he can meet them.
+      takeService(s, 'aumbry');
+      s.flags = s.flags.filter((f) => f !== 'aumbryRetainer');
+    }
+    s.version = 3;
   }
   return s;
 }

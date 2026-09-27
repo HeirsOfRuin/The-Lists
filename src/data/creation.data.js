@@ -1,4 +1,4 @@
-// Character creation: ten questions, and what each answer does. Logic-free.
+// Character creation: six questions, and what each answer does. Logic-free.
 //
 // Every option carries its mechanical consequences as data. The line a player
 // reads under an option ("Lance +2, Purse +£30") is GENERATED from these
@@ -64,89 +64,67 @@ export const HORSES = {
   },
 };
 
+// Six questions. Each of the first, second, fifth and sixth answers two things
+// at once — birth and what the family gave, home and the horse, how you won
+// your spurs and how you parted from your master, what you want and who waits
+// for you — so every answer is a small story rather than a form field.
 export const QUESTIONS = [
   {
-    id: 'birth',
-    prompt: 'How were you born?',
+    id: 'people',
+    prompt: 'Who are your people?',
     options: [
       {
-        id: 'eldest', title: 'The eldest son',
-        blurb: 'Your father’s heir. The name is yours one day, and so is every obligation that comes with it.',
-        effects: { lineage: 4, purse: 4 * 240, courtesy: 1, traits: { constant: 2 } },
-        sets: { cadency: 'label' },
+        id: 'heir', title: 'The heir of a rich house',
+        blurb: 'Your father’s eldest, and wool money a generation back. The name is yours one day, and so is every obligation that comes with it.',
+        effects: { lineage: 4, purse: 30 * 240, courtesy: 1, traits: { constant: 2 } },
+        sets: { cadency: 'label', birth: 'eldest', advantage: 'wealth' },
         flags: ['heir'],
       },
       {
-        id: 'younger', title: 'A younger son',
-        blurb: 'Landless. The lists are the only estate you will ever win, which is why the circuit is full of men like you.',
-        effects: { lineage: 2, lance: 1, vigour: 1, traits: { valorous: 2 } },
-        sets: { cadency: 'crescent' },
+        id: 'younger', title: 'A younger son of a famous name',
+        blurb: 'Landless, like half the circuit — but your grandfather’s name is still cried at feasts. So are his old quarrels, and men will expect you to live up to him.',
+        effects: { lineage: 2, lance: 1, vigour: 1, renown: 8, purse: 6 * 240, traits: { valorous: 2 } },
+        sets: { cadency: 'crescent', birth: 'younger', advantage: 'fame' },
+        flags: ['grandfatherLegend'],
       },
       {
         id: 'bastard', title: 'An acknowledged bastard',
-        blurb: 'Your father owned you, armed you, and gave you the bend sinister so that nobody would forget it.',
-        effects: { lineage: -3, lance: 1, seat: 1, vigour: 1, traits: { valorous: 2, honest: -2 } },
-        sets: { cadency: 'baton' },
-        flags: ['bastard'],
+        blurb: 'Your father owned you, armed you, and gave you the bend sinister so nobody would forget it. The Duke of Aumbry owes him a debt, and knows you are its only heir.',
+        effects: { lineage: -3, lance: 1, seat: 1, vigour: 1, purse: 8 * 240, favour: { aumbry: 10 }, traits: { valorous: 2, honest: -2 } },
+        sets: { cadency: 'baton', birth: 'bastard', advantage: 'favour' },
+        flags: ['bastard', 'patronOwes'],
       },
       {
         id: 'fallen', title: 'The last of a fallen house',
-        blurb: 'Old blood gone to seed. No coin, a hall with the roof in, and a claim nobody else remembers.',
-        effects: { lineage: 6, purse: -3 * 240, courtesy: 1, lore: 1, traits: { constant: 2 } },
-        sets: { cadency: 'none' },
+        blurb: 'Sixteen quarterings, a hall with the roof in, and not a penny. The heralds will never ask you for proofs — and there is a claim to your family’s old lands that nobody else remembers.',
+        effects: { lineage: 10, honour: 5, purse: -1 * 240, courtesy: 1, lore: 1, traits: { constant: 2 } },
+        sets: { cadency: 'none', birth: 'fallen', advantage: 'oldblood' },
         flags: ['dormantClaim'],
       },
     ],
   },
   {
-    id: 'advantage',
-    prompt: 'What did your family give you to ride out with?',
+    id: 'country',
+    prompt: 'Where were you raised, and what do you ride?',
     options: [
       {
-        id: 'wealth', title: 'Wealth',
-        blurb: 'Wool money, or a good marriage a generation back. Your purse is heavier than your name.',
-        effects: { purse: 30 * 240 },
-      },
-      {
-        id: 'fame', title: 'Fame',
-        blurb: 'Your grandfather’s name is still cried at feasts. So are his old quarrels, and men will expect you to live up to him.',
-        effects: { renown: 8, purse: 6 * 240 },
-        flags: ['grandfatherLegend'],
-      },
-      {
-        id: 'favour', title: 'Favour',
-        blurb: 'The Duke of Aumbry owes your father a debt he has not forgotten. It will be repaid, and it will come with strings.',
-        effects: { purse: 8 * 240, favour: { aumbry: 10 } },
-        flags: ['patronOwes'],
-      },
-      {
-        id: 'oldblood', title: 'Old blood',
-        blurb: 'Sixteen quarterings and not a penny to show for them. The heralds will never ask you for proofs.',
-        effects: { lineage: 4, honour: 5, purse: 2 * 240 },
-      },
-    ],
-  },
-  {
-    id: 'province',
-    prompt: 'Where were you raised?',
-    options: [
-      {
-        id: 'march', title: 'The Harrow March',
-        blurb: 'The northern border. You learned to ride before you could read, and the Earl of Stane holds the March.',
+        id: 'march', title: 'The Harrow March, on a colt from my father’s herd',
+        blurb: 'The northern border, where you rode before you could read. The colt is hot and unmade and the best-bred horse you will ever own, if you can make him. The Earl of Stane holds the March.',
         effects: { seat: 2, vigour: 1, horseQuality: 1, favour: { stane: 3 } },
-        sets: { province: 'march' },
+        sets: { province: 'march', horse: 'green' },
       },
       {
-        id: 'court', title: 'Kingsmead',
-        blurb: 'The crown province. You know which fork, which bow, and which lord not to seat beside which.',
+        id: 'court', title: 'Kingsmead, on a borrowed horse',
+        blurb: 'The crown province: you know which fork, which bow, and which lord not to seat beside which. A friend of your father’s at court has lent you a fine, steady horse. He will want him back, or paid for.',
         effects: { courtesy: 2, lore: 1, favour: { crown: 3 } },
-        sets: { province: 'court' },
+        sets: { province: 'court', horse: 'borrowed' },
+        flags: ['borrowedHorse'],
       },
       {
-        id: 'coast', title: 'The Saltings',
-        blurb: 'The merchant coast, where the guilds pay for tourneys and remember who rode well in them.',
+        id: 'coast', title: 'The Saltings, on an old destrier from the market',
+        blurb: 'The merchant coast, where the guilds pay for tourneys and remember who rode well in them. Money bought you an honest old warhorse with three campaigns behind him and perhaps three seasons left.',
         effects: { purse: 6 * 240, lore: 1, favour: { cities: 5 } },
-        sets: { province: 'coast' },
+        sets: { province: 'coast', horse: 'old' },
       },
     ],
   },
@@ -217,130 +195,84 @@ export const QUESTIONS = [
   },
   {
     id: 'spurs',
-    prompt: 'How did you win your spurs?',
+    prompt: 'How did you part from your master, and how did you win your spurs?',
     options: [
       {
-        id: 'field', title: 'On the field',
-        blurb: 'After a border skirmish, the only fighting the peace allowed. Men who were there still speak of it.',
-        effects: { renown: 4, honour: 2, traits: { valorous: 2 } },
+        id: 'field', title: 'He knighted me on the field',
+        blurb: 'After a border skirmish, the only fighting the peace allowed. You stood by him that day and every day before it. Whatever he was, you were loyal.',
+        effects: { renown: 4, honour: 2, traits: { valorous: 2, constant: 2 } },
       },
       {
-        id: 'coronation', title: 'En masse, at the prince’s coming of age',
-        blurb: 'One of sixty dubbed in a morning. The Crown remembers the day, if not which one you were.',
-        effects: { courtesy: 1, favour: { crown: 3 } },
-      },
-      {
-        id: 'deathbed', title: 'At your master’s deathbed',
-        blurb: 'He knighted you with the last of his strength. Whatever his story was, it is yours to finish now.',
+        id: 'deathbed', title: 'He knighted me on his deathbed',
+        blurb: 'With the last of his strength. Whatever his story was, it is yours to finish now.',
         effects: { honour: 3, traits: { constant: 3 } },
         sets: { masterFate: 'dead' },
       },
       {
-        id: 'bought', title: 'Bought',
-        blurb: 'Your family paid the fee and a lord tapped your shoulder. You spent the years other squires spent at war at the tilt instead.',
-        effects: { purse: -3 * 240, honour: -2, lance: 1, seat: 1 },
-      },
-    ],
-  },
-  {
-    id: 'incident',
-    prompt: 'In your last year as a squire you saw your master strike a man who had already yielded. What did you do?',
-    options: [
-      {
-        id: 'silent', title: 'Nothing. He was my master.',
-        blurb: 'Loyalty is a virtue too. You have told yourself so ever since.',
-        effects: { traits: { constant: 3, honest: -2, merciful: -1 } },
-      },
-      {
-        id: 'confronted', title: 'I told him to his face.',
-        blurb: 'He did not strike you. He did not speak to you for a month, either.',
-        effects: { courtesy: -1, traits: { honest: 3, valorous: 2 } },
-        flags: ['masterStrained'],
-      },
-      {
-        id: 'reported', title: 'I told the heralds.',
-        blurb: 'They wrote it down. The heralds remember a squire who did that; so do other masters.',
-        effects: { honour: 3, traits: { honest: 3, constant: -3 } },
+        id: 'reported', title: 'I reported him, and the prince dubbed me with sixty others',
+        blurb: 'You saw him strike a man who had already yielded, and you told the heralds. He turned you out. The Crown remembered the squire who did the right thing, if not which of the sixty you were.',
+        effects: { honour: 2, courtesy: 1, favour: { crown: 3 }, traits: { honest: 3, constant: -3 } },
         flags: ['reportedMaster'],
       },
-    ],
-  },
-  {
-    id: 'horse',
-    prompt: 'What do you ride?',
-    options: [
       {
-        id: 'old', title: 'An old destrier',
-        blurb: 'Three campaigns behind him. Honest, strong, steady, and perhaps three seasons left in his legs.',
-        effects: {},
-        sets: { horse: 'old' },
-      },
-      {
-        id: 'green', title: 'A green colt',
-        blurb: 'Hot, unmade and the best-bred horse you will ever own, if you can make him. He grows in the Season build; today he is a handful.',
-        effects: {},
-        sets: { horse: 'green' },
-      },
-      {
-        id: 'borrowed', title: 'A borrowed horse',
-        blurb: 'A fine, steady horse lent by a friend of your father’s. You will be expected to give him back, or to buy him.',
-        effects: {},
-        sets: { horse: 'borrowed' },
-        flags: ['borrowedHorse'],
+        id: 'confronted', title: 'I told him to his face, and my family bought my spurs',
+        blurb: 'You saw him strike a man who had already yielded, and said so. He did not strike you. He did not speak to you again, either. Your family paid the fee, and you spent the years other squires spent at war at the tilt.',
+        effects: { purse: -3 * 240, lance: 1, seat: 1, traits: { honest: 3, valorous: 2 } },
+        flags: ['masterStrained'],
       },
     ],
   },
   {
     id: 'heart',
-    prompt: 'And your heart?',
+    prompt: 'What do you want, and who waits for you?',
     options: [
       {
-        id: 'promised', title: 'Promised',
-        blurb: 'Betrothed since childhood to a lady of a house that expects you to rise.',
-        effects: { traits: { constant: 2 } },
+        id: 'champion', title: 'To be Champion of the Realm. Nobody waits.',
+        blurb: 'The first lance of Lothmere, crowned at the king’s own lists. The circuit is full of feasts, and every feast is full of favours.',
+        effects: { traits: { valorous: 1 } }, steers: true,
+        sets: { heart: 'free', ambition: 'champion' },
+      },
+      {
+        id: 'lordship', title: 'Land of my own, and the marriage that brings it',
+        blurb: 'A hall, a name that is yours and not your father’s. You are betrothed to a lady of a house that expects you to rise.',
+        effects: { traits: { constant: 2 } }, steers: true,
+        sets: { heart: 'promised', ambition: 'lordship' },
         flags: ['betrothed'],
       },
       {
-        id: 'free', title: 'Free',
-        blurb: 'The circuit is full of feasts, and every feast is full of favours.',
-        effects: { courtesy: 1 },
-      },
-      {
-        id: 'secret', title: 'A secret',
-        blurb: 'There is someone. Nobody can know who.',
-        effects: { traits: { constant: 2, honest: -1 } },
+        id: 'love', title: 'Her. Nobody can know who.',
+        blurb: 'Everything else is only the road to it.',
+        effects: { traits: { constant: 2, honest: -1 } }, steers: true,
+        sets: { heart: 'secret', ambition: 'love' },
         flags: ['secretLove'],
-      },
-    ],
-  },
-  {
-    id: 'ambition',
-    prompt: 'What do you want?',
-    options: [
-      {
-        id: 'champion', title: 'To be Champion of the Realm',
-        blurb: 'The first lance of Lothmere, crowned at the king’s own lists.', steers: true,
-      },
-      {
-        id: 'lordship', title: 'Land of my own',
-        blurb: 'A hall, a name that is yours and not your father’s, and men who hold of you.', steers: true,
       },
       {
         id: 'order', title: 'A seat in the Order',
-        blurb: 'Twenty-four companions. A vacancy comes only when one of them dies.', steers: true,
-      },
-      {
-        id: 'love', title: 'Her',
-        blurb: 'Everything else is only the road to it.', steers: true,
+        blurb: 'Twenty-four companions. A vacancy comes only when one of them dies, and only the spotless are chosen.',
+        effects: { honour: 1, traits: { pious: 1 } }, steers: true,
+        sets: { heart: 'free', ambition: 'order' },
       },
       {
         id: 'clearName', title: 'To clear my master’s name',
-        blurb: 'Whatever happened at Ambry Cross, someone knows the truth.', steers: true,
+        blurb: 'Whatever happened at Ambry Cross, someone knows the truth. Nothing else matters yet.', steers: true,
+        effects: { traits: { constant: 2 } },
+        sets: { heart: 'free', ambition: 'clearName' },
         requires: { flag: 'masterDisgraced' },
       },
     ],
   },
 ];
+
+export const HEART_LABELS = {
+  free: 'free', promised: 'promised', secret: 'a secret', married: 'married',
+};
+export const AMBITION_LABELS = {
+  champion: 'to be Champion of the Realm',
+  lordship: 'land of your own',
+  love: 'her',
+  order: 'a seat in the Order',
+  clearName: 'to clear your master’s name',
+};
 
 export function question(id) {
   const q = QUESTIONS.find((x) => x.id === id);

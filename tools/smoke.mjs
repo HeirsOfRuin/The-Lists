@@ -74,12 +74,16 @@ report('load');
 await page.click('[data-act="new"]');
 await page.fill('#given', 'Smoke');
 await page.click('[data-act="name-next"]');
-for (let q = 0; q < 10; q++) {
+let asked = 0;
+for (let q = 0; q < 12; q++) {
   const opts = page.locator('[data-opt]');
   const n = await opts.count();
-  if (!n) { check(`question ${q + 1} offers options`, false); break; }
+  if (!n) break;
+  if (q === 0) await page.screenshot({ path: `${SHOTS}/0-question.png`, fullPage: true });
   await opts.nth(q % n).click();
+  asked += 1;
 }
+check('creation asks six questions', asked === 6, `${asked} asked`);
 check('creation reaches the roll', await has('[data-act="ride-out"]'));
 check('no sideways scroll on the roll', (await overflow()) <= 1);
 await page.click('[data-act="ride-out"]');

@@ -18,6 +18,11 @@ import { drawCard, answerCard } from './cards.js';
 import { yearCalendar, route, admitted } from './calendar.js';
 import { simulateMonth, winterField, monthIndex, knightById } from './field.js';
 import { squireCall } from './derive.js';
+import {
+  patronDef, isPatronTourney, summonsOpen, checkSummons, winterPatron, planSummons, leaveService,
+  updateEpithet, canPilgrimage,
+} from './court.js';
+import { PATRONS, PILGRIMAGE, MARRIAGE } from '../data/court.data.js';
 import { fullName } from './knight.js';
 import { randomArms } from './heraldry.js';
 import { TIERS } from '../data/tourney.data.js';
@@ -59,6 +64,7 @@ export function monthOptions(state) {
 /** Set out for a tourney this month. */
 export function rideTo(state, calId) {
   if (!isFree(state)) return no('Finish what is in hand first.');
+  clearNotices(state);
   const opt = monthOptions(state).find((o) => o.cal.id === calId);
   if (!opt) return no('That tourney is not held this month.');
   if (!opt.open) return no(opt.reason);
@@ -109,6 +115,7 @@ export function enter(state) {
   if (!r.ok) return r;
   state.monthRode.entered = true;
   const ev = state.event;
+  if (state.patron && isPatronTourney(state, ev)) state.patron.attended = true;
   const inst = drawCard(state, 'feast', eventCtx(state), `feast:${ev.serial}`);
   if (inst) state.pending = { inst, then: 'openRound' };
   else openRound(state);
@@ -187,6 +194,7 @@ export function leave(state) {
 /** Train a skill for the month, wherever you are. */
 export function train(state, skill) {
   if (!isFree(state)) return no('Finish what is in hand first.');
+  clearNotices(state);
   if (!(skill in state.knight.stats)) return no('No such skill.');
   const before = state.knight.stats[skill];
   const rises = addMarks(state, skill, TRAINING.monthMarks);
@@ -204,6 +212,7 @@ export function train(state, skill) {
 /** A month's paid service: money, and nothing else. */
 export function serve(state) {
   if (!isFree(state)) return no('Finish what is in hand first.');
+  clearNotices(state);
   if (injured(state)) return no('Nobody hires a knight who cannot ride.');
   state.purse += SERVICE.wage;
   state.career.monthsServed = (state.career.monthsServed || 0) + 1;
@@ -219,6 +228,7 @@ export function serve(state) {
 /** Rest: heal, and let the month pass. */
 export function rest(state) {
   if (!isFree(state)) return no('Finish what is in hand first.');
+  clearNotices(state);
   const was = injured(state);
   if (was) state.knight.injuredUntil = Math.max(now(state), state.knight.injuredUntil - 1);
   state.lastResult = {
@@ -246,6 +256,7 @@ export function courtOptions(state) {
 /** Go to court for the month. */
 export function visitCourt(state, town) {
   if (!isFree(state)) return no('Finish what is in hand first.');
+  clearNotices(state);
   const opt = courtOptions(state).find((o) => o.town === town);
   if (!opt) return no('There is no court there.');
   if (!opt.open) return no(opt.reason);
@@ -265,6 +276,7 @@ export function visitCourt(state, town) {
 
 export function passMonth(state) {
   if (!isFree(state)) return no('Finish what is in hand first.');
+  clearNotices(state);
   state.lastResult = null;
   endMonth(state);
   return ok();
@@ -286,9 +298,77 @@ export function endMonth(state) {
     state.horse.condition = Math.min(CONDITION.max, (state.horse.condition ?? CONDITION.max) + back);
   }
   state.monthRode = null;
+  const notes = [];
+  checkSummons(state, notes);
+  if (notes.length) state.notices = [...(state.notices || []), ...notes];
   if (state.month >= LAST_MONTH) beginWinter(state);
   else state.month += 1;
 }
+
+// ---------------------------------------------------------------------------
+// The court's claims on a month
+// ---------------------------------------------------------------------------
+
+/** Where your patron's summons calls you, and what the road costs. */
+export function summonsOption(state) {
+  if (!summonsOpen(state)) return null;
+  const p = patronDef(state);
+  const r = route(state.location, p.seat);
+  const cost = travelCost(state, r.days);
+  return { patron: p, town: p.seat, days: r.days, cost, until: state.patron.summons.until, open: state.purse >= cost,
+    reason: state.purse >= cost ? null : 'You cannot pay for the road.' };
+}
+
+/** Answer your patron's summons: the month is his. */
+export function answerSummons(state) {
+  if (!isFree(state)) return no('Finish what is in hand first.');
+  const o = summonsOption(state);
+  if (!o) return no('There is no summons to answer.');
+  if (!o.open) return no(o.reason);
+  clearNotices(state);
+  state.purse -= o.cost;
+  state.location = o.town;
+  state.patron.summons.answered = true;
+  const inst = drawCard(state, 'summons', { town: o.town, host: o.patron.name, hostFaction: o.patron.id }, `summons:${state.year}`);
+  if (inst) {
+    state.pending = { inst, then: 'endMonth' };
+  } else {
+    state.favour[o.patron.id] += 1;
+    state.lastResult = { title: `At ${TOWNS[o.town].name}`, text: `You answer the summons. ${cap(o.patron.lord)} has nothing for you after all, but notes that you came.`, lines: [`Favour of ${cap(o.patron.name)} +1`] };
+    endMonth(state);
+  }
+  return ok();
+}
+
+/** A pilgrimage: a month, some silver, and the beginning of a mended name. */
+export function pilgrimage(state) {
+  if (!isFree(state)) return no('Finish what is in hand first.');
+  if (!canPilgrimage(state)) return no('Your name needs no mending.');
+  if (state.purse < PILGRIMAGE.cost) return no('You cannot pay for the road and the alms.');
+  clearNotices(state);
+  state.purse -= PILGRIMAGE.cost;
+  state.honour = Math.min(20, state.honour + PILGRIMAGE.honour);
+  state.knight.traits.pious = Math.min(20, state.knight.traits.pious + PILGRIMAGE.pious);
+  state.lastResult = {
+    title: 'A pilgrimage',
+    text: `You walk the last three miles to ${PILGRIMAGE.shrine} barefoot, as penitents do. It is noticed, which is part of the point.`,
+    lines: [`Purse \u2212\u00a3${PILGRIMAGE.cost / 240}`, `Honour +${PILGRIMAGE.honour}`, `Pious +${PILGRIMAGE.pious}`],
+  };
+  endMonth(state);
+  return ok();
+}
+
+/** Leave your patron's service, in winter. */
+export function resignService(state) {
+  if (!inWinter(state)) return no('Service is given up in winter.');
+  const r = leaveService(state);
+  if (r.ok) state.winter.notes.push(r.text);
+  return r;
+}
+
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+function clearNotices(state) { state.notices = []; }
 
 // ---------------------------------------------------------------------------
 // Cards
@@ -366,10 +446,11 @@ export function beginWinter(state) {
   const notes = [];
 
   // Money.
-  const adv = state.answers.advantage;
+  const adv = state.advantage;
   add('Your family’s allowance', ALLOWANCE[adv] || 0);
-  if (state.answers.birth === 'eldest') add('The heir’s portion', ALLOWANCE.heirBonus);
-  if (state.flags.includes('aumbryRetainer')) add('Aumbry’s retaining fee', 10 * 240);
+  if (state.birth === 'eldest') add('The heir’s portion', ALLOWANCE.heirBonus);
+  winterPatron(state, add, notes);
+  if (state.heart === 'married') add(`The lady ${state.betrothed}’s lands`, MARRIAGE.lands);
   if (state.squire) {
     const fee = SQUIRE_ORIGINS[state.squire.origin].fee;
     add(fee > 0 ? `${state.squire.name}’s father pays for his training` : `${state.squire.name}’s keep`, fee);
@@ -423,6 +504,7 @@ export function beginWinter(state) {
 
   // Everyone's renown fades a little; the field ages.
   state.renown = Math.round(state.renown * 0.9);
+  updateEpithet(state, notes);
   notes.push(...winterField(state));
 
   state.winter = {
@@ -507,7 +589,7 @@ export function dubSquire(state) {
     injuredUntil: 0, active: true, titles: 0,
   });
   state.renown += 3;
-  state.honour += 2;
+  state.honour = Math.min(20, state.honour + 2);
   state.book.push({
     serial: 0, year: state.year, tier: 'dubbing', name: 'A dubbing', town: '', placing: null, net: 0,
     text: `In the winter of his ${ordinal(state.year)} year, ${fullName(state.knight)} knighted his squire, ${sq.name}, who had served him ${sq.years} years.`,
@@ -597,6 +679,8 @@ export function endWinter(state) {
   state.phase = PHASE.MONTH;
   state.location = PROVINCES[state.province].home;
   state.calendar = yearCalendar(state.seed, state.year);
+  if (state.patron) planSummons(state);
+  state.notices = [];
   state.lastResult = { title: `Spring, in the ${ordinal(WORLD.peaceYear + state.year - 1)} year of the peace`, text: `You ride out from home. ${MONTHS[FIRST_MONTH]}.`, lines: [] };
   state.winter = null;
   return ok();

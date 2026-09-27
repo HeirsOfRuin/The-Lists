@@ -135,25 +135,34 @@ epilogue.
 
 ## 6. Character creation
 
-Ten questions, and every answer has mechanical weight. The line describing
+Six questions, and every answer has mechanical weight. It was ten until
+playtesting said it was too long. Four questions now answer two things at once
+(birth and family, home and horse, spurs and the parting from your master,
+ambition and heart), so each answer reads as a small story. The line describing
 what an answer does is **generated from its effects**, so the copy cannot promise
 something the numbers do not do.
 
-1. **Birth:** eldest son, younger son, acknowledged bastard, or last of a fallen
-   house.
-2. **Family advantage:** wealth, fame, favour or old blood.
-3. **Home province:** the border march, the court province or the merchant coast.
-4. **Your master:** the champion, the courtier, the disgraced, the veteran or the
+1. **Your people.** The heir of a rich house, a younger son of a famous name, an
+   acknowledged bastard (whose father Aumbry owes), or the last of a fallen house
+   (old blood, no coin, a dormant claim).
+2. **Your country and your horse.** The March on a green colt from your
+   father's herd, Kingsmead on a borrowed horse, or the Saltings on an old
+   destrier from the market.
+3. **Your master:** the champion, the courtier, the disgraced, the veteran or the
    pious.
-5. **What he taught best:** the lance, the horse, the axe at the barriers,
-   manners, or letters and heraldry.
-6. **How you won your spurs:** on the field, en masse at a coronation, at his
-   deathbed, or bought.
-7. **The formative incident:** what you did when he struck a man who had yielded.
-8. **Your horse:** the old destrier, the green colt or the borrowed horse.
-9. **Your heart:** promised, free, or a secret.
-10. **Ambition:** Champion, Lordship, the Order, Love, or Clear his name (offered
-    only if your master was disgraced).
+4. **What he taught best:** the lance, the horse, the axe at the barriers,
+   manners, or letters and heraldry. Kept on its own so you choose your build.
+5. **How you parted from him, and how you won your spurs:**
+   - knighted on the field, loyal;
+   - knighted at his deathbed;
+   - you reported him to the heralds and were dubbed with sixty others;
+   - you told him to his face, and your family bought your spurs.
+6. **What you want, and who waits:**
+   - Champion, and nobody waits;
+   - land, and a betrothal;
+   - her, and a secret;
+   - the Order;
+   - or your master's name cleared (offered only if he was disgraced).
 
 ## 7. The season (later builds)
 
@@ -216,19 +225,22 @@ before the court, and the card engine planned for phase 3 arrived here.
    - A single-file build that works on a phone.
    - The reference bot, the progress-asserting runner, the joust-curve
      instrument and the invariant suite.
-2. **The world**: this build.
+2. **The world**: done.
    - A calendar with tiers and entry rules, the map and the road.
    - The field of 48 with memory and the Roll of Arms.
    - The card engine, with 45 cards.
    - Horse condition, training, winter accounts, the squire, the retinue, the
      harness and the fair.
    - Paid service, and the migration of phase-one saves.
-3. **Court:**
-   - Factions and patrons with obligations.
-   - The herald's judgement of conduct.
-   - Traits weighing on choices.
-   - The first story threads that phase 2's flags already record: the witness to
-     Ambry Cross, Aumbry's man, the betrothal.
+3. **Court**: this build.
+   - Patrons with fees and obligations: their tourney, their summons, and
+     dismissal after two strikes.
+   - The heralds' judgement: four conduct ranks on a 0–20 honour scale, and
+     pilgrimage.
+   - Trait-gated answers and bynames.
+   - The Ambry Cross and betrothal threads.
+   - House allegiance in the field.
+   - Creation cut to six questions.
 4. **Story:** tentpoles, the master's threads, endings, and a reachability test.
 5. **Breadth:** mêlée and ransom, pas d'armes, vows, romance and marriage,
    heraldry in full, and the Order.

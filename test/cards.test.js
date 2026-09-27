@@ -13,7 +13,7 @@ import { FACTIONS } from '../src/data/world.data.js';
 import { knight } from './helpers.js';
 import { generateRoster } from '../src/engine/field.js';
 
-const CONTEXTS = ['feast', 'arrival', 'road', 'moment.unhorsed', 'moment.forfeit', 'moment.beaten', 'moment.hurt', 'prize', 'winter', 'court'];
+const CONTEXTS = ['feast', 'arrival', 'road', 'moment.unhorsed', 'moment.forfeit', 'moment.beaten', 'moment.hurt', 'prize', 'winter', 'court', 'summons'];
 const EVENT_CONTEXTS = ['feast', 'arrival', 'road', 'moment.unhorsed', 'moment.forfeit', 'moment.beaten', 'moment.hurt', 'prize'];
 const TRAIT_WORDS = TRAIT_PAIRS.flat();
 
@@ -42,7 +42,10 @@ test('every card is written in the engine’s vocabulary', () => {
         assert.ok(b && typeof b.result === 'string' && b.result.length > 5, `${where}: an answer has no result`);
         const e = b.effects || {};
         for (const k of Object.keys(e)) assert.ok(EFFECT_KEYS.includes(k), `${where}: unknown effect ${k}`);
-        for (const k of Object.keys(e.favour || {})) assert.ok(k === 'host' || FACTIONS.includes(k), `${where}: unknown faction ${k}`);
+        for (const k of Object.keys(e.favour || {})) {
+          assert.ok(k === 'host' || k === 'patron' || FACTIONS.includes(k), `${where}: unknown faction ${k}`);
+          if (k === 'patron') assert.ok(c.when?.patron, `${where}: favour of your patron on a card that can come up without one`);
+        }
         for (const k of Object.keys(e.traits || {})) assert.ok(TRAIT_KEYS.includes(k), `${where}: unknown trait ${k}`);
         for (const k of Object.keys(e.stats || {})) assert.ok(STAT_KEYS.includes(k), `${where}: unknown stat ${k}`);
         for (const k of Object.keys(e.marks || {})) assert.ok(STAT_KEYS.includes(k), `${where}: unknown skill ${k}`);
@@ -68,7 +71,7 @@ test('every card is written in the engine’s vocabulary', () => {
         const guarded = c.when?.hasSquire || c.when?.squireOrigin || c.choices.some((ch) => ch.when?.hasSquire && texts.includes(t));
         assert.ok(guarded, `${where}: {squire} on a card that can come up without one`);
       }
-      assert.ok(!/\{(?!rival|opponent|lady|host|town|squire|master|horse|you)[a-z]+\}/.test(t), `${where}: unknown placeholder in "${t}"`);
+      assert.ok(!/\{(?!rival|opponent|lady|host|town|squire|master|horse|you|lord|patron|fee)[a-z]+\}/.test(t), `${where}: unknown placeholder in "${t}"`);
     }
   }
 });
@@ -84,8 +87,16 @@ function satisfy(state, card) {
   if (w.minLineage != null) state.lineage = Math.max(state.lineage, w.minLineage);
   if (w.maxLineage != null) state.lineage = Math.min(state.lineage, w.maxLineage);
   if (w.flag) state.flags.push(w.flag);
-  if (w.heart) state.heart = w.heart;
-  if (w.notHeart && state.heart === w.notHeart) state.heart = 'free';
+  if (w.heart) state.heart = [].concat(w.heart)[0];
+  if (w.notHeart && [].concat(w.notHeart).includes(state.heart)) state.heart = 'free';
+  if (w.noPatron) state.patron = null;
+  if (w.patron) {
+    const id = w.patron === 'any' ? 'aumbry' : [].concat(w.patron)[0];
+    state.patron = { id, since: 1, strikes: 0, attended: false, summons: null, target: null };
+  }
+  if (w.minHostFavour != null) { ctx.hostFaction = 'aumbry'; state.favour.aumbry = Math.max(state.favour.aumbry, w.minHostFavour); }
+  for (const [t, v] of Object.entries(w.minTrait || {})) state.knight.traits[t] = Math.max(state.knight.traits[t], v);
+  for (const [t, v] of Object.entries(w.maxTrait || {})) state.knight.traits[t] = Math.min(state.knight.traits[t], v);
   if (w.master) state.master.id = w.master;
   if (w.masterFate) state.master.fate = w.masterFate;
   if (w.hasSquire || w.squireOrigin) state.squire = { name: 'Hob', origin: w.squireOrigin || 'poorKin', lance: 7, seat: 7, wits: 7, loyalty: 5, age: 15, years: 1, focus: 'lance' };
@@ -103,6 +114,9 @@ function satisfy(state, card) {
     if (spec.regardMax != null) k.regard = spec.regardMax;
     if (spec.lineageBelowYou) { state.lineage = Math.max(state.lineage, 10); k.lineage = state.lineage - 3; }
     if (spec.unknown) delete state.intel[k.id];
+    if (spec.minRenown != null) k.renown = Math.max(k.renown, spec.minRenown);
+    if (spec.culprit) { state.story = { culprit: k.id }; }
+    if (spec.allegiance) k.allegiance = spec.allegiance === 'patronRival' ? 'stane' : spec.allegiance;
     ctx.field = spec.notInField ? [] : [k.id];
   }
   if (card.cast?.opponent) ctx.opponent = pool[0].id;

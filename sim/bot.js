@@ -14,10 +14,12 @@ import { squireCall } from '../src/engine/derive.js';
 import { currentBout, buyHeraldRead, canEnter, STAGE } from '../src/engine/tourney.js';
 import {
   monthOptions, rideTo, enter, withdraw, ride, onward, leave, train, serve, answer, isFree, PHASE,
+  summonsOption, answerSummons, pilgrimage, visitCourt, courtOptions,
   setFocus, setSquireFocus, takeSquire, dubSquire, hire, buyHarness, buyHorse, keepBorrowedHorse,
   borrowedHorsePrice, horseTradeIn, endWinter,
 } from '../src/engine/season.js';
 import { cardById, holds } from '../src/engine/cards.js';
+import { isPatronTourney, isDisgraced, canPilgrimage } from '../src/engine/court.js';
 import { TIER_ORDER } from '../src/data/tourney.data.js';
 import { HARNESS, SQUIRE } from '../src/data/household.data.js';
 
@@ -38,10 +40,15 @@ export function chooseCourse(state, policy, rng) {
 }
 
 // A crude reading of what an answer is worth, from its effects. Consistent,
-// which is all a reference player needs to be.
+// which is all a reference player needs to be. Two characters: the
+// chivalrous knight weighs honour; the worldly one does not care about it.
+let conduct = 'chivalrous';
+export function setConduct(c) { conduct = c; }
+
 function worth(e = {}) {
   let v = 0;
-  v += (e.renown || 0) * 2 + (e.honour || 0) * 1.5 + (e.purse || 0) / 240;
+  const honourWeight = conduct === 'worldly' ? -0.5 : 1.5;
+  v += (e.renown || 0) * 2 + (e.honour || 0) * honourWeight + (e.purse || 0) / 240;
   for (const x of Object.values(e.favour || {})) v += x * 0.3;
   for (const x of Object.values(e.regard || {})) v += x * 0.15;
   if (e.intelField) v += e.intelField * 0.5;
@@ -50,6 +57,10 @@ function worth(e = {}) {
   if (e.fatigue) v -= e.fatigue * 0.5;
   if (e.travelDays) v -= e.travelDays * 0.3;
   if (e.largesse) v -= e.largesse * 10;
+  if (e.serve) v += 4;
+  if (e.clearMaster) v += 10;
+  if (e.reveal) v += 2;
+  if (e.heart === 'married') v += 3;
   return v;
 }
 
@@ -71,8 +82,21 @@ function reserve(state) {
 }
 
 function chooseMonth(state) {
+  // The patron's summons comes first: missing it is a strike.
+  const summons = summonsOption(state);
+  if (summons && summons.open) return { kind: 'summons' };
+  // So does his tourney, when it is this month.
+  const his = monthOptions(state).find((o) => o.open && state.patron && isPatronTourney(state, o.cal));
+  if (his) return { kind: 'ride', id: his.cal.id };
+  // A disgraced name is mended before anything else.
+  if (isDisgraced(state) && canPilgrimage(state) && state.purse > 4 * 240) return { kind: 'pilgrimage' };
   // Short of next winter's keep: earn it first.
   if (state.purse < reserve(state) * 0.6) return { kind: 'serve' };
+  // Once a year, in a quiet month, go to court where favour is best.
+  if (!state.patron && state.renown >= 10 && state.month === 4 && !monthOptions(state).some((o) => o.open && o.cal.tier !== 'local')) {
+    const c = courtOptions(state).filter((o) => o.open).sort((a, b) => (state.favour[b.faction] || 0) - (state.favour[a.faction] || 0))[0];
+    if (c) return { kind: 'court', town: c.town };
+  }
   const opts = monthOptions(state).filter((o) => o.open && state.purse - o.total >= reserve(state) * 0.4);
   if (opts.length) {
     // Highest tier the knight has a fair chance in: never local once famous.
@@ -133,6 +157,9 @@ export function step(state, policy, rng) {
   if (isFree(state)) {
     const m = chooseMonth(state);
     if (m.kind === 'ride') { const r = rideTo(state, m.id); if (r.ok) return 'ride'; }
+    if (m.kind === 'summons' && answerSummons(state).ok) return 'summons';
+    if (m.kind === 'pilgrimage' && pilgrimage(state).ok) return 'pilgrimage';
+    if (m.kind === 'court' && visitCourt(state, m.town).ok) return 'court';
     if (m.kind === 'serve' && serve(state).ok) return 'serve';
     train(state, m.kind === 'train' ? m.skill : 'lance');
     return 'train';

@@ -9,21 +9,28 @@
 //
 //   when:    tier notTier minRenown maxRenown minHonour maxHonour minLineage
 //            maxLineage flag notFlag heart notHeart master masterFate hasSquire
-//            squireOrigin city minYear minPurse minFavour
+//            squireOrigin city minYear minPurse minFavour noPatron patron
+//            minHostFavour minTrait maxTrait
 //   cast:    rival { from: field|roster, temperament, unknown, maxRenown,
-//                    regardMin, regardMax, lineageBelowYou, notInField }
+//                    minRenown, regardMin, regardMax, lineageBelowYou,
+//                    notInField, culprit, allegiance: patronRival|<faction> }
 //            opponent: true   lady: 'any'
 //   effects: purse renown honour favour traits stats marks regard intel
 //            intelField fatigue wound flags memory squire vow wager token
-//            largesse pas travelDays
+//            largesse pas travelDays serve patronTarget reveal clearMaster heart
+//   favour:  a faction, or 'host' (the event's or court's house), or
+//            'patron' (whoever you serve)
 //   check:   { stat | trait, dc }
 
 import { streamFor } from './rng.js';
 import { knightById, adjustRegard } from './field.js';
+import { takeService, revealCulprit, clearMaster, clampHonour } from './court.js';
+import { PATRONS } from '../data/court.data.js';
 import { lsdSigned, lsd } from './money.js';
 import { fullName } from './knight.js';
 import { FEAST_CARDS, ARRIVAL_CARDS } from '../data/cards.court.data.js';
 import { ROAD_CARDS, MOMENT_CARDS, PRIZE_CARDS, WINTER_CARDS, COURT_CARDS } from '../data/cards.road.data.js';
+import { PATRON_CARDS, CHURCH_CARDS, STORY_CARDS } from '../data/cards.story.data.js';
 import { TRAIT_PAIRS, STAT_LABELS } from '../data/creation.data.js';
 import { FACTION_LABELS } from '../data/world.data.js';
 import { LADY_NAMES } from '../data/names.data.js';
@@ -31,16 +38,17 @@ import { TOWNS } from '../data/world.data.js';
 
 export const CARDS = [
   ...FEAST_CARDS, ...ARRIVAL_CARDS, ...ROAD_CARDS, ...MOMENT_CARDS,
-  ...PRIZE_CARDS, ...WINTER_CARDS, ...COURT_CARDS,
+  ...PRIZE_CARDS, ...WINTER_CARDS, ...COURT_CARDS, ...PATRON_CARDS, ...CHURCH_CARDS, ...STORY_CARDS,
 ];
 export const WHEN_KEYS = [
   'tier', 'notTier', 'minRenown', 'maxRenown', 'minHonour', 'maxHonour', 'minLineage', 'maxLineage',
   'flag', 'notFlag', 'heart', 'notHeart', 'master', 'masterFate', 'hasSquire', 'squireOrigin',
-  'city', 'minYear', 'minPurse', 'minFavour',
+  'city', 'minYear', 'minPurse', 'minFavour', 'noPatron', 'patron', 'minHostFavour', 'minTrait', 'maxTrait',
 ];
 export const EFFECT_KEYS = [
   'purse', 'renown', 'honour', 'favour', 'traits', 'stats', 'marks', 'regard', 'intel', 'intelField',
   'fatigue', 'wound', 'flags', 'memory', 'squire', 'vow', 'wager', 'token', 'largesse', 'pas', 'travelDays',
+  'serve', 'patronTarget', 'reveal', 'clearMaster', 'heart',
 ];
 // Effects that only make sense with a tourney ahead or under way.
 export const EVENT_EFFECTS = ['intel', 'intelField', 'fatigue', 'wound', 'vow', 'wager', 'token', 'largesse', 'pas', 'travelDays'];
@@ -71,8 +79,8 @@ export function holds(state, when, ctx = {}) {
   if (w.maxLineage != null && state.lineage > w.maxLineage) return false;
   if (w.flag && !state.flags.includes(w.flag)) return false;
   if (w.notFlag && state.flags.includes(w.notFlag)) return false;
-  if (w.heart && state.heart !== w.heart) return false;
-  if (w.notHeart && state.heart === w.notHeart) return false;
+  if (w.heart && ![].concat(w.heart).includes(state.heart)) return false;
+  if (w.notHeart && [].concat(w.notHeart).includes(state.heart)) return false;
   if (w.master && state.master.id !== w.master) return false;
   if (w.masterFate && state.master.fate !== w.masterFate) return false;
   if (w.hasSquire != null && !!state.squire !== w.hasSquire) return false;
@@ -83,7 +91,25 @@ export function holds(state, when, ctx = {}) {
   if (w.minFavour) {
     for (const [f, v] of Object.entries(w.minFavour)) if ((state.favour[f] || 0) < v) return false;
   }
+  if (w.noPatron && state.patron) return false;
+  if (w.patron) {
+    if (!state.patron) return false;
+    if (w.patron !== 'any' && ![].concat(w.patron).includes(state.patron.id)) return false;
+  }
+  if (w.minHostFavour != null) {
+    if (!ctx.hostFaction || !PATRONS[ctx.hostFaction]) return false;
+    if ((state.favour[ctx.hostFaction] || 0) < w.minHostFavour) return false;
+  }
+  for (const [t, v] of Object.entries(w.minTrait || {})) if (traitValue(state, t) < v) return false;
+  for (const [t, v] of Object.entries(w.maxTrait || {})) if (traitValue(state, t) > v) return false;
   return true;
+}
+
+/** A trait's value, whichever half of its pair is named. */
+export function traitValue(state, name) {
+  const pair = TRAIT_PAIRS.find(([a, b]) => a === name || b === name);
+  const v = state.knight.traits[pair[0]];
+  return name === pair[0] ? v : 20 - v;
 }
 
 // ---------------------------------------------------------------------------
@@ -105,6 +131,12 @@ function rivalCandidates(state, spec, ctx) {
     if (spec.regardMin != null && k.regard < spec.regardMin) return false;
     if (spec.regardMax != null && k.regard > spec.regardMax) return false;
     if (spec.lineageBelowYou && k.lineage >= state.lineage) return false;
+    if (spec.minRenown != null && k.renown < spec.minRenown) return false;
+    if (spec.culprit && k.id !== state.story?.culprit) return false;
+    if (spec.allegiance) {
+      const want = spec.allegiance === 'patronRival' ? PATRONS[state.patron?.id]?.rival : spec.allegiance;
+      if (!want || k.allegiance !== want) return false;
+    }
     return true;
   });
 }
@@ -189,7 +221,21 @@ export function fill(state, inst, text) {
     .replaceAll('{town}', town)
     .replaceAll('{squire}', state.squire?.name || 'your squire')
     .replaceAll('{master}', state.master.name)
-    .replaceAll('{horse}', state.horse.name);
+    .replaceAll('{horse}', state.horse.name)
+    .replaceAll('{lord}', patronFor(state, inst)?.lord || 'your lord')
+    .replaceAll('{patron}', patronFor(state, inst)?.name || 'your patron')
+    .replaceAll('{fee}', patronFor(state, inst) ? lsd(patronFor(state, inst).fee) : 'a fee');
+}
+
+/** The patron a card is about: the one you serve, or the house whose court you are at. */
+function patronFor(state, inst) {
+  return PATRONS[state.patron?.id] || PATRONS[inst.ctx.hostFaction] || null;
+}
+
+function factionOf(state, inst, f) {
+  if (f === 'host') return inst.ctx.hostFaction || null;
+  if (f === 'patron') return state.patron?.id || null;
+  return f;
 }
 
 function signed(n) { return n > 0 ? `+${n}` : `−${Math.abs(n)}`; }
@@ -208,9 +254,18 @@ export function describeEffects(state, inst, effects) {
   if (e.renown) out.push(`Renown ${signed(e.renown)}`);
   if (e.honour) out.push(`Honour ${signed(e.honour)}`);
   for (const [f, v] of Object.entries(e.favour || {})) {
-    const label = f === 'host' ? (inst.ctx.hostFaction ? FACTION_LABELS[inst.ctx.hostFaction] : null) : FACTION_LABELS[f];
-    if (label) out.push(`Favour of ${label} ${signed(v)}`);
+    const faction = factionOf(state, inst, f);
+    if (faction) out.push(`Favour of ${FACTION_LABELS[faction]} ${signed(v)}`);
   }
+  if (e.serve) {
+    const p = PATRONS[factionOf(state, inst, e.serve)];
+    if (p) out.push(`You enter ${p.name}’s service: ${lsd(p.fee)} a year, his tourney every year, his summons when it comes`);
+  }
+  if (e.patronTarget && inst.cast[e.patronTarget]) out.push(`Beat ${nameOf(state, inst.cast[e.patronTarget])} before the year is out`);
+  if (e.reveal) out.push('You learn whose lance it was');
+  if (e.clearMaster) out.push(`${state.master.name}’s name is cleared: honour +4, renown +4`);
+  if (e.heart === 'married') out.push('You are married');
+  if (e.heart === 'free') out.push('Your promise is broken');
   for (const [role, v] of Object.entries(e.regard || {})) {
     const id = inst.cast[role];
     if (id) out.push(`${nameOf(state, id)} ${v > 0 ? 'thinks better of you' : 'thinks worse of you'} (${signed(v)})`);
@@ -243,9 +298,12 @@ export function describeEffects(state, inst, effects) {
 
 export function checkValue(state, check) {
   if (check.stat) return state.knight.stats[check.stat];
-  const pair = TRAIT_PAIRS.find(([a, b]) => a === check.trait || b === check.trait);
-  const v = state.knight.traits[pair[0]];
-  return check.trait === pair[0] ? v : 20 - v;
+  return traitValue(state, check.trait);
+}
+
+function opposite(t) {
+  const pair = TRAIT_PAIRS.find(([a, b]) => a === t || b === t);
+  return pair[0] === t ? pair[1] : pair[0];
 }
 
 /** The chance of passing a check: shown on the button, and rolled. */
@@ -266,6 +324,9 @@ export function choicesView(state, inst) {
   return card.choices.map((ch, i) => {
     const open = holds(state, ch.when, ctx);
     const view = { index: i, label: ch.label, open };
+    // An answer only a knight of strong character would think of says so.
+    const gate = Object.entries(ch.when?.minTrait || {})[0] || Object.entries(ch.when?.maxTrait || {}).map(([t, v]) => [opposite(t), 20 - v])[0];
+    if (gate) view.gate = { trait: gate[0], value: traitValue(state, gate[0]) };
     if (ch.check) {
       view.check = { label: checkLabel(ch.check), value: checkValue(state, ch.check), dc: ch.check.dc, chance: checkChance(state, ch.check) };
       view.success = describeEffects(state, inst, ch.success.effects);
@@ -282,6 +343,19 @@ export function choicesView(state, inst) {
 // ---------------------------------------------------------------------------
 
 const clampTrait = (v) => Math.max(0, Math.min(20, v));
+
+/**
+ * A trait moves toward the middle freely and away from it grudgingly: a
+ * step is worth two-thirds of itself past 12 (or under 8), and a third past
+ * 15 (or under 5). Character sets slowly, and a byname at 18 is earned over
+ * years of acting the same way, not by a season of bold answers.
+ */
+export function driftTrait(cur, d) {
+  const away = (d > 0 && cur >= 10) || (d < 0 && cur <= 10);
+  const dist = Math.abs(cur - 10);
+  const f = !away ? 1 : dist >= 5 ? 1 / 3 : dist >= 2 ? 2 / 3 : 1;
+  return clampTrait(Math.round((cur + d * f) * 100) / 100);
+}
 const clampStat = (v) => Math.max(1, Math.min(20, v));
 
 /**
@@ -295,12 +369,12 @@ export function applyEffects(state, inst, effects, hooks = {}) {
     else state.purse += e.purse;
   }
   if (e.renown) state.renown = Math.max(0, state.renown + e.renown);
-  if (e.honour) state.honour += e.honour;
+  if (e.honour) { state.honour += e.honour; clampHonour(state); }
   for (const [f, v] of Object.entries(e.favour || {})) {
-    const faction = f === 'host' ? inst.ctx.hostFaction : f;
+    const faction = factionOf(state, inst, f);
     if (faction) state.favour[faction] = (state.favour[faction] || 0) + v;
   }
-  for (const [t, v] of Object.entries(e.traits || {})) state.knight.traits[t] = clampTrait(state.knight.traits[t] + v);
+  for (const [t, v] of Object.entries(e.traits || {})) state.knight.traits[t] = driftTrait(state.knight.traits[t], v);
   for (const [s, v] of Object.entries(e.stats || {})) state.knight.stats[s] = clampStat(state.knight.stats[s] + v);
   for (const [s, v] of Object.entries(e.marks || {})) hooks.marks?.(s, v);
   const town = inst.ctx.town ? TOWNS[inst.ctx.town].name : '';
@@ -323,6 +397,14 @@ export function applyEffects(state, inst, effects, hooks = {}) {
       else state.squire[k] = Math.max(1, Math.min(18, state.squire[k] + v));
     }
   }
+  if (e.serve) {
+    const faction = factionOf(state, inst, e.serve);
+    if (faction) takeService(state, faction);
+  }
+  if (e.patronTarget && state.patron && inst.cast[e.patronTarget]) state.patron.target = inst.cast[e.patronTarget];
+  if (e.reveal === 'culprit') revealCulprit(state);
+  if (e.clearMaster) clearMaster(state, 'Before the heralds, the truth of Ambry Cross was told.');
+  if (e.heart) state.heart = e.heart;
   hooks.event?.(e, inst);
 }
 

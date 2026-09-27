@@ -96,6 +96,8 @@ export function heraldEntry(e, name) {
   }
   if (e.helmPrize) parts.push('The heralds gave him the prize for the most helm strikes of the day.');
   if (e.beneath) parts.push('It was thought a small field for a knight of his name.');
+  if (e.judgement === 'well') parts.push('The heralds wrote well of his conduct.');
+  if (e.judgement === 'ill') parts.push('The heralds wrote that his conduct was wanting.');
   if (e.placing !== 'champion' && e.tier !== 'pas') parts.push(`The prize went to ${e.champion}.`);
   return parts.join(' ');
 }

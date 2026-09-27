@@ -33,6 +33,11 @@ test('every effect in the creation table targets a real field', () => {
   }
 });
 
+test('creation asks six questions, and every one of them matters', () => {
+  assert.equal(QUESTIONS.length, 6);
+  for (const q of QUESTIONS) assert.ok(q.options.length >= 3, `${q.id} offers too few answers`);
+});
+
 test('every answer has weight, and says what it is', () => {
   for (const { q, o } of allOptions) {
     const where = `${q.id}.${o.id}`;
@@ -52,7 +57,7 @@ test('the described effects are the applied effects', () => {
   const eff = (o, k) => (o.effects || {})[k] || 0;
   const sub = (o, group, k) => ((o.effects || {})[group] || {})[k] || 0;
   for (const q of QUESTIONS) {
-    const base = { ...randomAnswers(rng), ambition: 'champion' };
+    const base = { ...randomAnswers(rng), heart: 'champion' };
     const ref = q.options[0];
     const kRef = buildKnight({ ...base, [q.id]: ref.id }, name, makeRng(1));
     for (const o of q.options.slice(1)) {
@@ -69,6 +74,9 @@ test('the described effects are the applied effects', () => {
         assert.equal(k.favour[f] - kRef.favour[f], sub(o, 'favour', f) - sub(ref, 'favour', f), `${where}: favour ${f}`);
       }
       for (const t of TRAIT_KEYS) {
+        // Starting traits are held between 5 and 15; a clamped trait cannot show the full difference.
+        const edge = (v) => v <= 5 || v >= 15;
+        if (edge(k.knight.traits[t]) || edge(kRef.knight.traits[t])) continue;
         assert.equal(k.knight.traits[t] - kRef.knight.traits[t], sub(o, 'traits', t) - sub(ref, 'traits', t), `${where}: ${t}`);
       }
     }
@@ -78,10 +86,10 @@ test('the described effects are the applied effects', () => {
 test('conditional answers are offered only when their condition holds', () => {
   const noDisgrace = { master: 'champion' };
   const withDisgrace = { master: 'disgraced' };
-  assert.ok(!availableOptions('ambition', noDisgrace).some((o) => o.id === 'clearName'));
-  assert.ok(availableOptions('ambition', withDisgrace).some((o) => o.id === 'clearName'));
+  assert.ok(!availableOptions('heart', noDisgrace).some((o) => o.id === 'clearName'));
+  assert.ok(availableOptions('heart', withDisgrace).some((o) => o.id === 'clearName'));
   const rng = makeRng(9);
-  const answers = { ...randomAnswers(rng), master: 'champion', ambition: 'clearName' };
+  const answers = { ...randomAnswers(rng), master: 'champion', heart: 'clearName' };
   assert.throws(() => buildKnight(answers, { given: 'A', house: 'B' }, makeRng(1)), /not an answer/);
 });
 
@@ -93,7 +101,7 @@ test('no set of answers builds an impossible knight, and every knight can ride',
     const a = randomAnswers(rng);
     a[q.id] = o.id;
     if (o.requires) a.master = 'disgraced';
-    if (!availableOptions('ambition', a).some((x) => x.id === a.ambition)) a.ambition = 'champion';
+    if (!availableOptions('heart', a).some((x) => x.id === a.heart)) a.heart = 'champion';
     sets.push(a);
   }
   for (let i = 0; i < 1500; i++) sets.push(randomAnswers(rng));
