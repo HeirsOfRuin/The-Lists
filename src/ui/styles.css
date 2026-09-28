@@ -473,3 +473,28 @@ p { margin: 0; }
 .days-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
 .opt.stack { gap: 8px; }
 .answer .bar { margin-top: 6px; }
+
+/* ---------- creation, told as a story ---------- */
+.create .preface { font-family: var(--voice); font-size: 1.12rem; line-height: 1.45; color: var(--ink-2); margin: 0; font-style: italic; }
+.option .t { font-family: var(--voice); font-weight: 600; font-size: 1.18rem; line-height: 1.25; }
+.option .thread-line { font-size: .86rem; color: var(--or); font-style: italic; }
+.option .thread-line::before { content: 'A thread: '; font-style: normal; font-weight: 600; }
+.option .gives { font-size: .8rem; color: var(--ink-3); line-height: 1.4; }
+.bio { font-family: var(--voice); font-size: 1.1rem; line-height: 1.5; margin: 0; }
+.ahead { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-family: var(--voice); font-size: 1rem; line-height: 1.4; color: var(--ink-2); }
+.sheet-details summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+.sheet-details[open] summary { margin-bottom: 12px; }
+
+/* ---------- the Book of Lothmere ---------- */
+.lore { border-top: 1px solid var(--rule); padding: 10px 0 4px; }
+.lore summary { cursor: pointer; font-family: var(--voice); font-size: 1.08rem; font-weight: 600; }
+.lore-text { font-family: var(--voice); font-size: 1.02rem; line-height: 1.5; color: var(--ink-2); margin: 8px 0 0; }
+.lore.unknown { display: flex; flex-direction: column; gap: 2px; }
+.lore.unknown .t { font-family: var(--voice); color: var(--ink-3); }
+.chron { margin: 4px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; font-family: var(--voice); font-size: 1rem; line-height: 1.4; color: var(--ink-2); }
+.chron-year + .chron-year { border-top: 1px solid var(--rule); padding-top: 10px; }
+.town-lore { font-family: var(--voice); font-size: 1.02rem; line-height: 1.5; color: var(--ink-2); margin: 0; border-left: 2px solid var(--rule-2); padding-left: 10px; }
+.town-line { font-style: italic; }
+.letter { border-left: 2px solid var(--or); padding-left: 12px; }
+.letter-text { font-family: var(--voice); font-size: 1.04rem; line-height: 1.5; margin: 4px 0; font-style: italic; }
+.letter-sign { text-align: right; }

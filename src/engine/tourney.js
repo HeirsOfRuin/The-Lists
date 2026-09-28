@@ -24,6 +24,7 @@ import {
 } from './melee.js';
 import { MELEE, RANSOM, MELEE_PRIZE, MELEE_PRIZE_LABELS, MELEE_RENOWN, RANSOM_TERMS, TAKEN_REGARD } from '../data/melee.data.js';
 import { BARRIERS, OVERNIGHT } from '../data/tourney.data.js';
+import { visit, learn, noteChampion } from './lore.js';
 import { TIERS, WOUNDS, HERALD_READ, LORE_KNOWS_HABITS, TIER_ORDER } from '../data/tourney.data.js';
 import { TOWNS } from '../data/world.data.js';
 import { TRAVEL, HARNESS, SQUIRE, TRAINING, RETINUE_EXPECTED, CONDITION } from '../data/household.data.js';
@@ -207,6 +208,10 @@ export function arrive(state) {
   ev.honourStart = state.honour;
   ev.renownStart = state.renown;
   state.location = ev.town;
+  visit(state, ev.town);
+  if (ev.tier === 'high' || ev.tier === 'grand') learn(state, 'helmshow');
+  if (ev.tier === 'grand') learn(state, 'grand');
+  if (ev.tier === 'greatpas' || ev.tier === 'pas' || ev.tier === 'trial') learn(state, ev.tier);
   const field = Object.keys(ev.riders).filter((id) => id !== YOU);
   if (state.knight.stats.lore >= LORE_KNOWS_HABITS || state.retinue.includes('pursuivant')) {
     for (const id of field) state.intel[id] = Math.max(state.intel[id] || 0, 1);
@@ -620,6 +625,7 @@ function scoreJoust(state) {
     }
   }
 
+  if ((ev.tier === 'high' || ev.tier === 'grand') && ev.champion !== YOU) noteChampion(state, ev, ev.riders[ev.champion].name);
   ev.jousted = {
     placing: ev.placing,
     champion: ev.riders[ev.champion].name,
@@ -748,6 +754,7 @@ function startMelee(state, men) {
   }
   if (men) charge(state, `${men} of your men-at-arms ride with you in the mêlée`, -men * MELEE.manFee);
   ev.melee = newMelee({ tier: ev.tier, riders, sides, yourSide, men });
+  learn(state, 'melee');
   ev.melee.openings = openingsFor(ev.melee, streamFor(state.seed, ev.year, `melee:${ev.serial}:open:0`));
   ev.melee.last = null;
   ev.stage = STAGE.MELEE;
@@ -881,6 +888,7 @@ function startFoot(state) {
     }
   }
   for (const id of others) riders[id] = ev.riders[id] || riderFrom(knightById(state, id));
+  if (ord === 'articles') learn(state, 'barriers');
   const f = { ord, riders, entrants: [YOU, ...others], round: 0, bout: null, other: null, won: [], beatenBy: null, champion: null, last: null, mercy: null };
   ev.foot = f;
   if (others.length >= 3) {

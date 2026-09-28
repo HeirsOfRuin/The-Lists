@@ -8,7 +8,7 @@
 
 import { newGame, STATUS, saveToStorage, loadFromStorage, clearStorage } from '../engine/state.js';
 import { QUESTIONS } from '../data/creation.data.js';
-import { describeOption, availableOptions, randomName, fullName } from '../engine/knight.js';
+import { optionLines, availableOptions, randomName, fullName, prefaceFor, biography } from '../engine/knight.js';
 import { makeRng } from '../engine/rng.js';
 import { buyHeraldRead, STAGE } from '../engine/tourney.js';
 import { reckonNow } from '../engine/derive.js';
@@ -21,6 +21,7 @@ import {
 import { footSquireCall } from '../engine/derive.js';
 import { meleeMenOption } from '../engine/tourney.js';
 import { renderDay, renderMelee, renderRansom, renderFoot, renderFootResult } from './days.js';
+import { renderWorld } from './world.js';
 import { WORLD, MONTHS, TOWNS } from '../data/world.data.js';
 import { lsd } from '../engine/money.js';
 import { esc, ordinal, resetIds, shield } from './view.js';
@@ -122,19 +123,24 @@ function renderCreate() {
     const q = QUESTIONS[step - 1];
     const opts = availableOptions(q.id, create.answers);
     app.innerHTML = `
-    <div class="stack-lg">
+    <div class="stack-lg create">
       ${progressBar()}
       <div class="stack">
-        <div class="eyebrow">Question ${step} of ${QUESTIONS.length}</div>
+        <div class="eyebrow">${ROMAN[step - 1]} · ${esc(q.chapter)}</div>
+        <p class="preface">${esc(prefaceFor(q.id, create.answers))}</p>
         <p class="question">${esc(q.prompt)}</p>
       </div>
       <div class="stack">
-        ${opts.map((o) => `
+        ${opts.map((o) => {
+          const l = optionLines(o);
+          return `
         <button class="option" data-opt="${o.id}" aria-pressed="${create.answers[q.id] === o.id}">
           <span class="t">${esc(o.title)}</span>
           <span class="b">${esc(o.blurb)}</span>
-          <span class="chips">${describeOption(o).map((l) => `<span class="chip ${/^Story|^Steers/.test(l) ? 'story' : ''}">${esc(l)}</span>`).join('')}</span>
-        </button>`).join('')}
+          ${l.threads.map((t) => `<span class="thread-line">${esc(t)}</span>`).join('')}
+          ${l.gives.length ? `<span class="gives">${esc(l.gives.join(' · '))}</span>` : ''}
+        </button>`;
+        }).join('')}
       </div>
       <button class="btn quiet" data-act="back">Back</button>
     </div>`;
@@ -142,18 +148,29 @@ function renderCreate() {
   }
   const preview = newGame({ seed: create.seed, answers: create.answers, name: create.name });
   create.preview = preview;
+  const bio = biography(create.answers);
   app.innerHTML = `
-  <div class="stack-lg">
+  <div class="stack-lg create">
     ${progressBar()}
-    <div class="stack">
-      <div class="eyebrow">The heralds’ roll</div>
-      <p class="question">This is the knight who rides out.</p>
-    </div>
-    ${renderSheet(preview, { inGame: false })}
+    <section class="card lift stack-lg">
+      <div class="arms-block">${shield(preview.arms, 64)}
+        <div class="stack" style="gap:4px"><div class="eyebrow">The heralds’ roll</div>
+        <div class="subhead">${esc(fullName(preview.knight))}</div></div></div>
+      ${bio.paragraphs.map((p) => `<p class="bio">${esc(p)}</p>`).join('')}
+      <div class="stack">
+        <div class="eyebrow">What waits for you</div>
+        <ul class="ahead">${bio.ahead.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>
+      </div>
+    </section>
     <button class="btn primary wide" data-act="ride-out">Ride out from ${esc(TOWNS[preview.location].name)}</button>
+    <details class="card sheet-details"><summary>The knight who rides out: skills, horse and standing</summary>
+      ${renderSheet(preview, { inGame: false })}
+    </details>
     <button class="btn quiet" data-act="restart-answers">Change my answers</button>
   </div>`;
 }
+
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 
 function chooseOption(id) {
   const q = QUESTIONS[create.step - 1];
@@ -189,7 +206,7 @@ function banner() {
       </div>
     </div>
     <nav class="tabs" role="tablist">
-      ${tabBtn('now', 'Now')}${tabBtn('knight', 'Knight')}${tabBtn('field', 'Field')}${tabBtn('book', 'Book')}
+      ${tabBtn('now', 'Now')}${tabBtn('knight', 'Knight')}${tabBtn('field', 'Field')}${tabBtn('book', 'Book')}${tabBtn('world', 'World')}
     </nav>
   </header>`;
 }
@@ -244,6 +261,7 @@ function renderGame() {
   if (ui.tab === 'knight') body = renderSheet(state, { inGame: true, confirmAbandon: ui.confirmAbandon });
   else if (ui.tab === 'field') body = renderField(state);
   else if (ui.tab === 'book') body = renderBook(state);
+  else if (ui.tab === 'world') body = renderWorld(state);
   else body = renderNow();
   app.innerHTML = `${banner()}<main class="stack-lg">${body}</main>`;
 }

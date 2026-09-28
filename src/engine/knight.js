@@ -1,11 +1,11 @@
-// The knight: built from the answers to ten questions, and described back.
+// The knight: built from the answers to six questions, and described back.
 //
 // describeOption() is the only source of the "what this does" line a player
 // reads under each answer. It reads the same effects applyOption() applies, so
 // the copy and the consequence are one piece of data.
 
 import {
-  BASE_KNIGHT, QUESTIONS, HORSES, STAT_LABELS, TRAIT_PAIRS, question,
+  BASE_KNIGHT, QUESTIONS, HORSES, STAT_LABELS, TRAIT_PAIRS, HOOKS, question,
 } from '../data/creation.data.js';
 import { MASTERS, HORSE_NAMES, GIVEN_NAMES, HOUSE_NAMES, LADY_NAMES } from '../data/names.data.js';
 import { FACTION_LABELS, PROVINCES } from '../data/world.data.js';
@@ -88,18 +88,56 @@ export function describeOption(opt) {
     out.push(`Favour of ${FACTION_LABELS[f]} ${signed(v)}`);
   }
   for (const [t, v] of Object.entries(e.traits || {})) out.push(traitWord(t, v));
-  if (e.horseQuality) out.push(`Horse quality ${signed(e.horseQuality)}`);
   const s = opt.sets || {};
   if (s.horse) {
+    // The horse as you get him, with any bonus the answer gives him already counted.
     const h = HORSES[s.horse];
-    const grows = h.potential > h.quality ? `, can grow to ${h.potential}` : '';
-    out.push(`Horse: quality ${h.quality}${grows}, ${TEMPERS[h.temper].label}, ${h.age} years old`);
-  }
+    const q = h.quality + (e.horseQuality || 0);
+    const p = h.potential + (e.horseQuality || 0);
+    const grows = p > q ? `, can grow to ${p}` : '';
+    out.push(`Horse: quality ${q}${grows}, ${TEMPERS[h.temper].label}, ${h.age} years old`);
+  } else if (e.horseQuality) out.push(`Horse quality ${signed(e.horseQuality)}`);
   if (s.cadency) out.push(CADENCY_LABELS[s.cadency]);
   if (s.masterFate === 'dead') out.push('Your master is dead');
   for (const f of opt.flags || []) if (FLAG_LABELS[f]) out.push(`Story: ${FLAG_LABELS[f]}`);
-  if (opt.steers) out.push('Steers which story threads come to you (from the Court build)');
+  if (opt.steers) out.push('Story: shapes which stories come to you');
   return out;
+}
+
+/** The same lines, split: what an answer gives, and the threads it starts. */
+export function optionLines(opt) {
+  const all = describeOption(opt);
+  return {
+    gives: all.filter((l) => !l.startsWith('Story: ')),
+    threads: all.filter((l) => l.startsWith('Story: ')).map((l) => l.slice(7)),
+  };
+}
+
+/** The scene that opens a chapter, answering to what was said before it. */
+export function prefaceFor(questionId, answers) {
+  const q = question(questionId);
+  let text = q.preface;
+  for (const [qid, byOption] of Object.entries(q.prefaceBy || {})) {
+    if (answers[qid] && byOption[answers[qid]]) { text = byOption[answers[qid]]; break; }
+  }
+  const master = MASTERS[answers.master]?.name || 'your master';
+  return text.replaceAll('{master}', master);
+}
+
+/**
+ * The heralds' roll: a knight's life so far, written from his answers, and
+ * the threads he rides out with.
+ */
+export function biography(answers) {
+  const told = (qid) => question(qid).options.find((o) => o.id === answers[qid])?.told;
+  const paragraphs = [];
+  if (told('people')) paragraphs.push(`${told('people')}.${told('country') ? ` You ${told('country')}.` : ''}`);
+  if (told('master')) paragraphs.push(`${told('master')}${told('taught') ? `, ${told('taught')}` : ''}.${told('spurs') ? ` ${told('spurs')}.` : ''}`);
+  if (told('heart')) paragraphs.push(`${told('heart')}.`);
+  const flags = flagsFrom(answers);
+  const ahead = Object.keys(HOOKS).filter((f) => f !== 'realm' && flags.has(f)).map((f) => HOOKS[f]);
+  ahead.push(HOOKS.realm);
+  return { paragraphs, ahead };
 }
 
 /** Flags accumulated by a set of answers so far. */

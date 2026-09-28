@@ -2,6 +2,7 @@
 
 import { TIERS, BARRIERS } from '../data/tourney.data.js';
 import { MELEE_PRIZE_LABELS } from '../data/melee.data.js';
+import { townLore } from '../engine/lore.js';
 import { AIMS, SEATS, ORDINANCE } from '../data/joust.data.js';
 import { TOWNS, FACTION_LABELS } from '../data/world.data.js';
 import { TEMPERAMENTS } from '../data/field.data.js';
@@ -48,6 +49,7 @@ export function renderArrival(state) {
       <div class="where">${esc(TOWNS[ev.town].name)}</div>
       <p class="voice subhead">${esc(ev.name)}, at the invitation of ${esc(ev.host.name)}. ${Object.keys(ev.riders).length} knights, ${roundCount(ev)} rounds, under ${esc(ORDINANCE.name)}.</p>
     </div>
+    ${townLore(ev.town) && ev.tier !== 'trial' ? `<p class="town-lore">${esc(townLore(ev.town).text)}</p>` : ''}
     ${notes(ev)}
     ${daysBlock(ev)}
     <div class="stack">

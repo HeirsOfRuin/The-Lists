@@ -3,10 +3,10 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { QUESTIONS, HORSES } from '../src/data/creation.data.js';
+import { QUESTIONS, HORSES, HOOKS } from '../src/data/creation.data.js';
 import {
   EFFECT_KEYS, SET_KEYS, STAT_KEYS, TRAIT_KEYS, FACTION_KEYS, STAT_MIN, STAT_MAX, TRAIT_MAX,
-  describeOption, availableOptions, randomAnswers, buildKnight,
+  describeOption, availableOptions, randomAnswers, buildKnight, prefaceFor, biography, flagsFrom,
 } from '../src/engine/knight.js';
 import { newGame } from '../src/engine/state.js';
 import { entryCost } from '../src/engine/tourney.js';
@@ -116,5 +116,29 @@ test('no set of answers builds an impossible knight, and every knight can ride',
     assert.ok(s.purse >= entryCost('local') + 60, `a knight with ${s.purse}d cannot pay to ride even a local joust`);
     assert.ok(s.horse.quality >= STAT_MIN && s.horse.quality <= STAT_MAX);
     assert.deepEqual(badNumbers(s), []);
+  }
+});
+
+test('every chapter opens with a scene, and every answer tells its part of the heralds\u2019 roll', () => {
+  for (const [i, q] of QUESTIONS.entries()) {
+    assert.ok(q.chapter && q.preface && q.prompt, `${q.id}: a chapter needs a name, a scene and one question`);
+    assert.ok(!/ and (how|who|what) /.test(q.prompt), `${q.id}: asks two things at once: "${q.prompt}"`);
+    for (const [qid, by] of Object.entries(q.prefaceBy || {})) {
+      const j = QUESTIONS.findIndex((x) => x.id === qid);
+      assert.ok(j >= 0 && j < i, `${q.id}: its scene answers to ${qid}, which has not been asked yet`);
+      for (const oid of Object.keys(by)) assert.ok(QUESTIONS[j].options.some((o) => o.id === oid), `${q.id}: no answer ${qid}.${oid}`);
+    }
+    for (const o of q.options) assert.ok(o.title && o.blurb && o.told, `${q.id}.${o.id}: needs a title, a story and a line for the roll`);
+  }
+  for (const f of Object.keys(HOOKS)) if (f !== 'realm') assert.ok(allOptions.some(({ o }) => (o.flags || []).includes(f)), `hook ${f} is for a thread no answer starts`);
+  const rng = makeRng(17);
+  for (let n = 0; n < 300; n++) {
+    const a = randomAnswers(rng);
+    for (const q of QUESTIONS) assert.ok(!/[{}]|undefined/.test(prefaceFor(q.id, a)), prefaceFor(q.id, a));
+    const b = biography(a);
+    assert.equal(b.paragraphs.length, 3);
+    for (const p of b.paragraphs) assert.ok(!/[{}]|undefined|\.\./.test(p), p);
+    assert.equal(b.ahead[b.ahead.length - 1], HOOKS.realm, 'every knight rides out under the old king');
+    for (const f of flagsFrom(a)) if (HOOKS[f]) assert.ok(b.ahead.includes(HOOKS[f]), `thread ${f} is not on the roll`);
   }
 });

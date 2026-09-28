@@ -13,6 +13,7 @@ import { generateRoster, seedHistory, assignAllegiance, fitOut } from './field.j
 import { takeService } from './court.js';
 import { yearCalendar } from './calendar.js';
 import { freshRealm, grantManor, pickRumour, sendInvitations } from './realm.js';
+import { visit } from './lore.js';
 import { WORLD, PROVINCES, FIRST_MONTH } from '../data/world.data.js';
 import { HARNESS } from '../data/household.data.js';
 
@@ -57,6 +58,16 @@ function courtFor(state) {
   state.notices = state.notices || [];
 }
 
+/** What a knight knows of his kingdom, and the realm's record of the years. */
+function loreFor(state) {
+  state.visited = [];
+  state.seen = [];
+  state.chronicle = [];
+  state.yearNotes = [];
+  state.eventsUsed = [];
+  visit(state, PROVINCES[state.province].home);
+}
+
 /** The parts of a career that phase four added: the realm, land and men. */
 function realmFor(state) {
   state.realm = freshRealm(state.year);
@@ -96,6 +107,7 @@ export function newGame({ seed = 1, answers, name }) {
   worldFor(state);
   courtFor(state);
   realmFor(state);
+  loreFor(state);
   state.realm.rumour = pickRumour(state);
   sendInvitations(state);
   state.notices = [];

@@ -18,6 +18,7 @@ import {
   BATTLE, SPOILS, ATTAINDER, RUMOURS, RUMOUR_BANDS, INVITATIONS, OATH, DEATHS,
 } from '../data/realm.data.js';
 import { PATRONS, CONDUCT } from '../data/court.data.js';
+import { learn } from './lore.js';
 import { TOWNS, FACTION_LABELS } from '../data/world.data.js';
 
 export function freshRealm(year = 1) {
@@ -322,6 +323,7 @@ export function beginWar(state) {
   const r = state.realm;
   if (r.war) return;
   r.king = 'dead';
+  learn(state, 'war');
   r.will = r.balance > BALANCE.willTowardAumbry ? 'aumbry' : 'stane';
   r.tension = 100;
   r.war = { year: state.year, battles: [], done: false, victor: null, endedYear: null, side: null, captured: false };

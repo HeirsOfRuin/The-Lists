@@ -18,6 +18,8 @@ import {
   balanceWords, importance, sideOf, warSide, atWar, menOf, companyMax, manorDef,
 } from '../engine/realm.js';
 import { CLAIMANTS, COMPANY } from '../data/realm.data.js';
+import { townLore } from '../engine/lore.js';
+import { renderLetters, renderChronicle } from './world.js';
 import { esc, ordinal, cap, days, tierChip, shield } from './view.js';
 
 const TIER_COLOUR = { local: 'var(--tier-local)', regional: 'var(--tier-regional)', high: 'var(--tier-high)', grand: 'var(--tier-grand)', greatpas: 'var(--gules)' };
@@ -96,6 +98,7 @@ function optionCard(state, o, selected) {
     <div class="subhead">${esc(o.cal.name)}</div>
     ${state.patron && isPatronTourney(state, o.cal) ? `<div class="small patronmark">${esc(cap(patronDef(state).name))} expects you here${state.patron.attended ? ' (you have already ridden for him this year)' : ''}.</div>` : ''}
     <div class="small muted">${esc(TOWNS[o.cal.town].name)} · ${esc(o.cal.host.name)} · ${o.days ? `${days(o.days)}’ ride` : 'here'}</div>
+    ${townLore(o.cal.town) ? `<div class="small faint town-line">${esc(townLore(o.cal.town).line)}</div>` : ''}
     <div class="small">Road ${lsd(o.road)} · Entry ${lsd(o.entry)} · ${prize}</div>
     ${o.invite ? `<div class="small patronmark">By invitation. ${esc(o.invite)}</div>` : ''}
     ${o.open
@@ -292,6 +295,9 @@ export function renderWinter(state) {
     ${w.notes.length ? `<ul class="notes">${w.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
     ${w.bought.length ? `<ul class="notes">${w.bought.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
   </section>
+
+  ${renderLetters(w.letters)}
+  ${renderChronicle(w.chronicle)}
 
   <section class="card stack">
     <div class="eyebrow">The Roll of Arms</div>

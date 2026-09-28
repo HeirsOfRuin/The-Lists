@@ -39,6 +39,7 @@ import {
 import { GIVEN_NAMES, HORSE_NAMES } from '../data/names.data.js';
 import { WAR_YEAR, COMPANY } from '../data/realm.data.js';
 import { REALM_BEATS } from '../data/cards.realm.data.js';
+import { visit, noteChampion, writeChronicle, writeLetters } from './lore.js';
 import { STAT_LABELS } from '../data/creation.data.js';
 
 const ok = (extra = {}) => ({ ok: true, ...extra });
@@ -319,6 +320,7 @@ export function visitCourt(state, town) {
   if (!opt.open) return no(opt.reason);
   state.purse -= opt.cost;
   state.location = town;
+  visit(state, town);
   state.lastResult = null;
   const inst = drawCard(state, 'court', { town, host: opt.host, hostFaction: opt.faction }, `court:${state.year}:${state.month}`);
   if (inst) {
@@ -350,6 +352,10 @@ export function endMonth(state) {
   const events = state.calendar.filter((e) => e.month === state.month);
   const results = simulateMonth(state, events, state.monthRode);
   state.news = results.map((r) => ({ calId: r.calId, champion: knightById(state, r.champion)?.name || '' }));
+  for (const r of results) {
+    const cal = state.calendar.find((e) => e.id === r.calId);
+    if (cal && (cal.tier === 'high' || cal.tier === 'grand')) noteChampion(state, cal, knightById(state, r.champion)?.name || 'a knight');
+  }
   // A month without a tourney brings the horse back.
   if (!state.monthRode?.entered) {
     const back = CONDITION.recoverMonth + (state.retinue.includes('groom') ? CONDITION.recoverGroom : 0);
@@ -432,6 +438,7 @@ export function answerSummons(state) {
   clearNotices(state);
   state.purse -= o.cost;
   state.location = o.town;
+  visit(state, o.town);
   state.patron.summons.answered = true;
   const inst = drawCard(state, 'summons', { town: o.town, host: o.patron.name, hostFaction: o.patron.id }, `summons:${state.year}`);
   if (inst) {
@@ -639,7 +646,9 @@ export function beginWinter(state) {
   // Everyone's renown fades a little; the field ages.
   state.renown = Math.round(state.renown * 0.9);
   updateEpithet(state, notes);
+  const wasActive = new Set(state.roster.knights.filter((k) => k.active).map((k) => k.id));
   notes.push(...winterField(state));
+  const retired = state.roster.knights.filter((k) => wasActive.has(k.id) && !k.active && k.titles > 1).sort((a, b) => b.titles - a.titles);
 
   state.winter = {
     ledger,
@@ -649,6 +658,8 @@ export function beginWinter(state) {
     candidates: state.squire ? [] : squireCandidates(state, rng),
     manor: manorOffer(state),
     bought: [],
+    chronicle: writeChronicle(state, { retired }),
+    letters: writeLetters(state),
   };
   if (settled?.attainted) state.flags.push('attainted');
   const inst = settled?.attainted ? drawById(state, 'winter.pardon') : drawCard(state, 'winter', {}, `winter:${state.year}`);
@@ -814,6 +825,7 @@ export function endWinter(state) {
   state.month = FIRST_MONTH;
   state.phase = PHASE.MONTH;
   state.location = PROVINCES[state.province].home;
+  visit(state, state.location);
   state.invitations = {};
   state.notices = [];
   const r = state.realm;

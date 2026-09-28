@@ -83,12 +83,14 @@ for (let q = 0; q < 12; q++) {
   const opts = page.locator('[data-opt]');
   const n = await opts.count();
   if (!n) break;
-  if (q === 0) await page.screenshot({ path: `${SHOTS}/0-question.png`, fullPage: true });
+  await page.screenshot({ path: `${SHOTS}/0-question-${q + 1}.png`, fullPage: true });
   await opts.nth(q % n).click();
   asked += 1;
 }
 check('creation asks six questions', asked === 6, `${asked} asked`);
 check('creation reaches the roll', await has('[data-act="ride-out"]'));
+check('the roll tells a life, not a sheet', (await page.locator('p.bio').count()) >= 3);
+await page.screenshot({ path: `${SHOTS}/0-roll.png`, fullPage: true });
 check('no sideways scroll on the roll', (await overflow()) <= 1);
 await page.click('[data-act="ride-out"]');
 check('the month opens with a map', await has('svg.map'));
@@ -155,7 +157,7 @@ const endYear = await text('.banner .fact:last-child .k');
 check('the year advanced', endYear !== startYear, `${startYear} -> ${endYear}`);
 report('play');
 
-for (const t of ['knight', 'field', 'book']) {
+for (const t of ['knight', 'field', 'book', 'world']) {
   await page.click(`[data-tab="${t}"]`);
   await page.waitForTimeout(60);
   const body = (await page.locator('main').innerText()).trim();
@@ -163,6 +165,8 @@ for (const t of ['knight', 'field', 'book']) {
   await page.screenshot({ path: `${SHOTS}/tab-${t}.png`, fullPage: true });
   check(`no sideways scroll on "${t}"`, (await overflow()) <= 1);
 }
+check('the Book of Lothmere has pages known', (await page.locator('details.lore').count()) >= 10);
+check('the chronicle has a year in it', (await page.locator('.chron-year').count()) >= 1);
 report('tabs');
 
 // Reload: the career must come back from storage.
