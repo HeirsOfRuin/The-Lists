@@ -96,7 +96,10 @@ await page.screenshot({ path: `${SHOTS}/0-roll.png`, fullPage: true });
 check('no sideways scroll on the roll', (await overflow()) <= 1);
 await page.click('[data-act="ride-out"]');
 check('the month opens with a map', await has('svg.map'));
+check('a new player is shown a hint for the month', await has('.hint [data-hint="month"]'));
 await page.screenshot({ path: `${SHOTS}/1-month.png`, fullPage: true });
+await page.click('[data-hint="month"]');
+check('a hint read is gone', !(await has('[data-hint="month"]')));
 report('creation');
 
 // Play: whatever the screen offers, in a fixed order of preference.
@@ -177,6 +180,7 @@ report('tabs');
 // Reload: the career must come back from storage.
 await page.reload({ waitUntil: 'load' });
 check('a reload resumes the career', await has('.banner .name'));
+check('and a hint once read stays read', !(await has('[data-hint="month"]')));
 
 // A phase-one save opens in this build.
 const v1 = await readFile(join(ROOT, 'test/fixtures/v1-save.json'), 'utf8');

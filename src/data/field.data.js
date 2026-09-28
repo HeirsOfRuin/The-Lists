@@ -12,6 +12,12 @@ export const ROSTER = {
   retireChance: 0.25,    // per winter, from retireFrom
   retireAlways: 45,
   renownDecay: 0.9,      // everyone's renown each winter: fame must be kept up
+  // ...and fame past a point is harder to keep: a further share of whatever
+  // is over `past` fades too. The same rule for every knight, you included.
+  fame: { past: 100, extra: 0.25 },
+  // The horse a knight's renown can pay for: base + renown / perRenown. He
+  // buys toward it a step a winter.
+  horse: { base: 10, perRenown: 15 },
 };
 
 // Friend and grudge thresholds on a rider's regard for you (−10 to +10).

@@ -17,6 +17,9 @@ import { ROLL_LENGTH } from '../data/household.data.js';
 import { PATRONS } from '../data/court.data.js';
 import { FOOT_STYLES } from '../data/foot.data.js';
 import { partisan, creditBalance } from './realm.js';
+import { newFootBout, fightOut } from './foot.js';
+import { BARRIERS } from '../data/tourney.data.js';
+import { MELEE_RENOWN } from '../data/melee.data.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(v)));
 const PROVINCE_IDS = Object.keys(PROVINCES);
@@ -259,10 +262,45 @@ export function simulateMonth(state, events, busy) {
     const riders = field.map(riderFrom);
     const res = runBracket(riders, rng);
     creditField(state, cal, res);
+    otherDays(state, cal, field);
     const champ = Object.entries(res).find(([, r]) => r.out === 0)[0];
     results.push({ calId: cal.id, champion: champ });
   }
   return results;
+}
+
+/**
+ * The days after the jousts, at a tourney you did not ride: the field earns
+ * the mêlée's and the barriers' renown by the same table you do. The mêlée's
+ * prize and its best blows go to the men with the sword and the seat for it;
+ * the barriers are fought out, four men, by the same exchanges as yours.
+ */
+function otherDays(state, cal, field) {
+  const days = TIERS[cal.tier].days || [];
+  if (days.includes('melee')) {
+    const rng = streamFor(state.seed, cal.year, `sim-melee:${cal.id}`);
+    const items = field.map((k) => ({ k, weight: Math.pow(((k.sword ?? k.lance) + k.seat) / 2, 3) }));
+    const prize = rng.weighted(items);
+    prize.k.renown += MELEE_RENOWN.prize;
+    const rest = items.filter((i) => i !== prize);
+    for (let i = 0; i < 2 && rest.length; i++) {
+      const hit = rng.weighted(rest);
+      hit.k.renown += MELEE_RENOWN.strike;
+      rest.splice(rest.indexOf(hit), 1);
+    }
+  }
+  if (days.includes('barriers') && BARRIERS.renown.champion[cal.tier]) {
+    const rng = streamFor(state.seed, cal.year, `sim-barriers:${cal.id}`);
+    const four = rng.shuffle([...field]).slice(0, BARRIERS.entrants);
+    if (four.length < 4) return;
+    const r = four.map(riderFrom);
+    const fight = (a, b) => (fightOut(newFootBout(a.id, b.id), a, b, rng).winner === 'a' ? a : b);
+    const w1 = fight(r[0], r[1]);
+    const w2 = fight(r[2], r[3]);
+    const champ = fight(w1, w2);
+    for (const w of [w1, w2, champ]) knightById(state, w.id).renown += BARRIERS.renown.win[cal.tier] || 0;
+    knightById(state, champ.id).renown += BARRIERS.renown.champion[cal.tier];
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -302,19 +340,31 @@ function swordDrift(age, rng) {
   return age < 25 ? rng.normal(0.6, 0.5) : age <= 33 ? rng.normal(0.1, 0.4) : rng.normal(-0.5, 0.5);
 }
 
+/** A winter's fading of renown: a tenth of it, and a share of what is over the line. */
+export function fadeRenown(r) {
+  const F = ROSTER.fame;
+  return Math.round(r * ROSTER.renownDecay - F.extra * Math.max(0, r - F.past));
+}
+
 export function winterField(state) {
   const rng = streamFor(state.seed, state.year, 'field-winter');
   const frng = streamFor(state.seed, state.year, 'field-winter-foot');
+  const hrng = streamFor(state.seed, state.year, 'field-winter-horse');
   const used = new Set(state.roster.knights.map((k) => `${k.given} ${k.house}`));
   const notes = [];
   for (const k of state.roster.knights) {
     if (!k.active) continue;
     k.age += 1;
-    k.renown = Math.round(k.renown * ROSTER.renownDecay);
+    k.renown = fadeRenown(k.renown);
     const drift = k.age < 25 ? rng.normal(0.6, 0.5) : k.age <= 33 ? rng.normal(0.1, 0.4) : rng.normal(-0.5, 0.5);
     k.lance = clamp(k.lance + drift, 3, ROSTER.statMax);
     k.seat = clamp(k.seat + (k.age < 25 ? rng.normal(0.6, 0.5) : k.age <= 33 ? rng.normal(0.1, 0.4) : rng.normal(-0.5, 0.5)), 3, ROSTER.statMax);
     k.sword = clamp((k.sword ?? k.lance) + swordDrift(k.age, frng), 3, ROSTER.statMax);
+    // Fame buys horses: a knight's destrier comes up toward what his renown
+    // can pay for, a step a winter, and an old knight's goes down with him.
+    const want = clamp(ROSTER.horse.base + k.renown / ROSTER.horse.perRenown + hrng.normal(0, 1), 5, ROSTER.statMax);
+    if (want > k.horse.quality) k.horse.quality += 1;
+    else if (want < k.horse.quality - 2) k.horse.quality -= 1;
     const retire = k.age >= ROSTER.retireAlways || (k.age >= ROSTER.retireFrom && rng.chance(ROSTER.retireChance));
     if (retire) {
       k.active = false;

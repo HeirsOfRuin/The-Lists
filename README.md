@@ -21,6 +21,16 @@ Open `dist/the-lists.html` in a browser, from anywhere, including a phone's
 downloads folder. It needs no server and no install. It saves itself to that
 browser after every course.
 
+The same build also comes out as an installable web app in `dist/site/`: the
+page, its manifest and icons, and a service worker that keeps it for offline
+play. `.github/workflows/pages.yml` deploys it to GitHub Pages.
+- *Before its first run,* switch Pages on for the repository, with "GitHub
+  Actions" as the source (Settings > Pages).
+- *Running it:* by hand from the Actions tab, or automatically on any push to
+  `main`.
+- *Installing it:* on a phone, open the Pages address and use the browser's
+  "Add to Home Screen".
+
 For development, serve the directory and open `index.html`:
 
 ```
@@ -29,8 +39,21 @@ python3 -m http.server 8000
 
 ## What this build is
 
-Phase 6 is a life: how a career ends, and what fills it besides the lists.
-It follows a rewrite of character creation and a written history for the
+Phase 7 is balance and polish:
+- **Renown's scale.** Renown fades a tenth each winter, and a quarter of
+  whatever is over 100, for every knight.
+- **The field keeps up.** Its famous knights buy better horses, and in the
+  tourneys you do not ride, it earns renown from the mêlée and the barriers
+  as you do.
+- **An instrument for the backgrounds.** It checks that each creation answer
+  does what it says.
+- **First-time hints**, one for each kind of screen.
+- **An installable web build for GitHub Pages**, playable offline.
+
+The measurements are below, under "Renown and the Roll" and "The backgrounds".
+
+Phase 6 was a life: how a career ends, and what fills it besides the lists.
+It followed a rewrite of character creation and a written history for the
 kingdom.
 
 - **Creation as a story.** Six chapters of a life:
@@ -626,11 +649,88 @@ the headline if the knight retired at the end of the run.
 - **The secret love** is fulfilled only by waiting: the widow's letter comes
   from the ninth year, to a knight who kept faith. In thirteen-year careers,
   30 of 33 honourable knights marry her, against 7 of 33 worldly ones.
-- **Not fixed: the Roll.** After the war the knight outgrows the field. The
+- **The Roll (addressed in phase 7; see "Renown and the Roll").** After the
+  war the knight outgrew the field. The
   median rank at thirteen years is first, and 85 of 100 careers head the Roll
   at least once. This is why Champion of the Realm needs three winters at the
   head of the Roll and a King's Tourney won. Renown's scale is the first job
   of the balance phase.
+
+### Renown and the Roll (measured at phase 7)
+
+Phase 6 left the knight outgrowing the field after the war. The median
+renown at thirteen years was 199, while the field's best stayed near 120. A
+breakdown of where each point came from found three causes, and fixed each:
+
+- **The field's horses never improved.** The player bought a quality-17 horse
+  by midcareer. The field's best rode what they started on. Now a knight's
+  horse comes up a step a winter toward what his renown can pay for.
+- **The field earned only from the jousts** in the tourneys you did not ride.
+  Now it earns the mêlée's prize and blows, and fights out the barriers, by
+  the same table as yours.
+- **Fame did not saturate.** Renown fades a tenth each winter, and now a
+  quarter of whatever is over 100 fades too. The rule is the same for every
+  knight and is shown on the winter screen.
+
+| | before | after |
+|---|---|---|
+| median renown, 8 years | 129 | 110 |
+| median renown, 13 years | 199 | 137 |
+| median renown, 25 years | 307 | 147 |
+| you and the field's best in years 6–10, near-perfect play | 116 v 133 | 104 v 112 |
+| you and the field's best in years 11–16 | 201 v 133 | 139 v 107 |
+
+- **A player who never decides at the tilt** (shield, balanced, every course)
+  is typically third on the Roll at eight years, and heads it in a third of
+  careers.
+- **Still true:** over thirteen years, most players head the Roll at least
+  once. That is 83% for the passive player and 90% for the bot. A long career
+  at the top is supposed to get there, but not always and not every year. A
+  "marked man" rule, where the field rides harder at the head of the Roll, is
+  listed in DESIGN.md §10 if play shows it is still too easy.
+- **Two changes to the reference bot came out of this,** because the
+  backgrounds instrument was measuring the bot's mistakes:
+  - It no longer rides the great tourneys before it has renown 12.
+  - A knight of a fallen house now pleads his claim at Kingsmead.
+
+### The backgrounds (measured at phase 7)
+
+`node sim/verify-backgrounds.js --runs=40` plays each creation answer on the
+same 40 seeds, with the other answers drawn as usual. It compares each answer
+with its question's average at year 8, and reports only differences above two
+standard errors.
+
+- **The first pass found real imbalances:**
+  - *Boyhood:* the March was worth +19 renown and +6% of bouts won, and
+    Kingsmead −13.
+  - *Blood:* the fallen house was worth −19 renown and −£19, and the
+    bastard +13.
+- **Five changes:**
+  - *The March:* Seat +2 became +1, and its colt grows to 15.
+  - *Kingsmead:* Lance +1, from the tiltyards.
+  - *The coast:* its old horse is two years younger.
+  - *The bastard:* loses Seat +1.
+  - *The fallen house:* Lance +1, and £6 instead of a debt. Its old blood
+    now brings letters to the high tourneys (lineage 16).
+- **After them,** at year 8:
+
+| question | spread in renown | notes |
+|---|---|---|
+| Blood | −13 to +6 | the heir's £30 becomes land by year 13 (+1.1 manors) |
+| Boyhood | −2 to +8 | |
+| Squire | −7 to +2 | the pious master gives honour and the Church's favour, not renown |
+| Learning | +7 for the lance | the others change what they teach and nothing else measured |
+| Spurs | +6 for the knight who confronted his master | |
+| The road | ±0 renown | the betrothed knight's marriage is +11 standing and +0.7 manors |
+
+- **The fallen house is the harder start, on purpose.** Its old blood and
+  clean name count in the Swan's vote and bring the letters, and 18 of 40
+  such knights win back the family manor by year 8 (most in years 5–6). The
+  months spent pleading the claim cost bouts and practice. At thirteen years
+  it trails by 8 renown, about 6%.
+- **Social answers measure as nothing here.** Courtesy, lore, the courtier and
+  the pious master act through cards, the court and the Swan, which these
+  metrics do not see.
 
 ## The instruments
 
@@ -696,6 +796,11 @@ true:
   written in full, with no gaps or stray braces.
 - A phase-five save opens with a Company and a Book of Lothmere, and plays
   through its winter.
+- Renown fades by the stated rule, never reversing an order, and the same for
+  every knight.
+- Fame buys the field better horses. A tourney you do not ride pays the field
+  for its mêlée and barriers, reproducibly.
+- Every first-time hint is written, and brief.
 
 **Is it balanced?**
 
@@ -705,9 +810,10 @@ node sim/foot-curve.js --bouts=1000      # the same question at the barriers
 node sim/melee-curve.js --days=3000      # and in the mêlée
 node sim/run.js --runs=100 --compare     # eight-year careers, by policy
 node sim/run.js --years=25 --retire=40   # whole lives: the Swan, vows, fairs, endings
+node sim/verify-backgrounds.js --runs=40 # does each creation answer do what it says
                                          # (also --war=careful|bold, --conduct=worldly, --vow=none|<id>)
 node tools/smoke.mjs                     # drive the real page at phone width
-node tools/check-bundle.mjs              # does the single file work from disk
+node tools/check-bundle.mjs              # the single file from disk; the Pages build, installed and offline
 ```
 
 `sim/run.js` refuses to report on a career that never reached a winter, entered
@@ -742,7 +848,7 @@ src/engine/   pure, deterministic, no DOM
 src/data/      logic-free tables: creation, joust, tourney, household, field, world,
                names, court, realm, lore, life, and the cards themselves
 src/ui/        the screens; reads the engine, computes nothing
-sim/           reference bot, career runner, joust curve
+sim/           reference bot, career runner, the curves, the backgrounds check
 test/          invariants
 tools/         bundler, icon, browser smoke test, bundle check
 ```

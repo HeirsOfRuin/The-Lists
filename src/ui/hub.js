@@ -12,6 +12,7 @@ import { vowOptions, vowProgress, vowDef } from '../engine/vows.js';
 import { retirement, endingFor } from '../engine/ending.js';
 import { patronDef, isPatronTourney, canPilgrimage, conductOf } from '../engine/court.js';
 import { knightById } from '../engine/field.js';
+import { ROSTER } from '../data/field.data.js';
 import { PILGRIMAGE, PATRONAGE } from '../data/court.data.js';
 import { route } from '../engine/calendar.js';
 import { rollOfArms } from '../engine/field.js';
@@ -347,7 +348,7 @@ export function renderWinter(state, ui = {}) {
         ${w.ledger.map((l) => `<tr><td>${esc(l.label)}</td><td class="${l.amount >= 0 ? 'pos' : 'neg'}">${lsdSigned(l.amount)}</td></tr>`).join('')}
         <tr class="total"><td>The year closes</td><td class="${net >= 0 ? 'pos' : 'neg'}">${lsdSigned(net)}</td></tr>
       </tbody></table>
-      <p class="small muted">Purse now ${lsd(state.purse)}. Renown fades a tenth each winter, yours and everyone’s: fame must be kept up.</p>
+      <p class="small muted">Purse now ${lsd(state.purse)}. Renown fades a tenth each winter, yours and everyone’s, and a quarter of whatever is over ${ROSTER.fame.past}: fame must be kept up.</p>
     </div>
     ${w.notes.length ? `<ul class="notes">${w.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
     ${w.bought.length ? `<ul class="notes">${w.bought.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}

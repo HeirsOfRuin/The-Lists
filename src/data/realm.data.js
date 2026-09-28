@@ -25,7 +25,7 @@ export const PARTISAN_AT = 55;       // from here, a house will not invite its r
 // Who the heralds invite to the great tourneys. A letter comes a month ahead.
 // Any one of these is enough; a disgraced knight gets none.
 export const INVITATIONS = {
-  high: { renown: 20, favour: 8 },             // the host's favour, or being his man
+  high: { renown: 20, favour: 8, lineage: 16 }, // the host's favour, being his man, or old enough blood
   grand: { renown: 35, favour: 8, train: 12 }, // the Crown's favour, the Crown's service,
                                                // or a patron who thinks this well of you
 };

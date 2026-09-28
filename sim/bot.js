@@ -152,6 +152,13 @@ function chooseMonth(state) {
   if (isDisgraced(state) && canPilgrimage(state) && state.purse > 4 * 240) return { kind: 'pilgrimage' };
   // Short of next winter's keep: earn it first.
   if (state.purse < reserve(state) * 0.6) return { kind: 'serve' };
+  // A fallen house's claim is pleaded at Kingsmead: court the Crown until the
+  // justices will hear it, in the months with nothing better to ride to.
+  const claim = state.flags.includes('dormantClaim') && !state.flags.includes('claimRestored');
+  if (claim && state.year >= 2 && [4, 7].includes(state.month) && !monthOptions(state).some((o) => o.open && ['high', 'grand'].includes(o.cal.tier))) {
+    const c = courtOptions(state).find((o) => o.open && o.faction === 'crown');
+    if (c) return { kind: 'court', town: c.town };
+  }
   // Once a year, in a quiet month, go to court where favour is best.
   if (!state.patron && state.renown >= 10 && state.month === 4 && !monthOptions(state).some((o) => o.open && o.cal.tier !== 'local')) {
     const c = courtOptions(state).filter((o) => o.open).sort((a, b) => (state.favour[b.faction] || 0) - (state.favour[a.faction] || 0))[0];
@@ -159,9 +166,11 @@ function chooseMonth(state) {
   }
   const opts = monthOptions(state).filter((o) => o.open && state.purse - o.total >= reserve(state) * 0.4);
   if (opts.length) {
-    // Highest tier the knight has a fair chance in: never local once famous.
+    // Highest tier the knight has a fair chance in: never local once famous,
+    // and not the great tourneys until he has made some name in the lesser.
     opts.sort((a, b) => TIER_ORDER.indexOf(b.cal.tier) - TIER_ORDER.indexOf(a.cal.tier));
-    const pick = opts.find((o) => !(o.cal.tier === 'local' && state.renown >= 30)) || null;
+    const ready = (o) => !(['high', 'grand'].includes(o.cal.tier) && state.renown < 12 && !(state.patron && isPatronTourney(state, o.cal)));
+    const pick = opts.find((o) => ready(o) && !(o.cal.tier === 'local' && state.renown >= 30)) || null;
     if (pick) return { kind: 'ride', id: pick.cal.id };
   }
   const k = state.knight.stats;

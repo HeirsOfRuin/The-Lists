@@ -61,7 +61,7 @@ test('the great tourneys are by invitation, on the terms the heralds state', () 
   const house = high.host.faction;
   s.renown = 0; s.lineage = 20; s.favour.crown = 0; s.favour[house] = 0; s.patron = null;
   const no = admitted(s, grand);
-  assert.equal(no.ok, false, 'lineage alone does not bring a letter');
+  assert.equal(no.ok, false, 'lineage alone does not bring a letter to the King’s Tourney');
   assert.match(no.reason, new RegExp(`renown ${INVITATIONS.grand.renown}`));
   s.renown = INVITATIONS.grand.renown;
   assert.ok(admitted(s, grand).ok, 'renown brings a letter');
@@ -73,6 +73,9 @@ test('the great tourneys are by invitation, on the terms the heralds state', () 
   assert.match(admitted(s, grand).why, /train/, 'a great lord brings his man in his train');
   s.patron = null;
 
+  assert.ok(admitted(s, high).ok, 'old blood is on every great house’s list');
+  assert.match(admitted(s, high).why, /quarterings/);
+  s.lineage = INVITATIONS.high.lineage - 1;
   assert.equal(admitted(s, high).ok, false);
   assert.match(admitted(s, high).reason, new RegExp(`renown ${INVITATIONS.high.renown}`));
   s.favour[house] = INVITATIONS.high.favour;

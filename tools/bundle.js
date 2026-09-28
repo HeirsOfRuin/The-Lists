@@ -11,10 +11,14 @@
 // codebase actually uses, and it FAILS LOUDLY on anything else rather than
 // silently emitting a file that does not work.
 //
-// (Carried over from Centennial Farm, where it was proven. The installable
-// GitHub Pages build comes back in the polish phase.)
+// (Carried over from Centennial Farm, where it was proven.) Three outputs:
+//   dist/the-lists.html        one file, opens from anywhere, needs nothing beside it
+//   dist/the-lists.embed.html  content only, for a host that supplies the page
+//   dist/site/                 the installable web build for GitHub Pages: the same
+//                              page with its manifest, icons and an offline worker
 
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { dirname, resolve, relative, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -183,5 +187,66 @@ const embedded = [
 ].join('\n');
 await writeFile(join(ROOT, EMBED), embedded, 'utf8');
 
+// The installable build. The page is the single file, but its manifest and
+// icons are real files beside it (a browser will not install from a data:
+// manifest), and a service worker keeps it for offline play. The worker's
+// cache is named by the page's hash, so a new deploy replaces the old one.
+const SITE = 'dist/site';
+await mkdir(join(ROOT, SITE), { recursive: true });
+const register = `<script>
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+</script>`;
+let site = html;
+const siteSwaps = [
+  ['stylesheet', STYLE_LINK, () => styleTag],
+  ['script', /<script type="module"[^>]*><\/script>/, () => `${script}\n${register}`],
+  ['icon', /href="assets\/icon-180\.png"/, () => 'href="icon-180.png"'],
+  ['manifest', /href="assets\/manifest\.webmanifest"/, () => 'href="manifest.webmanifest"'],
+];
+for (const [what, re, fn] of siteSwaps) {
+  if (!re.test(site)) throw new Error(`bundle: the ${what} tag was not found in index.html`);
+  site = site.replace(re, fn);
+}
+const siteManifest = JSON.parse(await readFile(join(ROOT, 'assets/manifest.webmanifest'), 'utf8'));
+siteManifest.icons = siteManifest.icons.map((i) => ({ ...i, src: i.src.replace(/^assets\//, '') }));
+const hash = createHash('sha256').update(site).digest('hex').slice(0, 12);
+const worker = `// The Lists: keep the game for offline play. Written by tools/bundle.js.
+const CACHE = 'the-lists-${hash}';
+const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-512.png'];
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
+});
+self.addEventListener('activate', (e) => {
+  e.waitUntil(caches.keys()
+    .then((keys) => Promise.all(keys.filter((k) => k.startsWith('the-lists-') && k !== CACHE).map((k) => caches.delete(k))))
+    .then(() => self.clients.claim()));
+});
+// The page itself: the network first, so a new build arrives; the cache when offline.
+// Everything else: the cache first. The fonts are not cached; offline, the game
+// falls back to the stacks in its styles and plays the same.
+self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
+  if (req.mode === 'navigate') {
+    e.respondWith(fetch(req).then((res) => {
+      const copy = res.clone();
+      caches.open(CACHE).then((c) => c.put('index.html', copy));
+      return res;
+    }).catch(() => caches.match('index.html')));
+    return;
+  }
+  e.respondWith(caches.match(req).then((hit) => hit || fetch(req)));
+});
+`;
+await writeFile(join(ROOT, SITE, 'index.html'), site, 'utf8');
+await writeFile(join(ROOT, SITE, 'manifest.webmanifest'), JSON.stringify(siteManifest, null, 2), 'utf8');
+await writeFile(join(ROOT, SITE, 'sw.js'), worker, 'utf8');
+await copyFile(join(ROOT, 'assets/icon-180.png'), join(ROOT, SITE, 'icon-180.png'));
+await copyFile(join(ROOT, 'assets/icon-512.png'), join(ROOT, SITE, 'icon-512.png'));
+await writeFile(join(ROOT, SITE, '.nojekyll'), '', 'utf8');
+
 console.log(`${OUT} \u2014 ${modules.size} modules, ${(bundled.length / 1024).toFixed(0)} KB, no dependencies`);
 console.log(`${EMBED} \u2014 ${(embedded.length / 1024).toFixed(0)} KB, for a host that supplies the page`);
+console.log(`${SITE}/ \u2014 the installable build for GitHub Pages (worker cache ${hash})`);

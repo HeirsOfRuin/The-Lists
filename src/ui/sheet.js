@@ -77,7 +77,7 @@ export function renderSheet(s, { inGame, confirmAbandon = false }) {
     <div class="stack">
       <div class="eyebrow">Standing</div>
       <dl class="kv">
-        <dt>Renown</dt><dd>${s.renown} <span class="small faint">— won in the lists; a tenth fades each winter</span></dd>
+        <dt>Renown</dt><dd>${s.renown} <span class="small faint">— won in the lists; a tenth fades each winter, and a quarter of anything over 100</span></dd>
         <dt>Honour</dt><dd>${s.honour} \u00b7 <b>${esc(conductOf(s.honour).label)}</b> <span class="small faint">\u2014 ${esc(conductOf(s.honour).does)}</span></dd>
         ${inGame ? `<dt>Service</dt><dd>${s.patron ? `${esc(cap(patronDef(s).name))}, in ${esc(patronDef(s).livery)}, since year ${s.patron.since}` : 'You serve no one'}</dd>` : ''}
         <dt>Lineage</dt><dd>${s.lineage} <span class="small faint">— counts toward your standing in the realm</span></dd>
@@ -126,6 +126,7 @@ export function renderSheet(s, { inGame, confirmAbandon = false }) {
         <div class="confirm"><button class="btn danger" data-act="abandon-yes">Abandon him</button>
         <button class="btn quiet" data-act="abandon-no">Keep riding</button></div>`
       : '<button class="btn quiet" data-act="abandon">Abandon this knight and start another</button>'}
+      <button class="btn quiet" data-act="hints-on">Show the first-time hints again</button>
     </div>` : ''}
   </section>`;
 }

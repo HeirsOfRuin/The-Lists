@@ -1,0 +1,48 @@
+# The installable web build, deployed to GitHub Pages.
+#
+# Runs by hand (Actions > Pages > Run workflow), and on every push to main.
+# Before the first run, Pages must be switched on for the repository with
+# "GitHub Actions" as its source (Settings > Pages); until then the deploy
+# step has nowhere to deploy to.
+
+name: Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Invariants
+        run: node --test "test/*.test.js"
+      - name: Build the site
+        run: node tools/bundle.js
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

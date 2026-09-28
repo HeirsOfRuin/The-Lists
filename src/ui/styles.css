@@ -509,3 +509,8 @@ p { margin: 0; }
 details.vows > summary { cursor: pointer; font-weight: 700; padding: 6px 0; }
 details.vows[open] > summary { margin-bottom: 8px; }
 details.vows .opt + .opt { margin-top: 10px; }
+
+/* ---------- first-time hints ---------- */
+.hint { border-left: 3px solid var(--or); }
+.hint p { margin: 0; color: var(--ink-2); }
+.linkbtn { background: none; border: none; padding: 0; color: var(--ink-3); text-decoration: underline; cursor: pointer; font: inherit; }

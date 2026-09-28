@@ -329,7 +329,7 @@ before the court, and the card engine planned for phase 3 arrived here.
    - Trial by combat à outrance, from the Ambry Cross accusation or one made
      against you.
    - Each form measured for whether choosing matters.
-6. **A life**: this build. Before it, creation was rewritten as six
+6. **A life**: done. Before it, creation was rewritten as six
    chapters of a life, and the kingdom was given a written history (the
    Book of Lothmere, the yearly chronicle, letters from home).
    - Retirement from 34, forced at 45, and an epilogue written from the Book
@@ -343,11 +343,19 @@ before the court, and the card engine planned for phase 3 arrived here.
    - Archers in your company; campaigning with your side's army, or guarding
      your lands against raiders, in the war's months.
    - The secret love now has an ending.
-7. **Balance and polish:**
-   - renown's scale: past the war the knight outgrows the field, and the Roll
-     stops being a race;
-   - ablations, and verifying the backgrounds;
-   - the tutorial, deploying to Pages, and sources.
+7. **Balance and polish**: this build.
+   - *Renown's scale:* a progressive winter fade, the field's horses keeping
+     pace with its fame, and the field earning the days after the jousts.
+   - *The backgrounds instrument.*
+   - *First-time hints* for every kind of screen.
+   - *The installable Pages build,* with offline play.
+8. **What is left:**
+   - a new career as the squire you knighted;
+   - more cards, since the war years and the long peace after them repeat
+     sooner than the early years;
+   - a marked-man rule if play shows the Roll is still too easy to head;
+   - ablations: switching each system off to measure what it contributes;
+   - the backgrounds the instrument flags as doing less than they claim.
 
 ## 11. Rules the code is organised around (inherited from Centennial Farm)
 

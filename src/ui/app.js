@@ -21,6 +21,7 @@ import {
 } from '../engine/season.js';
 import { obituary } from '../engine/ending.js';
 import { renderFair } from './fair.js';
+import { hintCard, dismissHint, setHints } from './hints.js';
 import { footSquireCall } from '../engine/derive.js';
 import { meleeMenOption } from '../engine/tourney.js';
 import { renderDay, renderMelee, renderRansom, renderFoot, renderFootResult } from './days.js';
@@ -80,9 +81,9 @@ function renderTitle() {
     </section>` : ''}
     ${!saved.ok && !/no saved|no storage/.test(saved.reason) ? `<p class="small neg">A saved knight could not be read: ${esc(saved.reason)}</p>` : ''}
     <button class="btn ${s ? '' : 'primary'} wide" data-act="new">A new knight</button>
-    <p class="small faint build-note">The fifth build: your knight, the circuit, the field of rivals, feasts and the
-      road, your squire and household, the court, the realm and its war, and now the other lists: the mêlée, foot combat
-      at the barriers, the Great Pas, and trial by combat. A life's ending, the Order and the fairs come next.</p>
+    <p class="small faint build-note">A whole life, from your spurs to the last page of your Book of Feats: the circuit
+      and its rivals, the mêlée and the barriers, the court, ten years to a civil war, the Company of the Swan, vows, the
+      fairs, and the Book of Lothmere.</p>
   </div>`;
 }
 
@@ -216,9 +217,18 @@ function banner() {
   </header>`;
 }
 
+/** Which first-time hint belongs to the screen in front of the player. */
+function hintKey() {
+  if (state.pending) return 'card';
+  if (state.fair) return 'fair';
+  const st = state.event?.stage;
+  if (st) return { [STAGE.ARRIVAL]: 'arrival', [STAGE.BOUT]: 'bout', [STAGE.DAY]: 'day', [STAGE.MELEE]: 'melee', [STAGE.FOOT]: 'foot' }[st] || null;
+  return state.phase === PHASE.WINTER ? 'winter' : 'month';
+}
+
 function renderNow() {
   if (state.status !== STATUS.ACTIVE) return renderEnding();
-  const refusal = ui.refusal ? `<p class="refusal">${esc(ui.refusal)}</p>` : '';
+  const refusal = `${ui.refusal ? `<p class="refusal">${esc(ui.refusal)}</p>` : ''}${hintCard(hintKey())}`;
   if (state.pending) {
     // A moment in the lists keeps the tilt in view above it.
     return `${refusal}${renderCard(state)}`;
@@ -323,7 +333,7 @@ function runCourse() {
 // ---------------------------------------------------------------------------
 
 app.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-act],[data-opt],[data-aim],[data-seat],[data-tab],[data-read],[data-ride],[data-sel],[data-train-pick],[data-court],[data-answer],[data-focus],[data-sqfocus],[data-squire],[data-hire],[data-dismiss],[data-harness],[data-horse],[data-men],[data-melee],[data-ransom],[data-stroke],[data-guard],[data-mark],[data-lull],[data-race],[data-vow]');
+  const t = e.target.closest('[data-act],[data-opt],[data-aim],[data-seat],[data-tab],[data-read],[data-ride],[data-sel],[data-train-pick],[data-court],[data-answer],[data-focus],[data-sqfocus],[data-squire],[data-hire],[data-dismiss],[data-harness],[data-horse],[data-men],[data-melee],[data-ransom],[data-stroke],[data-guard],[data-mark],[data-lull],[data-race],[data-vow],[data-hint]');
   if (!t || t.disabled) return;
   const d = t.dataset;
   let top = true;
@@ -354,6 +364,7 @@ app.addEventListener('click', (e) => {
   else if (d.lull != null) { ui.shot.lull = d.lull === '1'; top = false; }
   else if (d.race) act(race, d.race);
   else if (d.vow) { act(vow, d.vow); top = false; }
+  else if (d.hint) { dismissHint(d.hint); top = false; }
   else {
     switch (d.act) {
       case 'resume': {
@@ -434,6 +445,8 @@ app.addEventListener('click', (e) => {
       case 'unvow': act(unvow); top = false; break;
       case 'hire-archer': act(hireArcher); top = false; break;
       case 'dismiss-archer': act(dismissArcher); top = false; break;
+      case 'hints-off': setHints(false); top = false; break;
+      case 'hints-on': setHints(true); ui.tab = 'now'; break;
       case 'retire': ui.confirmRetire = true; top = false; break;
       case 'retire-no': ui.confirmRetire = false; top = false; break;
       case 'retire-yes': act(retireNow); ui.confirmRetire = false; break;

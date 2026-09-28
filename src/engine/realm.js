@@ -176,7 +176,8 @@ export function invitation(state, cal) {
     if (state.patron?.id === house) return { invited: true, why: `You are ${name}’s man.` };
     if ((state.favour[house] || 0) >= I.favour) return { invited: true, why: `${cap(name)} thinks well of you.` };
     if (state.renown >= I.renown) return { invited: true, why: 'Your renown speaks for you.' };
-    return { invited: false, why: null, need: `${cap(name)} invites knights of renown ${I.renown}, his own men, and those whose favour with him has reached ${I.favour}. You have renown ${state.renown} and his favour at ${state.favour[house] || 0}.` };
+    if (state.lineage >= I.lineage) return { invited: true, why: 'The heralds know your quarterings, and so does he.' };
+    return { invited: false, why: null, need: `${cap(name)} invites knights of renown ${I.renown}, his own men, those whose favour with him has reached ${I.favour}, and men of lineage ${I.lineage}. You have renown ${state.renown}, his favour at ${state.favour[house] || 0}, and lineage ${state.lineage}.` };
   }
   // The King's Tourney.
   if (state.patron?.id === 'crown') return { invited: true, why: 'You are the king’s man.' };

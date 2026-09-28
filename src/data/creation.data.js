@@ -54,10 +54,10 @@ export const STAT_USES = {
 
 export const HORSES = {
   old: {
-    id: 'old', label: 'An old destrier', quality: 13, potential: 13, age: 14, temper: 'steady',
+    id: 'old', label: 'An old destrier', quality: 13, potential: 13, age: 12, temper: 'steady',
   },
   green: {
-    id: 'green', label: 'A green colt', quality: 9, potential: 16, age: 5, temper: 'hot',
+    id: 'green', label: 'A green colt', quality: 9, potential: 15, age: 5, temper: 'hot',
   },
   borrowed: {
     id: 'borrowed', label: 'A borrowed horse', quality: 15, potential: 15, age: 9, temper: 'steady',
@@ -98,15 +98,15 @@ export const QUESTIONS = [
         id: 'bastard', title: 'My father’s bastard, and he owned me.',
         blurb: 'He armed you, and gave you his arms with the baton sinister across them so that nobody would forget. The Duke of Aumbry owes your father a debt from the war, and knows that you are its only heir.',
         told: 'You were born your father’s bastard, and he owned you: you carry his arms with the baton sinister, and the Duke of Aumbry’s debt to him',
-        effects: { lineage: -3, lance: 1, seat: 1, vigour: 1, purse: 8 * 240, favour: { aumbry: 10 }, traits: { valorous: 2, honest: -2 } },
+        effects: { lineage: -3, lance: 1, vigour: 1, purse: 8 * 240, favour: { aumbry: 10 }, traits: { valorous: 2, honest: -2 } },
         sets: { cadency: 'baton', birth: 'bastard', advantage: 'favour' },
         flags: ['bastard', 'patronOwes'],
       },
       {
         id: 'fallen', title: 'The last of a fallen house.',
-        blurb: 'Sixteen quarterings, a hall with the roof fallen in, and a chest of charters for lands nobody has let your family hold since the war. The heralds will never question your blood. Nobody will lend you a penny against it, either.',
+        blurb: 'Sixteen quarterings, a hall with the roof fallen in, and a chest of charters for lands nobody has let your family hold since the war. The heralds will never question your blood, and no great house will leave it off the list of its tourney. Nobody will lend you a penny against it, either: the last of the plate was sold to arm you.',
         told: 'You were born the last of a fallen house, with sixteen quarterings, a roofless hall, and a chest of charters for lands your family lost in the war',
-        effects: { lineage: 10, honour: 5, purse: -1 * 240, courtesy: 1, lore: 1, traits: { constant: 2 } },
+        effects: { lineage: 10, honour: 5, purse: 6 * 240, lance: 1, lore: 1, traits: { constant: 2 } },
         sets: { cadency: 'none', birth: 'fallen', advantage: 'oldblood' },
         flags: ['dormantClaim'],
       },
@@ -130,14 +130,14 @@ export const QUESTIONS = [
         id: 'march', title: 'On the Harrow March, where the raiders come over the hills.',
         blurb: 'Border country, the Earl of Stane’s, where boys ride out after Scarrow cattle-thieves at twelve. When you left, your father gave you a colt from the March herds: hot, unschooled, and the best-bred horse you will ever own, if you can make him.',
         told: 'grew up in the saddle on the Harrow March, and rode out from it on a green colt of the March herds',
-        effects: { seat: 2, vigour: 1, horseQuality: 1, favour: { stane: 3 } },
+        effects: { seat: 1, vigour: 1, horseQuality: 1, favour: { stane: 3 } },
         sets: { province: 'march', horse: 'green' },
       },
       {
         id: 'court', title: 'In the tiltyards of Kingsmead, under the heralds’ eyes.',
         blurb: 'The crown’s own province, where you learned which fork, which bow, and which lord not to seat beside which. A friend of your father’s at court has lent you a fine, steady horse to ride out on. He will want him back by winter, or paid for.',
         told: 'learned the tiltyards and the manners of Kingsmead, and rode out on a borrowed horse',
-        effects: { courtesy: 2, lore: 1, favour: { crown: 3 } },
+        effects: { lance: 1, courtesy: 2, lore: 1, favour: { crown: 3 } },
         sets: { province: 'court', horse: 'borrowed' },
         flags: ['borrowedHorse'],
       },

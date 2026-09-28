@@ -27,7 +27,7 @@ import { takeVow, dropVow, judgeVow, vowDef } from './vows.js';
 import { newFair, shootPopinjay, runRace } from './fair.js';
 import { retire, retirement } from './ending.js';
 import { FAIRS, CAMPAIGN, CAMPAIGN_EPISODES, LANDS_GUARD, ARCHERS } from '../data/life.data.js';
-import { simulateMonth, winterField, monthIndex, knightById, rollOfArms } from './field.js';
+import { simulateMonth, winterField, monthIndex, knightById, rollOfArms, fadeRenown } from './field.js';
 import { squireCall } from './derive.js';
 import {
   patronDef, isPatronTourney, summonsOpen, checkSummons, winterPatron, planSummons, leaveService,
@@ -772,7 +772,7 @@ export function beginWinter(state) {
   }
 
   // Everyone's renown fades a little; the field ages.
-  state.renown = Math.round(state.renown * 0.9);
+  state.renown = fadeRenown(state.renown);
   updateEpithet(state, notes);
   const wasActive = new Set(state.roster.knights.filter((k) => k.active).map((k) => k.id));
   notes.push(...winterField(state));
