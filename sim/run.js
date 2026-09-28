@@ -17,8 +17,9 @@ import { randomAnswers, randomName } from '../src/engine/knight.js';
 import { makeRng } from '../src/engine/rng.js';
 import { lsd } from '../src/engine/money.js';
 import { rollOfArms } from '../src/engine/field.js';
-import { step, POLICIES, setConduct, setWar } from './bot.js';
+import { step, POLICIES, setConduct, setWar, setVow, setRetireAge } from './bot.js';
 import { importance, menOf } from '../src/engine/realm.js';
+import { endingFor, ambitionMet } from '../src/engine/ending.js';
 
 export class ProgressError extends Error {}
 
@@ -64,7 +65,7 @@ export function playCareer({ seed, policy = 'squire', years = 8, answers = null 
   const byTier = {};
   const placings = {};
   for (const e of state.book) {
-    if (!e.tier || ['dubbing', 'epithet', 'story'].includes(e.tier)) continue;
+    if (!e.tier || ['dubbing', 'epithet', 'story', 'vow', 'order', 'fair'].includes(e.tier)) continue;
     byTier[e.tier] = (byTier[e.tier] || 0) + 1;
     if (e.placing === 'champion') placings[e.tier] = (placings[e.tier] || 0) + 1;
   }
@@ -112,7 +113,27 @@ export function playCareer({ seed, policy = 'squire', years = 8, answers = null 
     landsEnd: (state.lands || []).length,
     firstHigh: Math.min(...state.book.filter((e) => e.tier === 'high').map((e) => e.year), 99),
     firstGrand: Math.min(...state.book.filter((e) => e.tier === 'grand').map((e) => e.year), 99),
-    diedIn: state.status === 'dead' ? (/fell at the Battle/.test(state.outcome.text) ? 'battle' : 'skirmish') : null,
+    diedIn: state.status === 'dead' ? (/fell at the Battle/.test(state.outcome.text) ? 'battle' : /skirmish that no chronicle/.test(state.outcome.text) ? 'campaign' : 'skirmish') : null,
+    life: {
+      companion: state.order?.companion ? state.order.since : null,
+      stood: state.order?.elections.filter((e) => e.stood).length || 0,
+      chapters: state.order?.elections.length || 0,
+      stalls: state.order?.elections.reduce((t, e) => t + e.stalls, 0) || 0,
+      vowsKept: state.book.filter((e) => e.tier === 'vow' && e.name === 'A vow kept').length,
+      vowsBroken: state.book.filter((e) => e.tier === 'vow' && e.name === 'A vow broken').length,
+      popinjay: state.book.filter((e) => e.tier === 'fair' && /popinjay/i.test(e.name)).length,
+      popinjayWon: state.book.filter((e) => e.tier === 'fair' && /popinjay/i.test(e.name) && e.placing === 'champion').length,
+      races: state.book.filter((e) => e.tier === 'fair' && /Race/.test(e.name)).length,
+      racesWon: state.book.filter((e) => e.tier === 'fair' && /Race/.test(e.name) && e.placing === 'champion').length,
+      campaigned: state.career.monthsCampaigned || 0,
+      archers: state.archers || 0,
+      rollFirst: state.career.rollFirst || 0,
+      retired: state.status === 'retired',
+      ending: state.status === 'retired' ? state.outcome.ending : state.status === 'active' ? `(${endingFor(state).id})` : state.status,
+      ambition: state.ambition,
+      ambitionMet: ambitionMet(state),
+      age: state.knight.age,
+    },
   };
   assertProgress(r);
   return r;
@@ -161,9 +182,29 @@ export function summarise(results) {
     bynameFirstYear: median(results.filter((r) => r.epithetYear).map((r) => r.epithetYear)),
     bynames: Object.entries(results.reduce((m, r) => { if (r.epithet) m[r.epithet] = (m[r.epithet] || 0) + 1; return m; }, {})).map(([k, v]) => `${k} ${v}`).join(', '),
     masterCleared: `${results.filter((r) => r.masterCleared).length} of ${results.filter((r) => r.masterDisgraced).length} with a disgraced master`,
-    married: `${results.filter((r) => r.married).length} of ${results.filter((r) => r.promised).length} promised`,
+    married: `${results.filter((r) => r.married && r.promised).length} of ${results.filter((r) => r.promised).length} promised; ${results.filter((r) => r.married && !r.promised).length} for love`,
     ridden,
     realm: realmSummary(results),
+    life: lifeSummary(results),
+  };
+}
+
+function lifeSummary(results) {
+  const n = results.length;
+  const L = results.map((r) => r.life);
+  const sum = (f) => L.reduce((t, l) => t + f(l), 0);
+  const count = (xs) => Object.entries(xs.reduce((m, x) => { m[x] = (m[x] || 0) + 1; return m; }, {})).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ');
+  const comp = L.filter((l) => l.companion);
+  return {
+    swan: `${comp.length} of ${n} companions (median year ${median(comp.map((l) => l.companion))}); stood ${sum((l) => l.stood)} times; ${(sum((l) => l.stalls) / n).toFixed(1)} stalls filled a career`,
+    vows: `${sum((l) => l.vowsKept)} kept, ${sum((l) => l.vowsBroken)} broken`,
+    popinjay: `${sum((l) => l.popinjayWon)} won of ${sum((l) => l.popinjay)} shot`,
+    race: `${sum((l) => l.racesWon)} won of ${sum((l) => l.races)} run`,
+    campaigned: `${(sum((l) => l.campaigned) / n).toFixed(1)} months a career`,
+    archers: median(L.map((l) => l.archers)),
+    headOfRoll: `${L.filter((l) => l.rollFirst >= 1).length} ever; ${L.filter((l) => l.rollFirst >= 2).length} twice or more`,
+    endings: count(L.map((l) => l.ending)),
+    ambitionMet: count(L.filter((l) => l.ambitionMet).map((l) => l.ambition)) + ` (of ${count(L.map((l) => l.ambition))})`,
   };
 }
 
@@ -204,6 +245,8 @@ function args() {
     compare: !!a.compare,
     conduct: a.conduct || 'chivalrous',
     war: a.war || 'bold',
+    vow: a.vow || 'lances',
+    retire: Number(a.retire || 99),
   };
 }
 
@@ -211,6 +254,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const opt = args();
   setConduct(opt.conduct);
   setWar(opt.war);
+  setVow(opt.vow);
+  setRetireAge(opt.retire);
   const policies = opt.compare ? POLICIES : [opt.policy];
   const t0 = Date.now();
   for (const policy of policies) {

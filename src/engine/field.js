@@ -252,7 +252,7 @@ export function simulateMonth(state, events, busy) {
     if (cal.id === busy?.calId) continue;
     const rng = streamFor(state.seed, cal.year, `sim:${cal.id}`);
     const exclude = new Set(busy?.riders || []);
-    if (cal.tier === 'greatpas') continue; // one man holds it; he is not in a bracket
+    if (cal.tier === 'greatpas' || cal.tier === 'fair') continue; // one man holds a pas; a fair is not a bracket
     const n = TIERS[cal.tier].entrants;
     const field = pickField(state, cal, n, exclude, rng);
     if (field.length < n) continue;

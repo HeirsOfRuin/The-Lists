@@ -14,6 +14,8 @@ import { THREADS } from '../data/court.data.js';
 import { markCost } from '../engine/tourney.js';
 import { cardById, fill, choicesView } from '../engine/cards.js';
 import { importance, manorDef } from '../engine/realm.js';
+import { eligibility } from '../engine/order.js';
+import { vowDef } from '../engine/vows.js';
 import { CLAIMANTS } from '../data/realm.data.js';
 import { esc, cap, pct, shield, signed, chips, tierChip, ordinal } from './view.js';
 import { rollTable } from './hub.js';
@@ -80,6 +82,9 @@ export function renderSheet(s, { inGame, confirmAbandon = false }) {
         ${inGame ? `<dt>Service</dt><dd>${s.patron ? `${esc(cap(patronDef(s).name))}, in ${esc(patronDef(s).livery)}, since year ${s.patron.since}` : 'You serve no one'}</dd>` : ''}
         <dt>Lineage</dt><dd>${s.lineage} <span class="small faint">— counts toward your standing in the realm</span></dd>
         ${favours.length ? `<dt>Favour</dt><dd>${favours.map(([f, v]) => `${esc(FACTION_LABELS[f])} ${signed(v)}`).join(', ')}</dd>` : ''}
+        ${inGame && s.order ? `<dt>The Swan</dt><dd>${s.order.companion ? `A companion, since the ${ordinal(s.order.since)} year` : s.order.degraded ? 'Put out of the Company' : esc(swanWords(s))}</dd>` : ''}
+        ${inGame && s.vow ? `<dt>Vow</dt><dd>${esc(vowDef(s.vow.id).title)} <span class="small faint">(for year ${s.vow.year})</span></dd>` : ''}
+        ${inGame && s.career.rollFirst ? `<dt>The Roll</dt><dd>First of all the knights in Lothmere, ${s.career.rollFirst} winter${s.career.rollFirst === 1 ? '' : 's'}</dd>` : ''}
       </dl>
     </div>
 
@@ -123,6 +128,11 @@ export function renderSheet(s, { inGame, confirmAbandon = false }) {
       : '<button class="btn quiet" data-act="abandon">Abandon this knight and start another</button>'}
     </div>` : ''}
   </section>`;
+}
+
+function swanWords(s) {
+  const el = eligibility(s);
+  return el.ok ? 'The chapter would hear your name for an empty stall.' : el.reason;
 }
 
 /** Where you would stand if the realm came to swords, and why, term by term. */

@@ -13,18 +13,20 @@ import { generateRoster, seedHistory, assignAllegiance, fitOut } from './field.j
 import { takeService } from './court.js';
 import { yearCalendar } from './calendar.js';
 import { freshRealm, grantManor, pickRumour, sendInvitations } from './realm.js';
-import { visit } from './lore.js';
-import { WORLD, PROVINCES, FIRST_MONTH } from '../data/world.data.js';
+import { visit, learn } from './lore.js';
+import { orderFor } from './order.js';
+import { WORLD, PROVINCES, TOWNS, FIRST_MONTH } from '../data/world.data.js';
 import { HARNESS } from '../data/household.data.js';
 
 export const SAVE_KEY = 'the-lists.save.v1';
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 export const STATUS = {
   ACTIVE: 'active',
   RUINED: 'ruined', // could not pay the winter accounts
   DEAD: 'dead',     // killed in the war
   EXILED: 'exiled', // attainted, and would not or could not buy a pardon
+  RETIRED: 'retired', // hung up his lance
 };
 
 function freshMarks() { return { lance: 0, seat: 0, sword: 0, vigour: 0, courtesy: 0, lore: 0 }; }
@@ -68,6 +70,17 @@ function loreFor(state) {
   visit(state, PROVINCES[state.province].home);
 }
 
+/** The parts of a career that phase six added: the Company of the Swan, vows, fairs, archers. */
+function lifeFor(state) {
+  orderFor(state);
+  state.vow = null;
+  state.archers = 0;
+  state.fair = null;
+  state.guarded = null;
+  state.popinjayKing = null;
+  state.career.rollFirst = state.career.rollFirst || 0;
+}
+
 /** The parts of a career that phase four added: the realm, land and men. */
 function realmFor(state) {
   state.realm = freshRealm(state.year);
@@ -108,6 +121,7 @@ export function newGame({ seed = 1, answers, name }) {
   courtFor(state);
   realmFor(state);
   loreFor(state);
+  lifeFor(state);
   state.realm.rumour = pickRumour(state);
   sendInvitations(state);
   state.notices = [];
@@ -230,6 +244,32 @@ export function migrate(s) {
       }
     }
     s.version = 5;
+  }
+  if (s.version === 5) {
+    // Phase six: the Company of the Swan is filled from the field as it
+    // stands; a knight already disgraced or attainted will not be heard by
+    // its chapter until that changes. What a knight knows of the kingdom is
+    // rebuilt from his Book of Feats: the towns he rode to, and what he saw.
+    if (!s.visited) {
+      s.visited = [];
+      s.seen = [];
+      visit(s, PROVINCES[s.province].home);
+      const byName = Object.fromEntries(Object.values(TOWNS).map((t) => [t.name, t.id]));
+      for (const e of s.book) {
+        if (byName[e.town]) visit(s, byName[e.town]);
+        if (e.tier === 'high' || e.tier === 'grand') learn(s, 'helmshow');
+        if (e.tier === 'grand') learn(s, 'grand');
+        if (['pas', 'greatpas', 'trial'].includes(e.tier)) learn(s, e.tier);
+        if (e.melee) learn(s, 'melee');
+        if (e.foot) learn(s, 'barriers');
+      }
+      if (s.realm?.war) learn(s, 'war');
+    }
+    s.chronicle = s.chronicle || [];
+    s.yearNotes = s.yearNotes || [];
+    s.eventsUsed = s.eventsUsed || [];
+    lifeFor(s);
+    s.version = 6;
   }
   return s;
 }

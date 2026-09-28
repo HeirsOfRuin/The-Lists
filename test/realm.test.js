@@ -2,6 +2,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { FAIRS } from '../src/data/life.data.js';
 import { readFileSync } from 'node:fs';
 import {
   beginWar, battleOdds, battlePreview, fightBattle, perilOf, settle, importance, creditBalance, sideOf,
@@ -85,6 +86,7 @@ test('war always comes in the tenth year, and it cancels all but the towns’ ow
     assert.equal(s.realm.war.year, WAR_YEAR, `seed ${seed}`);
     assert.ok(s.calendar.length > 0, 'the towns still hold jousts');
     for (const e of s.calendar) {
+      if (e.tier === 'fair') { assert.ok(FAIRS[e.fair].war, `${e.name} is not kept in a war`); continue; }
       assert.equal(e.tier, 'local');
       assert.ok(TOWNS[e.town].city, `${e.name} is not a guild town`);
     }

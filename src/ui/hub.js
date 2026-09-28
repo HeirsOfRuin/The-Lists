@@ -5,7 +5,11 @@ import { TOWNS, ROADS, MONTHS, FIRST_MONTH, LAST_MONTH, WORLD, FACTION_LABELS } 
 import { TIERS } from '../data/tourney.data.js';
 import { RETINUE, RETINUE_ORDER, HARNESS, SQUIRE_ORIGINS, SQUIRE, CONDITION, SERVICE } from '../data/household.data.js';
 import { STAT_LABELS } from '../data/creation.data.js';
-import { monthOptions, courtOptions, injured, borrowedHorsePrice, horseTradeIn, summonsOption } from '../engine/season.js';
+import { monthOptions, courtOptions, injured, borrowedHorsePrice, horseTradeIn, summonsOption, campaignOption, landsOption, shrineVowOpen } from '../engine/season.js';
+import { FAIRS, ORDER, ARCHERS, CAMPAIGN } from '../data/life.data.js';
+import { vacancies, eligibility, chapterCandidates, reckonChapter, holderName, YOU_SEAT } from '../engine/order.js';
+import { vowOptions, vowProgress, vowDef } from '../engine/vows.js';
+import { retirement, endingFor } from '../engine/ending.js';
 import { patronDef, isPatronTourney, canPilgrimage, conductOf } from '../engine/court.js';
 import { knightById } from '../engine/field.js';
 import { PILGRIMAGE, PATRONAGE } from '../data/court.data.js';
@@ -15,14 +19,14 @@ import { markCost, expectedRetinue, horseOnTheDay } from '../engine/tourney.js';
 import { STAT_KEYS } from '../engine/knight.js';
 import { lsd, lsdSigned } from '../engine/money.js';
 import {
-  balanceWords, importance, sideOf, warSide, atWar, menOf, companyMax, manorDef,
+  balanceWords, importance, sideOf, warSide, atWar, menOf, companyMax, manorDef, archersMax,
 } from '../engine/realm.js';
 import { CLAIMANTS, COMPANY } from '../data/realm.data.js';
 import { townLore } from '../engine/lore.js';
 import { renderLetters, renderChronicle } from './world.js';
-import { esc, ordinal, cap, days, tierChip, shield } from './view.js';
+import { esc, ordinal, cap, days, tierChip, shield, pct, signed } from './view.js';
 
-const TIER_COLOUR = { local: 'var(--tier-local)', regional: 'var(--tier-regional)', high: 'var(--tier-high)', grand: 'var(--tier-grand)', greatpas: 'var(--gules)' };
+const TIER_COLOUR = { local: 'var(--tier-local)', regional: 'var(--tier-regional)', high: 'var(--tier-high)', grand: 'var(--tier-grand)', greatpas: 'var(--gules)', fair: 'var(--good)' };
 
 // ---------------------------------------------------------------------------
 // The map
@@ -85,7 +89,27 @@ function horseLine(state) {
   return `${esc(cap(state.horse.name))} is ${word} (${c}/10)${q < state.horse.quality ? `, riding as quality ${q} not ${state.horse.quality}` : ''}`;
 }
 
+function fairCard(state, o, selected) {
+  const F = FAIRS[o.cal.fair];
+  const sel = o.cal.id === selected;
+  const what = o.cal.fair === 'popinjay'
+    ? 'Three rounds of crossbow at the wooden bird. No horse, no lance; a steady arm and a feel for the wind.'
+    : `Two miles of down against the copers’ horses. ${cap(state.horse.name)} is quality ${state.horse.quality}, condition ${state.horse.condition ?? CONDITION.max}/10.`;
+  return `
+  <article class="opt ${sel ? 'sel' : ''} ${o.open ? '' : 'closed'}" data-sel="${o.cal.id}">
+    <div class="spread">${tierChip('fair')}<span class="small muted">${o.cal.fair === 'popinjay' ? 'the guild and all comers' : 'the copers and any gentleman'}</span></div>
+    <div class="subhead">${esc(o.cal.name)}</div>
+    <div class="small muted">${esc(TOWNS[o.cal.town].name)} · ${esc(o.cal.host.name)} · ${o.days ? `${days(o.days)}’ ride` : 'here'}</div>
+    <div class="small">${esc(what)}</div>
+    <div class="small">Road ${lsd(o.road)} · Entry ${lsd(o.entry)} · ${esc(F.prizeLabel)} to the winner</div>
+    ${o.open
+      ? `<button class="btn primary wide" data-ride="${o.cal.id}">Ride to ${esc(TOWNS[o.cal.town].name)}</button>`
+      : `<p class="small neg">${esc(o.reason)}</p>`}
+  </article>`;
+}
+
 function optionCard(state, o, selected) {
+  if (o.cal.tier === 'fair') return fairCard(state, o, selected);
   const t = TIERS[o.cal.tier];
   const sel = o.cal.id === selected;
   const prize = o.cal.tier === 'greatpas' ? `a gold ring for every shield touched, ${lsd(t.prizes.champion)} to beat him`
@@ -134,7 +158,7 @@ export function renderMonth(state, ui) {
     <div class="legend map-legend small muted">
       <span><i class="key key-local"></i>Local</span><span><i class="key key-regional"></i>Regional</span>
       <span><i class="key key-high"></i>High</span><span><i class="key key-grand"></i>The King’s</span>
-      <span><i class="key key-seat"></i>A great house</span>
+      <span><i class="key key-fair"></i>A fair</span><span><i class="key key-seat"></i>A great house</span>
     </div>
     ${news.length ? `<p class="small muted">Last month: ${news.join(' ')}</p>` : ''}
   </section>
@@ -143,12 +167,16 @@ export function renderMonth(state, ui) {
 
   ${renderPatron(state)}
 
+  ${renderVow(state)}
+
   <section class="stack">
     <div class="eyebrow">Tourneys this month</div>
     ${opts.length
       ? opts.map((o) => optionCard(state, o, selected)).join('')
       : `<div class="card"><p class="empty">No tourney is held in ${MONTHS[state.month]}.${next ? ` The next is ${esc(next.name)}, in ${MONTHS[next.month]}.` : ' The riding year is nearly over.'}</p></div>`}
   </section>
+
+  ${renderWarMonth(state)}
 
   <section class="card stack-lg">
     <div class="eyebrow">Or spend the month</div>
@@ -165,8 +193,8 @@ export function renderMonth(state, ui) {
       <button class="btn" data-act="serve" ${hurt ? 'disabled' : ''}>Take paid service (${lsdSigned(SERVICE.wage)})</button>
       <button class="btn" data-act="rest">Rest</button>
     </div>
-    ${canPilgrimage(state) ? `<div class="stack">
-      <div class="small muted">Your name is ${esc(conductOf(state.honour).label.toLowerCase())}. ${esc(conductOf(state.honour).does)}</div>
+    ${canPilgrimage(state) || shrineVowOpen(state) ? `<div class="stack">
+      <div class="small muted">${shrineVowOpen(state) ? 'You vowed on the swans to walk to the shrine this year.' : `Your name is ${esc(conductOf(state.honour).label.toLowerCase())}. ${esc(conductOf(state.honour).does)}`}</div>
       <button class="btn" data-act="pilgrimage" ${state.purse >= PILGRIMAGE.cost ? '' : 'disabled'}>Go on pilgrimage to ${esc(PILGRIMAGE.shrine)} (${lsdSigned(-PILGRIMAGE.cost)}, honour +${PILGRIMAGE.honour})</button>
     </div>` : ''}
     <div class="stack">
@@ -181,6 +209,35 @@ export function renderMonth(state, ui) {
 }
 
 function fmtMarks(n) { return Number.isInteger(n) ? String(n) : n.toFixed(1); }
+
+/** The vow made on the swans, and how it stands. */
+function renderVow(state) {
+  if (!state.vow || state.vow.year !== state.year) return '';
+  const p = vowProgress(state);
+  const word = p.status === 'kept' ? '<span class="pos">Kept.</span>' : p.status === 'broken' ? '<span class="neg">Broken.</span>' : '';
+  const count = p.vow.id === 'mercy'
+    ? (p.have ? `${p.have} mêlée${p.have === 1 ? '' : 's'} with prisoners freed.` : 'Not yet tested: take a prisoner in the mêlée and let him go.')
+    : p.vow.id === 'shrine' ? (p.have ? 'You have walked it.' : 'Not yet walked.') : `${p.have} of ${p.need}.`;
+  return `<section class="card stack vow">
+    <div class="spread"><span class="eyebrow">Your vow on the swans</span><span class="small muted">judged at winter</span></div>
+    <p class="voice">${esc(p.vow.title)}</p>
+    <p class="small">${count} ${word}</p>
+  </section>`;
+}
+
+/** In the war: ride with the army, or see to your lands. */
+function renderWarMonth(state) {
+  const camp = campaignOption(state);
+  const lands = landsOption(state);
+  if (!camp && !lands) return '';
+  return `<section class="card stack">
+    <div class="eyebrow">The war’s work</div>
+    ${camp ? `<p class="small muted">${esc(camp.leader)}’s army is in the field. A month with it pays ${lsd(CAMPAIGN.pay)}, and wins you renown and ${esc(camp.leader)}’s goodwill. There is no ordinance in a skirmish.</p>
+      ${camp.open ? `<button class="btn primary" data-act="campaign">Ride with the army for the month (chance of death ${pct(camp.peril)})</button>` : `<p class="small neg">${esc(camp.reason)}</p>`}` : ''}
+    ${lands ? `<p class="small muted">Raiders are burning barns in a war year. An unwatched manor has a ${pct(lands.raid || 0.3)} chance of losing its rents this winter.</p>
+      ${lands.open ? `<button class="btn" data-act="lands">See to your lands for the month (harvest ${lsdSigned(lands.harvest)}; no rents lost this year)</button>` : `<p class="small faint">${esc(lands.reason)}</p>`}` : ''}
+  </section>`;
+}
 
 /** Which year this is, as the realm counts it. */
 export function eraLine(state) {
@@ -272,7 +329,7 @@ function renderCalendar(state) {
 // Winter
 // ---------------------------------------------------------------------------
 
-export function renderWinter(state) {
+export function renderWinter(state, ui = {}) {
   const w = state.winter;
   const net = w.ledger.reduce((t, l) => t + l.amount, 0);
   const roll = rollOfArms(state, 10);
@@ -304,6 +361,10 @@ export function renderWinter(state) {
     <p class="small muted">The heralds publish it at Candlemas. You stand ${ordinal(roll.rank)} of ${roll.of}.</p>
     ${rollTable(roll.rows)}
   </section>
+
+  ${renderSwan(state)}
+
+  ${renderVows(state)}
 
   <section class="card stack">
     <div class="eyebrow">The winter’s training</div>
@@ -377,7 +438,96 @@ export function renderWinter(state) {
       <button class="btn" data-horse="${h.id}">Buy</button></div>`).join('')}
   </section>
 
-  <button class="btn primary wide" data-act="spring">Ride out in spring</button>`;
+  ${renderRetire(state, ui)}
+
+  ${retirement(state).must
+    ? '<button class="btn primary wide" data-act="spring">Hang up your lance</button>'
+    : '<button class="btn primary wide" data-act="spring">Ride out in spring</button>'}`;
+}
+
+/** The Company of the Swan at Candlemas. */
+function renderSwan(state) {
+  const o = state.order;
+  if (!o) return '';
+  const empty = vacancies(state);
+  const el = eligibility(state);
+  const held = 24 - empty.length;
+  let body = '';
+  if (o.companion) {
+    body = `<p class="small">You hold a stall in the chapel at Kingsmead, since the ${ordinal(o.since)} year. Your helm and crest hang above it. Keep your honour above ${ORDER.degradeBelow - 1}, or the chapter will put you out.</p>`;
+  } else if (!empty.length) {
+    body = `<p class="small muted">Every stall is filled this winter. ${el.ok ? 'The chapter would hear your name if one fell empty.' : esc(el.reason)}</p>`;
+  } else if (!el.ok) {
+    body = `<p class="small muted">${esc(el.reason)}</p>`;
+  }
+  let chapter = '';
+  const plain = reckonChapter(state);
+  if (plain) {
+    const fed = o.table === state.year ? null : reckonChapter(state, { table: true });
+    const ids = chapterCandidates(state);
+    chapter = `
+      <p class="small">The chapter meets at Candlemas, and the heralds have put your name before it. <b>They reckon your chance of a stall at ${pct(plain.chance)}.</b></p>
+      <div class="table-wrap"><table class="roll"><tbody>
+        ${ids.map((id) => {
+          if (id === YOU_SEAT) return `<tr class="me"><td>You</td><td class="small">renown ${state.renown}, ${state.year} years a knight</td><td class="rn">${plain.votes[id].toFixed(1)}</td></tr>`;
+          const k = state.roster.knights.find((x) => x.id === id);
+          return `<tr><td>${esc(k.name)}</td><td class="small">renown ${k.renown}, ${Math.max(0, k.age - ORDER.vote.knightedAt)} years${k.allegiance ? `, ${esc(FACTION_LABELS[k.allegiance])}’s man` : ''}</td><td class="rn">${plain.votes[id].toFixed(1)}</td></tr>`;
+        }).join('')}
+      </tbody></table></div>
+      <p class="small faint">The last column is the heralds’ reckoning of the first vote, out of ${plain.voters} voices. The lords vote their houses; the knights vote renown, years, their own house, and their friends. Your honour and your favour with the great houses count for you.</p>
+      ${o.table === state.year ? '<p class="small">You have kept a table for the companions.</p>'
+        : `<button class="btn" data-act="swan-table" ${state.purse >= ORDER.table.cost ? '' : 'disabled'}>Keep a table for the companions at Candlemas (${lsdSigned(-ORDER.table.cost)}; your chance becomes ${pct(fed.chance)})</button>`}`;
+  }
+  return `<section class="card stack">
+    <div class="spread"><span class="eyebrow">The Company of the Swan</span><span class="small muted">${held} of 24 stalls held</span></div>
+    ${empty.length ? `<p class="small">${empty.length === 1 ? 'One stall is' : `${empty.length} stalls are`} empty: ${esc(empty.map((st) => `${st.was}’s`).join(', '))}.</p>` : ''}
+    ${body}
+    ${chapter}
+  </section>`;
+}
+
+/** A vow on the swans for the coming year. */
+function renderVows(state) {
+  const next = state.vow && state.vow.year > state.year ? vowDef(state.vow.id) : null;
+  if (next) {
+    return `<section class="card stack">
+      <div class="eyebrow">A vow on the swans</div>
+      <p class="voice">You will vow ${esc(next.title.charAt(0).toLowerCase() + next.title.slice(1))}</p>
+      <p class="small muted">Kept: renown ${signed(next.kept.renown)}, honour ${signed(next.kept.honour)}. Broken: renown ${signed(next.broken.renown)}, honour ${signed(next.broken.honour)}.</p>
+      <button class="btn quiet" data-act="unvow">Think better of it before Candlemas</button>
+    </section>`;
+  }
+  return `<section class="card stack">
+    <div class="eyebrow">A vow on the swans</div>
+    <p class="small muted">At the Candlemas feast two swans are carried in on a silver dish, and the knights make their vows on them for the year. None is required. A vow kept is renown and honour; a vow broken costs more than it would have paid.</p>
+    <details class="vows">
+      <summary>The vows a knight might make</summary>
+      ${vowOptions(state).map((v) => `
+      <article class="opt stack">
+        <div class="subhead">${esc(v.title)}</div>
+        <div class="small muted">${esc(v.blurb)}</div>
+        <div class="small">Kept: renown ${signed(v.kept.renown)}, honour ${signed(v.kept.honour)}. Broken: renown ${signed(v.broken.renown)}, honour ${signed(v.broken.honour)}.</div>
+        ${v.open ? `<button class="btn" data-vow="${v.id}">Make this vow</button>` : `<p class="small faint">${esc(v.reason)}</p>`}
+      </article>`).join('')}
+    </details>
+  </section>`;
+}
+
+/** Hanging up the lance. */
+function renderRetire(state, ui = {}) {
+  const r = retirement(state);
+  const e = endingFor(state);
+  if (!r.may) return `<p class="small faint center">You are ${state.knight.age}. A knight may hang up his lance from ${r.from}; past ${r.always} the heralds will not enter his name.</p>`;
+  return `<section class="card stack">
+    <div class="eyebrow">${r.must ? 'Your last winter in the lists' : 'Hang up your lance'}</div>
+    <p class="small">${r.must
+      ? `You are ${state.knight.age}. The heralds will not enter your name again. When you leave this winter, it is for home.`
+      : `You are ${state.knight.age}. You may ride another season, or ${r.years} more at most, or go home now while the heralds still cry your name.`}</p>
+    <p class="small">If you retired now, the heralds would write: <b>${esc(e.title)}</b>.</p>
+    ${r.must ? '' : ui.confirmRetire
+      ? `<div class="confirm"><button class="btn danger" data-act="retire-yes">Hang up my lance</button><button class="btn quiet" data-act="retire-no">One more season</button></div>`
+      : '<button class="btn quiet" data-act="retire">Hang up your lance</button>'}
+  </section>`;
 }
 
 /** Land and men: what you hold, of whom, and the company it keeps. */
@@ -398,6 +548,11 @@ function renderLands(state) {
     <div class="row">
       <button class="btn" data-act="hire-man" ${(state.company || 0) < max && state.purse >= COMPANY.wage ? '' : 'disabled'}>Take on a man (${lsdSigned(-COMPANY.wage)})</button>
       <button class="btn quiet" data-act="dismiss-man" ${state.company ? '' : 'disabled'}>Let one go</button>
+    </div>
+    <p class="small">Archers: <b>${state.archers || 0}</b> of the ${archersMax(state)} your lands can keep, at ${lsd(ARCHERS.wage)} a year each. An archer counts for half a man-at-arms in a battle line.</p>
+    <div class="row">
+      <button class="btn" data-act="hire-archer" ${(state.archers || 0) < archersMax(state) && state.purse >= ARCHERS.wage ? '' : 'disabled'}>Take on an archer (${lsdSigned(-ARCHERS.wage)})</button>
+      <button class="btn quiet" data-act="dismiss-archer" ${state.archers ? '' : 'disabled'}>Let one go</button>
     </div>
     ${offer ? `<div class="card inset stack"><p class="small"><b>For sale:</b> the manor of ${esc(offer.name)}. Rents ${lsd(offer.income * 240)} a year, ${offer.men} men owe service, room for ${COMPANY.perManor} more of your own. ${lsd(offer.price)}.</p>
       <button class="btn" data-act="buy-manor" ${state.purse >= offer.price ? '' : 'disabled'}>Buy ${esc(offer.name)}</button></div>`

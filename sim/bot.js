@@ -19,9 +19,16 @@ import {
   setFocus, setSquireFocus, takeSquire, dubSquire, hire, buyHarness, buyHorse, keepBorrowedHorse,
   borrowedHorsePrice, horseTradeIn, endWinter,
   rideDay, standDownDay, meleeTurn, ransom, exchange, footOnward, mercy,
+  shoot, race, leaveFair, campaignOption, campaign, landsOption, lookToLands, shrineVowOpen,
+  vow, feastCompanions, hireArcher, retireNow,
 } from '../src/engine/season.js';
+import { popinjayPreview, raceOdds } from '../src/engine/fair.js';
+import { reckonChapter } from '../src/engine/order.js';
+import { vowOptions } from '../src/engine/vows.js';
+import { retirement } from '../src/engine/ending.js';
+import { ARCHERS, ORDER, POPINJAY } from '../src/data/life.data.js';
 import { cardById, holds } from '../src/engine/cards.js';
-import { oathTerms, riskOf, battlePreview, companyMax } from '../src/engine/realm.js';
+import { oathTerms, riskOf, battlePreview, companyMax, archersMax } from '../src/engine/realm.js';
 import { COMPANY } from '../src/data/realm.data.js';
 import { buyManor, hireMan } from '../src/engine/season.js';
 import { isPatronTourney, isDisgraced, canPilgrimage } from '../src/engine/court.js';
@@ -54,6 +61,11 @@ export function setConduct(c) { conduct = c; }
 let war = 'bold';
 export function setWar(w) { war = w; }
 const perilWeight = () => (war === 'careful' ? 800 : 80);
+// The vow it makes each winter ('none', or a vow id), and the age it hangs up its lance.
+let vowPolicy = 'lances';
+export function setVow(v) { vowPolicy = v; }
+let retireAge = 99;
+export function setRetireAge(a) { retireAge = a; }
 
 function worth(state, e = {}) {
   let v = 0;
@@ -123,6 +135,13 @@ function reserve(state) {
 }
 
 function chooseMonth(state) {
+  // A vow to walk to the shrine is kept in the summer.
+  if (shrineVowOpen(state) && state.month >= 7 && state.purse > 4 * 240) return { kind: 'pilgrimage' };
+  // The war's months: see to the lands once, and otherwise ride with the army.
+  const lands = landsOption(state);
+  if (lands?.open && state.month >= 6) return { kind: 'lands' };
+  const camp = campaignOption(state);
+  if (camp?.open && camp.peril * perilWeight() < 4) return { kind: 'campaign' };
   // The patron's summons comes first: missing it is a strike.
   const summons = summonsOption(state);
   if (summons && summons.open) return { kind: 'summons' };
@@ -173,7 +192,38 @@ function winter(state) {
   while (state.year >= 3 && state.company < companyMax(state) && state.purse > reserve(state) * 2 + COMPANY.wage * 3) {
     if (!hireMan(state).ok) break;
   }
+  while (state.year >= 5 && (state.archers || 0) < archersMax(state) && state.purse > reserve(state) * 2 + ARCHERS.wage * 4) {
+    if (!hireArcher(state).ok) break;
+  }
+  // The Company of the Swan: a table at Candlemas when it moves the vote.
+  const plain = reckonChapter(state);
+  if (plain && state.purse > reserve(state) + ORDER.table.cost) {
+    const fed = reckonChapter(state, { table: true });
+    if (fed.chance - plain.chance > 0.04) feastCompanions(state);
+  }
+  // A vow on the swans, if it has one it can make.
+  if (vowPolicy !== 'none') {
+    const open = vowOptions(state).filter((v) => v.open);
+    const want = open.find((v) => v.id === vowPolicy) || open.find((v) => v.id === 'lances');
+    if (want) vow(state, want.id);
+  }
+  if (state.knight.age >= retireAge && retirement(state).may) { retireNow(state); return; }
   endWinter(state);
+}
+
+/** At the popinjay: the mark and moment with the best expected feathers, the bird worth five. */
+function shootPolicy(state) {
+  const p = popinjayPreview(state);
+  let best = null;
+  for (const lull of [false, true]) {
+    const o = lull ? p.lull : p.now;
+    for (const [t, hit] of Object.entries(o.marks)) {
+      const pts = t === 'bird' ? 5 : POPINJAY.targets[t].points;
+      const v = (1 - o.risk) * hit * pts;
+      if (!best || v > best.v) best = { v, target: t, lull };
+    }
+  }
+  return { target: best.target, lull: best.lull };
 }
 
 /**
@@ -183,6 +233,14 @@ function winter(state) {
 export function step(state, policy, rng) {
   if (state.pending) { answer(state, answerPolicy(state)); return 'card'; }
   if (state.phase === PHASE.WINTER) { winter(state); return 'winter'; }
+  const f = state.fair;
+  if (f) {
+    if (f.stage === 'done') { leaveFair(state); return 'leaveFair'; }
+    if (f.kind === 'popinjay') { shoot(state, shootPolicy(state)); return 'shoot'; }
+    const best = raceOdds(state).sort((a, b) => b.win - a.win)[0];
+    race(state, best.id);
+    return 'race';
+  }
   const ev = state.event;
   if (ev) {
     switch (ev.stage) {
@@ -224,6 +282,8 @@ export function step(state, policy, rng) {
     if (m.kind === 'ride') { const r = rideTo(state, m.id); if (r.ok) return 'ride'; }
     if (m.kind === 'summons' && answerSummons(state).ok) return 'summons';
     if (m.kind === 'pilgrimage' && pilgrimage(state).ok) return 'pilgrimage';
+    if (m.kind === 'lands' && lookToLands(state).ok) return 'lands';
+    if (m.kind === 'campaign' && campaign(state).ok) return 'campaign';
     if (m.kind === 'court' && visitCourt(state, m.town).ok) return 'court';
     if (m.kind === 'serve' && serve(state).ok) return 'serve';
     train(state, m.kind === 'train' ? m.skill : 'lance');

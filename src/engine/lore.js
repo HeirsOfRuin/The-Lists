@@ -99,9 +99,11 @@ const BEAT_LINES = {
  * field, the world, and you. Stored on the state so the Book can show every
  * year a knight has lived through.
  */
-export function writeChronicle(state, { retired = [], elected = null } = {}) {
+export function writeChronicle(state, { retired = [] } = {}) {
   const lines = [];
   const r = state.realm;
+  // What was noted as it happened: the chapter's choices, the head of the Roll.
+  for (const n of state.yearNotes || []) if (n.line) lines.push(n.line);
   for (const [key, text] of Object.entries(BEAT_LINES)) {
     if (r?.beats?.[key] && key.startsWith(`y${state.year}m`)) lines.push(text);
   }
@@ -112,11 +114,10 @@ export function writeChronicle(state, { retired = [], elected = null } = {}) {
   if (r?.ruler && r.war?.endedYear === state.year) lines.push(`${CLAIMANTS[r.ruler].crowned} will be crowned at Kingsmead in the spring.`);
   const mine = state.book.filter((e) => e.year === state.year && e.placing === 'champion' && (e.tier === 'high' || e.tier === 'grand'));
   for (const n of state.yearNotes || []) {
-    if (n.tier === 'grand') lines.push(`${n.champion} won the King’s Tourney at ${n.feast}.`);
+    if (n.tier === 'grand' && n.champion) lines.push(`${n.champion} won the King’s Tourney at ${n.feast}.`);
   }
   for (const e of mine) lines.push(e.tier === 'grand' ? `You won the King’s Tourney at ${e.feast}.` : `You won ${e.name.charAt(0).toLowerCase()}${e.name.slice(1)}.`);
   for (const k of retired.slice(0, 2)) lines.push(`${k.name}, ${k.titles} times a champion, hung up his lance.`);
-  if (elected) lines.push(elected === 'you' ? 'The Company of the Swan chose you to fill an empty seat.' : `The Company of the Swan chose ${elected} to fill an empty seat.`);
   lines.push(...worldEvents(state));
   const entry = { year: state.year, lines };
   state.chronicle = [...(state.chronicle || []), entry];

@@ -110,8 +110,12 @@ export const LORE = [
   },
   {
     id: 'swan', section: 'powers', title: 'The Company of the Swan', known: 'start',
-    text: 'King Aldric founded the Company after the war: twenty-four companions, sworn never to flee a field, never to bear arms against one another, and to keep their names without reproach. Eight seats are held by the great lords of the realm; the other sixteen by knights. They keep their chapter at Kingsmead every Michaelmas. A seat falls empty only by death or disgrace, and the companions choose who fills it.',
-    more: [{ known: { seen: 'order' }, text: 'You have seen the chapter vote. It is not a thing a knight forgets.' }],
+    text: 'King Aldric founded the Company after the war: twenty-four companions, sworn never to flee a field, never to bear arms against one another, and to keep their names without reproach. Eight seats are held by the great lords of the realm; the other sixteen by knights. They keep their chapter at Kingsmead at Candlemas. A stall falls empty only by death or disgrace, and the companions choose who fills it: each names one knight, and the king breaks a tie. A companion put out for disgrace has his helm thrown into the ditch below the chapel.',
+    more: [
+      { known: { seen: 'order' }, text: 'You have stood before the chapter. Each companion names his man aloud, and the heralds keep the tally on a slate where everyone can see it. The lords vote for their houses. The knights vote for renown, for their friends, and against the men who have beaten them.' },
+      { known: { beat: 'y6m3' }, text: 'Since the great houses forbade their men to ride against each other, the companions sit in chapter by house, and the king’s men sit between them.' },
+      { known: { seen: 'war' }, text: 'When the war came, most of the knights of the Company kept their oath and would not take the field against a brother companion. Some called it honour. Both claimants called it something else.' },
+    ],
   },
 
   // -------------------------------------------------------------------------
@@ -207,7 +211,7 @@ export const LORE = [
   },
   {
     id: 'vows', section: 'customs', title: 'Vows', known: { seen: 'vow' },
-    text: 'Knights take vows as merchants take wagers: to break so many lances before Michaelmas, to bear so many men to the ground, to wear a fetter on the leg every Thursday until some feat is done. Suero de Quiñones vowed to break three hundred lances at a bridge, and wore an iron collar for a lady until he had. A vow kept is renown. A vow broken is talked about longer.',
+    text: 'Knights take vows as merchants take wagers: to break so many lances before Michaelmas, to bear so many men to the ground, to wear a fetter on the leg every Thursday until some feat is done. Suero de Quiñones vowed to break three hundred lances at a bridge, and wore an iron collar for a lady until he had. In Lothmere the vows are made at the Candlemas feast, on two swans brought in on a silver dish, as King Aldric’s grandfather’s knights made them before the old war. A vow kept is renown. A vow broken is talked about longer.',
   },
   {
     id: 'popinjay', section: 'customs', title: 'The popinjay', known: { seen: 'popinjay' },
@@ -247,7 +251,7 @@ export const WORLD_EVENTS = [
   { text: 'The king did not ride to hounds this year, for the first time anyone can remember.', minTension: 30, when: 'peace' },
   { text: 'The Duke of Aumbry bought the wardship of three orphaned heirs of the March, and with it the use of their lands.', minTension: 30, when: 'peace' },
   { text: 'Stane and Aumbry both sent gifts to the Archbishop at Easter. The Archbishop sent both back.', minTension: 45, when: 'peace' },
-  { text: 'The Company of the Swan kept its chapter at Michaelmas. The king did not come, and the companions sat on either side of the hall by house.', minTension: 55, when: 'peace' },
+  { text: 'The Company of the Swan kept its feast at Candlemas. The king did not come, and the companions sat on either side of the hall by house.', minTension: 55, when: 'peace' },
   { text: 'The Guild of St Barbara sold more harness this year than in any year since the war, and would not say to whom.', minTension: 65, when: 'peace' },
   { text: 'Scarrow sent an embassy to Kingsmead to ask after the king’s health, which nobody at court had asked it to do.', minTension: 70, when: 'peace' },
   { text: 'Both armies foraged the March bare. There will be no horse fair at Othery this year.', when: 'war' },

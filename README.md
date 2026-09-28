@@ -29,8 +29,91 @@ python3 -m http.server 8000
 
 ## What this build is
 
-Phase 5 is the other lists: the mêlée, foot combat at the barriers, the Great
-Pas, and trial by combat.
+Phase 6 is a life: how a career ends, and what fills it besides the lists.
+It follows a rewrite of character creation and a written history for the
+kingdom.
+
+- **Creation as a story.** Six chapters of a life:
+  1. Blood
+  2. Boyhood
+  3. Squire
+  4. Learning
+  5. Spurs
+  6. The road
+
+  Each opens with a preface in the story's voice, and the answers are first
+  person. Each answer shows what it gives and what thread it opens. The last
+  page is the heralds' roll: a short biography, and the threads waiting for
+  the knight.
+- **The Book of Lothmere** (the World tab). 43 pages on the kingdom, its
+  powers, its twelve towns and the customs of the lists. A page opens when you
+  go to the place or see the thing done. Each town's page is shown on arrival,
+  and its first line on the month's tourney cards.
+- **The chronicle.** Every winter the heralds write the year in a few lines:
+  - the realm's beats and battles;
+  - the great tourneys' champions, and yours;
+  - who retired, who was chosen for the Swan, and who headed the Roll;
+  - a sign of the times.
+
+  Every year is kept.
+- **Letters in winter:** from home (who writes depends on your birth), from
+  your old master, and from your lady. Each is chosen by how the year went.
+- **Hanging up your lance.** Any winter from 34 you may retire, and at 45 you
+  must.
+  - The winter screen shows what the heralds would write if you went now.
+  - The epilogue is written from the Book of Feats, under the grandest of the
+    named endings (DESIGN.md §8).
+  - It says whether you got what you rode out for.
+  - Deaths and exiles get the same record under their own first line.
+- **The Company of the Swan.** 24 stalls: eight great lords and sixteen
+  knights of the field.
+  - *Vacancies.* A stall falls empty when its companion dies or is disgraced.
+  - *Standing.* From your eighth year, with renown 40 and honour 15, the
+    chapter hears your name at Candlemas.
+  - *The vote.* You see the candidates, the heralds' reckoning of the vote,
+    and your chance of a stall. A table kept for the companions costs £6 and
+    shows what it would do to that chance.
+  - *Holding a stall* brings invitations to every great tourney and counts
+    toward your standing. Lose your honour and the chapter puts you out.
+- **Vows on the swans.** Six vows, made at the Candlemas feast for the year
+  and judged at the next winter from the Book of Feats:
+  - lances broken;
+  - knights borne down;
+  - a prize;
+  - a prize on the King's circuit;
+  - no ransoms taken;
+  - a walk to the shrine.
+
+  Progress shows on the month's screen.
+- **The fairs.**
+  - *The popinjay* at Saltings Quay in May: three rounds of crossbow at a
+    wooden bird.
+    - Each round you choose the mark (tail, wing, or the bird itself) and
+      whether to wait for a lull.
+    - Waiting takes the wind out of your shot, but the guild shoots first and
+      may bring the bird down before you. The screen shows the chance of that
+      and of every shot.
+    - Win it and you are King of the Popinjay, with two of the guild's
+      crossbowmen.
+  - *The Downs Race* at Othery in September.
+    - Three ways to ride it: from the front, a late run, or the inside line
+      (with a fall risk).
+    - Each plan shows its chance to win and to place, found by integrating
+      the same distributions the race is run with.
+- **Archers** join your company alongside men-at-arms. They are cheaper, and
+  count for half a man in the battle line.
+- **The war's months.**
+  - A sworn knight may ride with his side's army for a month: pay, renown and
+    favour, with the chance of death on the button.
+  - A landed knight may see to his manors. An unwatched manor may lose its
+    rents to raiders in a war year.
+- **The secret love** now has a way to end, one way or the other.
+- **Saves carry forward.** A phase-five save opens with the Company filled
+  from its field, and its knight's Book of Lothmere rebuilt from his Book of
+  Feats.
+
+Phase 5 added the other lists: the mêlée, foot combat at the barriers, the
+Great Pas, and trial by combat.
 
 - **Tourneys of several days.**
   - *Local* jousts are one day.
@@ -271,9 +354,9 @@ the joust.
   knight, his purse, his renown and his Book of Feats. The world is built around
   him from his own seed.
 
-Phase 3 brings the court properly: factions and patrons with obligations, the
-herald's judgement of conduct, and the first story threads the flags already
-record. The rest is laid out in DESIGN.md §10.
+Phases 3 and 4 built the court (patrons, conduct, bynames, the story threads)
+and the realm (ten years to a civil war, land and men, the battle and the
+settlement). What comes next is in DESIGN.md §10.
 
 ## What the instruments found
 
@@ -494,6 +577,61 @@ phase 5, and end with renown 123 against 88.
 - **The bot is a strong player,** and a human will gain less. Renown's scale
   is marked for the balance phase.
 
+### A life (measured at phase 6)
+
+`node sim/run.js` now also reports the Swan, vows, the fairs, the war's months,
+the head of the Roll, and the ending the heralds would write. Each run is 100
+careers.
+
+**The ending each career would get.** For a career still in progress, this is
+the headline if the knight retired at the end of the run.
+
+| run | the endings |
+|---|---|
+| 8 years, chivalrous | full Book of Feats 44, quiet 25, Champion of the Realm 17, Swan 8, lord 6 |
+| 13 years, chivalrous, careful in war | Swan 62, Champion 13, Feats 10, lord 5, exiled 5, Kingmaker 3, dead 2 |
+| 13 years, worldly, bold in war | disgrace 33, Champion 21, dead 19, Feats 12, lord 5, Kingmaker 4, exiled 3, ruined 2 |
+| 25 years, chivalrous, careful, retiring at 40 | Swan 91, exiled 5, Champion 2, dead 2 |
+
+- **The Company of the Swan** is what an honourable knight gets for a long
+  career.
+  - In thirteen-year careers, 65 of 100 become companions. The median year is
+    the twelfth, and a knight who stands wins about half the time.
+  - The worldly knight is never heard: his honour keeps him off the list.
+  - The table at Candlemas typically moves the chance 10 to 15 points.
+- **Three tuning passes on the Swan.** The first version elected the bot in 95
+  of 100 careers, by the tenth year. Three things caused it:
+  - *A split vote.* A knight sworn to nobody took every house's second choice,
+    while the field's candidates split by house.
+  - *One-sided terms.* Only you were credited with honour, friends and favour.
+  - *Too many empty stalls.* The war was killing companions.
+
+  Four changes fixed it:
+  - The field's candidates are now credited with those terms at a typical
+    value.
+  - Renown counts only to 60, and years of knighthood count.
+  - The companions keep their oath and stay out of the battle.
+  - Deaths start at 45.
+- **Vows:** about half are kept. The bot makes the lances vow each winter
+  and keeps it 53% of the time.
+- **The fairs.**
+  - *The popinjay:* the bot wins 3 to 9%. The guild shoots better than a
+    gentleman, and its master shoots at the bird every round.
+  - *The Downs Race:* the bot wins 25 to 35%, rising as its horses get better.
+    Each plan is best for some horses: the inside line for a poor horse, the
+    late run for a middling one, and going from the front for the best.
+- **The war's months.** The worldly knight, bold in the war, rides with the
+  army about 7 months a career, and 8 in 100 of those careers die of it. The
+  chance of death is on the button every time.
+- **The secret love** is fulfilled only by waiting: the widow's letter comes
+  from the ninth year, to a knight who kept faith. In thirteen-year careers,
+  30 of 33 honourable knights marry her, against 7 of 33 worldly ones.
+- **Not fixed: the Roll.** After the war the knight outgrows the field. The
+  median rank at thirteen years is first, and 85 of 100 careers head the Roll
+  at least once. This is why Champion of the Realm needs three winters at the
+  head of the Roll and a King's Tourney won. Renown's scale is the first job
+  of the balance phase.
+
 ## The instruments
 
 There are two separate things, answering two different questions (the same
@@ -542,6 +680,22 @@ true:
 - Beaten à outrance, a knight dies at the chance the accusation showed. Won,
   the man of Ambry Cross is at your mercy and the master's name is cleared.
 - A phase-four save opens in the middle of a tourney and plays on.
+- The Company holds 24 stalls, each held once. The chapter fills every empty
+  one, and the same winter votes the same way. A table never lowers the
+  chance. A companion who loses his honour is put out. No companion falls in
+  the war.
+- Every vow can be made, and is judged from the year's Book of Feats. A vow
+  of mercy is broken by a ransom and counts for nothing untested.
+- The popinjay's shown chance is the one rolled. Waiting for a lull never
+  makes a shot worse, and never makes the bird safer.
+- The race is a true distribution: every runner's chance of winning sums to
+  one. A plan's shown chance matches 4000 races run from the same draws.
+- The chance of death on campaign is the one on the button. Seeing to your
+  lands keeps the raiders off the rents.
+- A knight retires from 34, and must at 45. Every epilogue and obituary is
+  written in full, with no gaps or stray braces.
+- A phase-five save opens with a Company and a Book of Lothmere, and plays
+  through its winter.
 
 **Is it balanced?**
 
@@ -550,6 +704,8 @@ node sim/joust-curve.js --bouts=2000     # does choosing matter; is knowing wort
 node sim/foot-curve.js --bouts=1000      # the same question at the barriers
 node sim/melee-curve.js --days=3000      # and in the mêlée
 node sim/run.js --runs=100 --compare     # eight-year careers, by policy
+node sim/run.js --years=25 --retire=40   # whole lives: the Swan, vows, fairs, endings
+                                         # (also --war=careful|bold, --conduct=worldly, --vow=none|<id>)
 node tools/smoke.mjs                     # drive the real page at phone width
 node tools/check-bundle.mjs              # does the single file work from disk
 ```
@@ -574,12 +730,17 @@ src/engine/   pure, deterministic, no DOM
   field.js      the 48 knights: careers, brackets you do not ride, regard, the Roll
   cards.js      the card engine: conditions, casting, checks, effects
   knight.js     creation: answers in, knight out, and the lines that describe it
+  order.js      the Company of the Swan: stalls, deaths, eligibility, the vote and its reckoning
+  vows.js       vows on the swans, judged from the Book of Feats
+  fair.js       the popinjay (THE odds: popinjayOdds) and the Downs Race (finishChances)
+  ending.js     retirement, the endings, the epilogue and the obituary
+  lore.js       the Book of Lothmere, the chronicle, letters from home
   herald.js     the course called, and the Book of Feats entry
   heraldry.js   arms: generated, blazoned, drawn as SVG
   state.js      new career, the save contract (the-lists.save.v1)
   rng.js        named deterministic streams (from Centennial Farm)
 src/data/      logic-free tables: creation, joust, tourney, household, field, world,
-               names, court, realm, and the cards themselves
+               names, court, realm, lore, life, and the cards themselves
 src/ui/        the screens; reads the engine, computes nothing
 sim/           reference bot, career runner, joust curve
 test/          invariants
@@ -603,9 +764,20 @@ Burgundy, France and England.
 - **Scoring** is modelled on John Tiptoft's ordinances for jousts of peace (1466).
 - **The heralds' role** in proclaiming, recording and judging comes from René
   d'Anjou's *Traité de la forme et devis d'un tournoi* (c.1460).
-- **The pas d'armes and vows** planned for later builds come from Jacques de
-  Lalaing's *Fontaine des Pleurs* (1449–50) and Suero de Quiñones's *Paso
-  Honroso* (1434).
+- **The pas d'armes and vows** come from Jacques de Lalaing's *Fontaine des
+  Pleurs* (1449–50) and Suero de Quiñones's *Paso Honroso* (1434).
+- **Vows made on birds at a feast** come from the Feast of the Swans (1306),
+  where Edward I's knights vowed on two swans, and the Feast of the Pheasant
+  at Lille (1454).
+- **The Company of the Swan** is modelled on the Order of the Garter: a fixed
+  number of stalls, with vacancies filled by the companions' nominations and
+  the sovereign's choice. It also borrows the Golden Fleece's rule that
+  companions may not bear arms against one another, and the ritual of
+  degrading a companion by throwing his helm down.
+- **The popinjay** is the shoot of the crossbow guilds of the Low Countries
+  and northern France. The King of the Popinjay held his title for the year.
+- **The Downs Race** is loosely after the horse-copers' races at medieval
+  horse fairs such as Smithfield's, described by William FitzStephen (c.1174).
 - **The mêlée ransom economy** comes from the *Histoire de Guillaume le
   Maréchal*.
 - **Money** is reckoned in pounds, shillings and pence, and prices are rounded to

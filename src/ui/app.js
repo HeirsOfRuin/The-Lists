@@ -17,7 +17,10 @@ import {
   answer, setFocus, setSquireFocus, takeSquire, dubSquire, hire, dismiss, buyHarness, buyHorse,
   keepBorrowedHorse, endWinter, PHASE, answerSummons, pilgrimage, resignService, buyManor, hireMan, dismissMan,
   rideDay, standDownDay, meleeTurn, ransom, exchange, fightOutFoot, footOnward, mercy,
+  shoot, race, leaveFair, campaign, lookToLands, retireNow, feastCompanions, vow, unvow, hireArcher, dismissArcher,
 } from '../engine/season.js';
+import { obituary } from '../engine/ending.js';
+import { renderFair } from './fair.js';
 import { footSquireCall } from '../engine/derive.js';
 import { meleeMenOption } from '../engine/tourney.js';
 import { renderDay, renderMelee, renderRansom, renderFoot, renderFootResult } from './days.js';
@@ -43,6 +46,8 @@ const ui = {
   selected: null,
   charging: false,
   confirmAbandon: false,
+  confirmRetire: false,
+  shot: { target: 'wing', lull: false },
   refusal: null,
 };
 
@@ -234,24 +239,36 @@ function renderNow() {
     else body = `<section class="card"><p class="empty">The tourney is at a stage this build does not show (${esc(ev.stage)}). Reload the page.</p></section>`;
     return `${refusal}${note}${body}`;
   }
-  if (state.phase === PHASE.WINTER) return `${refusal}${note}${renderWinter(state)}`;
+  if (state.fair) return `${refusal}${note}${renderFair(state, ui)}`;
+  if (state.phase === PHASE.WINTER) return `${refusal}${note}${renderWinter(state, ui)}`;
   return `${refusal}${note}${renderMonth(state, ui)}`;
 }
 
-const ENDING_WORD = { ruined: 'ruined', dead: 'dead', exiled: 'exiled' };
+const ENDING_WORD = { ruined: 'ruined', dead: 'dead', exiled: 'exiled', retired: 'retired' };
 const ENDING_TITLE = { ruined: 'Ruined', dead: 'Dead in the war', exiled: 'Exiled' };
 
 function renderEnding() {
   const o = state.outcome;
+  const retired = state.status === STATUS.RETIRED;
+  const paragraphs = retired ? o.paragraphs : obituary(state, o?.text || 'The career is over.');
+  const title = retired ? o.title : ENDING_TITLE[state.status] || 'The end';
   return `
   <section class="card lift stack-lg">
-    <div class="verdict">${ENDING_TITLE[state.status] || 'The end'}</div>
-    <p class="entry">${esc(o?.text || 'The career is over.')}</p>
+    <div class="stack">
+      <div class="arms-block">${shield(state.arms, 64)}
+        <div class="stack" style="gap:4px"><div class="eyebrow">The last page of the Book of Feats</div>
+        <div class="subhead">${esc(fullName(state.knight))}</div></div></div>
+      <div class="verdict">${esc(title)}</div>
+      ${retired && o.also?.length ? `<p class="small muted">And also: ${esc(o.also.join(', '))}.</p>` : ''}
+    </div>
+    ${paragraphs.map((p, i) => `<p class="${i === 0 ? 'entry' : 'bio'}">${esc(p)}</p>`).join('')}
     <dl class="kv">
-      <dt>Years</dt><dd>${state.year}</dd>
+      <dt>Years a knight</dt><dd>${state.year}</dd>
       <dt>Tourneys</dt><dd>${state.career.tourneys}, ${state.career.championships} won</dd>
       <dt>Renown</dt><dd>${state.renown}</dd>
+      <dt>Honour</dt><dd>${state.honour}</dd>
     </dl>
+    <p class="small faint">The whole of it is in the Book of Feats and the chronicle, on the tabs above.</p>
     <button class="btn primary wide" data-act="new-after-end">A new knight</button>
   </section>`;
 }
@@ -306,7 +323,7 @@ function runCourse() {
 // ---------------------------------------------------------------------------
 
 app.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-act],[data-opt],[data-aim],[data-seat],[data-tab],[data-read],[data-ride],[data-sel],[data-train-pick],[data-court],[data-answer],[data-focus],[data-sqfocus],[data-squire],[data-hire],[data-dismiss],[data-harness],[data-horse],[data-men],[data-melee],[data-ransom],[data-stroke],[data-guard]');
+  const t = e.target.closest('[data-act],[data-opt],[data-aim],[data-seat],[data-tab],[data-read],[data-ride],[data-sel],[data-train-pick],[data-court],[data-answer],[data-focus],[data-sqfocus],[data-squire],[data-hire],[data-dismiss],[data-harness],[data-horse],[data-men],[data-melee],[data-ransom],[data-stroke],[data-guard],[data-mark],[data-lull],[data-race],[data-vow]');
   if (!t || t.disabled) return;
   const d = t.dataset;
   let top = true;
@@ -333,6 +350,10 @@ app.addEventListener('click', (e) => {
   else if (d.ransom) act(ransom, d.ransom);
   else if (d.stroke) { ui.foot.stroke = d.stroke; top = false; }
   else if (d.guard) { ui.foot.guard = d.guard; top = false; }
+  else if (d.mark) { ui.shot.target = d.mark; top = false; }
+  else if (d.lull != null) { ui.shot.lull = d.lull === '1'; top = false; }
+  else if (d.race) act(race, d.race);
+  else if (d.vow) { act(vow, d.vow); top = false; }
   else {
     switch (d.act) {
       case 'resume': {
@@ -404,7 +425,18 @@ app.addEventListener('click', (e) => {
       case 'buy-manor': act(buyManor); top = false; break;
       case 'hire-man': act(hireMan); top = false; break;
       case 'dismiss-man': act(dismissMan); top = false; break;
-      case 'spring': act(endWinter); break;
+      case 'spring': act(endWinter); ui.confirmRetire = false; break;
+      case 'shoot': act(shoot, { ...ui.shot }); top = false; break;
+      case 'fair-leave': act(leaveFair); ui.shot = { target: 'wing', lull: false }; break;
+      case 'campaign': act(campaign); break;
+      case 'lands': act(lookToLands); break;
+      case 'swan-table': act(feastCompanions); top = false; break;
+      case 'unvow': act(unvow); top = false; break;
+      case 'hire-archer': act(hireArcher); top = false; break;
+      case 'dismiss-archer': act(dismissArcher); top = false; break;
+      case 'retire': ui.confirmRetire = true; top = false; break;
+      case 'retire-no': ui.confirmRetire = false; top = false; break;
+      case 'retire-yes': act(retireNow); ui.confirmRetire = false; break;
       case 'abandon': ui.confirmAbandon = true; top = false; break;
       case 'abandon-no': ui.confirmAbandon = false; top = false; break;
       case 'abandon-yes':

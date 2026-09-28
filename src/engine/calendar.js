@@ -9,6 +9,7 @@ import { streamFor } from './rng.js';
 import { TIERS, CALENDAR, LOCAL_HOSTS, GREAT_PAS } from '../data/tourney.data.js';
 import { TOWNS, ROADS, GREAT_HOUSES, FEASTS, MONTHS, WORLD } from '../data/world.data.js';
 import { GIVEN_NAMES, HOUSE_NAMES } from '../data/names.data.js';
+import { FAIRS } from '../data/life.data.js';
 
 // ---------------------------------------------------------------------------
 // Roads
@@ -56,6 +57,8 @@ export function yearCalendar(seed, year) {
   const events = [];
   const taken = new Set(); // "town|month"
   const add = (e) => { taken.add(`${e.town}|${e.month}`); events.push(e); };
+  // The fairs hold their towns in their months; no tourney is placed on them.
+  for (const f of Object.values(FAIRS)) taken.add(`${f.town}|${f.month}`);
 
   for (const g of CALENDAR.grand) {
     add({ tier: 'grand', month: g.month, town: g.town, host: { kind: 'crown', faction: 'crown', name: `King ${WORLD.king}` },
@@ -94,7 +97,14 @@ export function yearCalendar(seed, year) {
       name: t.city ? `The joust of ${hostName} at ${t.name}` : `The joust on the green at ${t.name}` });
   }
   events.sort((a, b) => a.month - b.month || tierRank(b.tier) - tierRank(a.tier) || (a.town < b.town ? -1 : 1));
-  return events.map((e, i) => ({ ...e, id: `y${year}e${i + 1}`, year, feast: FEASTS[e.month] }));
+  const out = events.map((e, i) => ({ ...e, id: `y${year}e${i + 1}`, year, feast: FEASTS[e.month] }));
+  // The fairs keep their own days, and their own ids, so the tourneys' ids
+  // are what they were before there were fairs.
+  for (const f of Object.values(FAIRS)) {
+    out.push({ tier: 'fair', fair: f.id, month: f.month, town: f.town, host: { kind: 'fair', faction: null, name: f.host },
+      name: f.name, id: `y${year}f${f.id}`, year, feast: FEASTS[f.month] });
+  }
+  return out.sort((a, b) => a.month - b.month);
 }
 
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }

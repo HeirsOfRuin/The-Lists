@@ -167,6 +167,8 @@ export function renderRansom(state) {
   const r = ev.dayResults.melee;
   const terms = ransomTerms(state);
   const effects = { full: '', half: 'Generous +1 · their regard +2', free: 'Generous +2 · Honour +1 · Renown +1 · their regard +4' };
+  const vowed = state.vow?.id === 'mercy' && state.vow.year === state.year;
+  if (vowed) { effects.full = 'Breaks your vow'; effects.half = `${effects.half} · Breaks your vow`; effects.free = `${effects.free} · Keeps your vow`; }
   return `
   <section class="card lift stack-lg">
     <div class="stack">

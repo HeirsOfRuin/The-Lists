@@ -18,6 +18,8 @@ import { newGame, serialize } from '../src/engine/state.js';
 import { randomAnswers, randomName } from '../src/engine/knight.js';
 import { makeRng } from '../src/engine/rng.js';
 import { step } from '../sim/bot.js';
+import { passMonth, answer } from '../src/engine/season.js';
+import { cardById, holds } from '../src/engine/cards.js';
 
 const ROOT = process.cwd();
 const SHOTS = process.env.SHOTS || '/tmp/shots';
@@ -144,6 +146,9 @@ for (; steps < 400; steps++) {
     if (winters >= 2) break;
     continue;
   }
+  if (await has('[data-act="shoot"]')) { await shot('popinjay'); await page.click('[data-act="shoot"]'); continue; }
+  if (await has('[data-race]')) { await shot('race'); await page.locator('[data-race]').first().click(); continue; }
+  if (await has('[data-act="fair-leave"]')) { await shot('fair-done'); await page.click('[data-act="fair-leave"]'); continue; }
   if (await has('[data-ride]')) { await page.locator('[data-ride]').first().click(); continue; }
   if (await has('[data-act="train"]')) { await page.click('[data-act="train"]'); continue; }
   if (await has('[data-act="new-after-end"]')) { check('career ended (a legitimate outcome)', true); break; }
@@ -268,6 +273,75 @@ check('the Knight tab shows standing in the realm', /Standing in the realm/i.tes
 await page.screenshot({ path: `${SHOTS}/7-standing.png`, fullPage: true });
 await page.click('[data-tab="now"]');
 report('war');
+
+// A life: the fairs, the Company of the Swan, a vow, and the last page.
+function answerFirst(s) {
+  const inst = s.pending.inst;
+  const i = cardById(inst.id).choices.findIndex((ch) => holds(s, ch.when, inst.ctx));
+  answer(s, i);
+}
+function monthSave(seed, month, tweak = () => {}) {
+  const rng = makeRng(seed * 131 + 7);
+  const s = newGame({ seed, answers: randomAnswers(rng), name: randomName(rng) });
+  tweak(s);
+  for (let g = 0; g < 40 && (s.month < month || s.pending) && s.phase === 'month'; g++) {
+    if (s.pending) answerFirst(s); else passMonth(s);
+  }
+  return s;
+}
+for (const [fair, month] of [['popinjay', 5], ['race', 9]]) {
+  const s = monthSave(6, month, (x) => { x.purse = 60 * 240; });
+  await page.evaluate((raw) => localStorage.setItem('the-lists.save.v1', raw), serialize(s));
+  await page.reload({ waitUntil: 'load' });
+  const id = `y1f${fair}`;
+  check(`the ${fair} is on the month’s list`, await has(`[data-ride="${id}"]`));
+  await page.click(`[data-ride="${id}"]`);
+  if (fair === 'popinjay') {
+    check('the popinjay shows the chance at every mark', /The bird itself · [<>]?\d+%/.test(await page.locator('main').innerText()));
+    await page.click('[data-mark="bird"]');
+    await page.click('[data-lull="1"]');
+    await page.screenshot({ path: `${SHOTS}/10-popinjay.png`, fullPage: true });
+    check('no sideways scroll at the butts', (await overflow()) <= 1);
+    for (let g = 0; g < 5 && await has('[data-act="shoot"]'); g++) await page.click('[data-act="shoot"]');
+  } else {
+    check('each plan shows its chance to win', (await page.locator('main').innerText()).match(/To win [<>]?\d+%/g)?.length === 3);
+    await page.screenshot({ path: `${SHOTS}/11-race.png`, fullPage: true });
+    await page.locator('[data-race]').first().click();
+  }
+  check(`the ${fair} comes to an end`, await has('[data-act="fair-leave"]'));
+  await page.screenshot({ path: `${SHOTS}/12-${fair}-done.png`, fullPage: true });
+  await page.click('[data-act="fair-leave"]');
+  check(`home from the ${fair}, and the month moves on`, await has('svg.map') || await has('.cardscene'));
+}
+report('fairs');
+
+{
+  const s = monthSave(8, 11, (x) => {
+    x.year = 9; x.renown = 80; x.honour = 18; x.knight.age = 36; x.purse = 80 * 240;
+    for (const f of Object.keys(x.favour)) x.favour[f] = 8;
+    const st = x.order.stalls.find((y) => y.holder.kind === 'knight');
+    st.was = x.roster.knights.find((k) => k.id === st.holder.id).name; st.holder = null;
+  });
+  while (s.pending) answerFirst(s);
+  await page.evaluate((raw) => localStorage.setItem('the-lists.save.v1', raw), serialize(s));
+  await page.reload({ waitUntil: 'load' });
+  const body = await page.locator('main').innerText();
+  check('a winter with an empty stall puts your name before the chapter', /reckon your chance of a stall at \d+%/.test(body));
+  check('the vows are offered on the swans', await has('details.vows'));
+  await page.click('details.vows > summary');
+  await page.locator('[data-vow]').first().click();
+  check('a vow made shows what it will be', /You will vow/.test(await page.locator('main').innerText()));
+  await page.screenshot({ path: `${SHOTS}/13-swan-winter.png`, fullPage: true });
+  check('no sideways scroll in a long winter', (await overflow()) <= 1);
+  check('a knight of thirty-six may hang up his lance', await has('[data-act="retire"]'));
+  await page.click('[data-act="retire"]');
+  await page.click('[data-act="retire-yes"]');
+  const last = await page.locator('main').innerText();
+  check('the last page of the Book of Feats is written', /last page of the Book of Feats/i.test(last) && (await page.locator('p.bio').count()) >= 2);
+  check('it is written in full', !/undefined|NaN|\{/.test(last));
+  await page.screenshot({ path: `${SHOTS}/14-last-page.png`, fullPage: true });
+  report('a life');
+}
 
 await page.emulateMedia({ colorScheme: 'dark' });
 await page.waitForTimeout(80);

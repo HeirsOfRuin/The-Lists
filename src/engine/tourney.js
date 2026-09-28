@@ -1034,7 +1034,7 @@ function resolveTrial(state, won) {
     state.status = 'dead';
     state.outcome = {
       kind: 'dead', year: state.year,
-      text: `${state.knight.given} ${state.knight.house} was beaten in the trial by combat with ${k.name}, and ${k.name} did not spare him. The judges of the field wrote that God had judged, and the heralds wrote his name among the dead.`,
+      text: `Sir ${state.knight.given} ${state.knight.house} was beaten in the trial by combat with ${k.name}, and ${k.name} did not spare him. The judges of the field wrote that God had judged, and the heralds wrote his name among the dead.`,
     };
     return;
   }

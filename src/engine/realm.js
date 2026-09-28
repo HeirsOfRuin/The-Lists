@@ -18,6 +18,7 @@ import {
   BATTLE, SPOILS, ATTAINDER, RUMOURS, RUMOUR_BANDS, INVITATIONS, OATH, DEATHS,
 } from '../data/realm.data.js';
 import { PATRONS, CONDUCT } from '../data/court.data.js';
+import { ARCHERS, ORDER, FAIRS } from '../data/life.data.js';
 import { learn } from './lore.js';
 import { TOWNS, FACTION_LABELS } from '../data/world.data.js';
 
@@ -163,6 +164,7 @@ export function invitation(state, cal) {
     return { invited: false, why: null, need: 'The heralds will not cry the name of a disgraced knight at a great tourney. A pilgrimage would begin to mend it.' };
   }
   if (cal.tier === 'greatpas') return { invited: true, why: 'Its articles admit any knight of name and arms.' };
+  if (state.order?.companion) return { invited: true, why: 'A Companion of the Swan is bidden to every great tourney.' };
   const I = INVITATIONS[cal.tier];
   if (cal.tier === 'high') {
     const house = cal.host.faction;
@@ -228,6 +230,9 @@ export function menOf(state) {
   return (state.company || 0) + (state.lands || []).reduce((t, l) => t + manorDef(l.id).men, 0);
 }
 export function companyMax(state) { return COMPANY.base + COMPANY.perManor * (state.lands || []).length; }
+export function archersMax(state) { return ARCHERS.base + ARCHERS.perManor * (state.lands || []).length; }
+/** What your men and bowmen come to in a battle line, counted as men-at-arms. */
+export function strengthOfMen(state) { return menOf(state) + (state.archers || 0) * ARCHERS.strength; }
 
 /** Grant a manor nobody holds, preferring your own country. Returns it, or null. */
 export function grantManor(state, heldOf, how) {
@@ -278,10 +283,12 @@ export function importance(state) {
     { label: `Lineage ${state.lineage}`, value: state.lineage * I.lineage },
     { label: `${lands} manor${lands === 1 ? '' : 's'}`, value: lands * I.manor },
     { label: `${men} men-at-arms`, value: men * I.man },
+    ...(state.archers ? [{ label: `${state.archers} archers`, value: state.archers * ARCHERS.strength * I.man }] : []),
     { label: state.patron ? `In ${PATRONS[state.patron.id].name}’s service` : 'No patron', value: state.patron ? I.patron : 0 },
     { label: side ? `Favour of ${FACTION_LABELS[side] || side} ${sideFavour}` : 'Sworn to nobody', value: Math.max(0, sideFavour) * I.favour },
     { label: virtue ? `Known as ${state.knight.epithet}` : 'No byname for a virtue', value: virtue ? I.virtue : 0 },
     { label: `${state.career.greatPrizes || 0} great prize${state.career.greatPrizes === 1 ? '' : 's'}`, value: Math.min(I.prizeCap, (state.career.greatPrizes || 0) * I.prize) },
+    ...(state.order?.companion ? [{ label: 'A Companion of the Swan', value: ORDER.importance }] : []),
   ];
   const score = Math.round(terms.reduce((t, x) => t + x.value, 0));
   let rank = RANKS[0];
@@ -300,7 +307,7 @@ export function calendarFor(state, year) {
   const r = state.realm;
   if (r?.war && year >= r.war.year && (!r.war.done || year <= r.war.endedYear)) {
     // Only the guild towns keep their jousts; the cities keep out of it.
-    return cal.filter((e) => e.tier === 'local' && TOWNS[e.town].city);
+    return cal.filter((e) => (e.tier === 'local' && TOWNS[e.town].city) || (e.tier === 'fair' && FAIRS[e.fair].war));
   }
   if (r?.ruler) {
     // The new crown holds the King's Tourney; its first is the coronation's.
@@ -366,7 +373,7 @@ const MODE = {
 /** What you add to your side in a given part of the battle. */
 export function contribution(state, mode) {
   const imp = importance(state);
-  return Math.round((imp.rank.strength + menOf(state)) * MODE[mode].factor);
+  return Math.round((imp.rank.strength + strengthOfMen(state)) * MODE[mode].factor);
 }
 
 /** Your chance of dying where you choose to stand. Shown on the button; rolled the same. */
@@ -388,7 +395,7 @@ export function riskOf(state, p) {
 export function rollPeril(state, p, label, where) {
   const rng = streamFor(state.seed, state.year, `peril:${label}`);
   if (rng.next() >= riskOf(state, p)) return false;
-  die(state, `${cap(where || DEATHS.default)}, in the ${ordinal(state.year)} year of your knighthood, ${state.knight.given} ${state.knight.house} was killed. The heralds wrote his name among the dead of the war.`);
+  die(state, `${cap(where || DEATHS.default)}, in the ${ordinal(state.year)} year of your knighthood, Sir ${state.knight.given} ${state.knight.house} was killed. The heralds wrote his name among the dead of the war.`);
   return true;
 }
 
@@ -460,10 +467,14 @@ export function fightBattle(state, mode, forSide = null) {
   // The field's dead: some of the beaten side's knights do not come home.
   const loser = victor === 'aumbry' ? 'stane' : 'aumbry';
   const fallen = [];
+  // The companions of the Swan are sworn never to bear arms against one
+  // another, and in the war most of them kept it: they are not among the dead.
+  const swan = new Set((state.order?.stalls || []).filter((st) => st.holder?.kind === 'knight').map((st) => st.holder.id));
   for (const k of state.roster.knights) {
-    if (!k.active || k.allegiance !== loser) continue;
+    if (!k.active || k.allegiance !== loser || swan.has(k.id)) continue;
     if (rng.next() < BATTLE.fallenShare) {
       k.active = false;
+      k.fell = true;
       k.memory.push(`He fell at ${battle.name}.`);
       if (k.regard !== 0 || (state.intel[k.id] || 0) > 0) fallen.push(k.name);
     }

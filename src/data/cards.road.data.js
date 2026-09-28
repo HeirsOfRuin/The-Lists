@@ -239,7 +239,7 @@ export const WINTER_CARDS = [
     text: 'Your betrothed’s family writes to ask when the wedding will be.',
     choices: [
       { label: '“When the lists allow, and soon.”', effects: { flags: ['weddingSet'], traits: { constant: 1 } },
-        result: 'They set a date, and a dowry. The wedding itself belongs to a later build.' },
+        result: 'They set a date, and a dowry. The wedding will be after Candlemas, in a winter to come.' },
       { label: '“When I have a name worth giving her.”', effects: { traits: { constant: -1, valorous: 1 } },
         result: 'Her father writes back two lines. The second is not polite.' },
     ],

@@ -23,6 +23,7 @@ test('every year holds the same shape of calendar, and it reproduces', () => {
     assert.equal(count('high'), CALENDAR.high.length);
     assert.equal(count('regional'), CALENDAR.regional.count);
     assert.equal(count('local'), CALENDAR.local.count);
+    assert.equal(count('fair'), 2, 'the popinjay and the Downs Race');
     const places = new Set();
     for (const e of cal) {
       assert.ok(TOWNS[e.town], `unknown town ${e.town}`);
@@ -126,7 +127,7 @@ test('the field is whole, and every knight in it is possible', () => {
 test('a field is drawn without repeats, and never includes a wounded or busy knight', () => {
   const s = knight(3);
   const rng = makeRng(1);
-  for (const cal of s.calendar) {
+  for (const cal of s.calendar.filter((e) => e.tier !== 'fair')) {
     const busy = new Set(s.roster.knights.slice(0, 5).map((k) => k.id));
     s.roster.knights[6].injuredUntil = monthIndex(cal.year, cal.month) + 1;
     const n = TIERS[cal.tier].entrants - 1;

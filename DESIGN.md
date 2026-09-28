@@ -230,16 +230,49 @@ Tentpoles:
 
 Between the tentpoles, content is procedural.
 
-Endings:
+Endings (all built). A knight may hang up his lance in any winter from 34,
+and must at 45. The heralds give the career the grandest title it earned, in
+this order, and name the others it also earned:
 
-- Champion of the Realm.
-- Companion of the Order.
-- Lord by marriage.
-- Kingmaker.
-- Retired with a full Book of Feats.
-- Disgraced exile, or attainted exile after the war (built).
-- Ruined, and selling your sword (built).
-- Dead in the lists, or in the war (built).
+- **Companion of the Swan**: holding a stall at the end.
+- **Champion of the Realm**: first on the Roll of Arms three winters, and a
+  King's Tourney won.
+- **Kingmaker**: a captain or councillor of war on the winning side.
+- **Lord of lands**: three manors, or two and married.
+- **A full Book of Feats**: six prizes, or two on the King's circuit.
+- **A quiet retirement**: none of the above.
+- **Retired in disgrace**: honour under 3 overrides everything.
+
+Other endings: disgraced or attainted exile after the war, ruined and selling
+your sword, and dead in the lists, in the war, or in a skirmish on campaign.
+
+The epilogue is written from the Book of Feats: the record, the best day and
+the first, the war, whether the knight got what he rode out for (his
+creation ambition), his marriage, the squires he knighted, and the man in the
+field who never forgave him. Deaths and exiles get the same record under
+their own first line.
+
+The Company of the Swan works as follows:
+
+- *Stalls:* 24. Eight belong to the great lords and sixteen to knights of the
+  field.
+- *Vacancies:* a stall falls empty by death (age-weighted) or by disgrace.
+  The companions keep their oath not to fight one another, so none of them
+  dies in the war. After the war, the beaten house's lords lose their stalls
+  to the new crown's men.
+- *Eligibility:* eight years a knight, renown 40, and honour 15.
+- *The vote:* each companion names one candidate. His choice weighs:
+  - renown, capped at 60;
+  - years of knighthood;
+  - prizes;
+  - lineage;
+  - his own house;
+  - for you: your honour, his regard (if he is a knight), or his house's
+    favour (if he is a lord).
+
+  The field's candidates are credited with the same terms at a typical
+  value. The chance shown is the same vote run 300 times. A table kept at
+  Candlemas raises every knight companion's regard by one.
 
 ## 9. Grounding
 
@@ -288,7 +321,7 @@ before the court, and the card engine planned for phase 3 arrived here.
      visible sum and rank.
    - The war with odds, death and capture on every button, then the
      settlement, pardon or exile, and the coronation tourney.
-5. **The other lists**: this build.
+5. **The other lists**: done.
    - Tourneys of several days.
    - The mêlée with ransom and your men riding with you.
    - Foot combat at the barriers, with the sword as a sixth skill.
@@ -296,16 +329,23 @@ before the court, and the card engine planned for phase 3 arrived here.
    - Trial by combat à outrance, from the Ambry Cross accusation or one made
      against you.
    - Each form measured for whether choosing matters.
-6. **A life:**
-   - retirement and the epilogue from the Book of Feats, and the named
-     endings;
-   - the Order, with its seats, vacancies and vote;
-   - vows;
-   - the popinjay shoot and horse races at the fairs;
-   - archers in your war company;
-   - something to do in the war months.
+6. **A life**: this build. Before it, creation was rewritten as six
+   chapters of a life, and the kingdom was given a written history (the
+   Book of Lothmere, the yearly chronicle, letters from home).
+   - Retirement from 34, forced at 45, and an epilogue written from the Book
+     of Feats, under the grandest of seven named endings, saying whether the
+     knight got what he rode out for.
+   - The Company of the Swan: 24 stalls, vacancies by death and disgrace, a
+     vote at Candlemas with the chance shown, and a table to buy goodwill.
+   - Vows made on the swans at Candlemas, judged from the Book of Feats.
+   - The popinjay at Saltings Quay and the Downs Race at Othery, each with
+     its odds shown and rolled.
+   - Archers in your company; campaigning with your side's army, or guarding
+     your lands against raiders, in the war's months.
+   - The secret love now has an ending.
 7. **Balance and polish:**
-   - renown's scale after phase 5;
+   - renown's scale: past the war the knight outgrows the field, and the Roll
+     stops being a race;
    - ablations, and verifying the backgrounds;
    - the tutorial, deploying to Pages, and sources.
 

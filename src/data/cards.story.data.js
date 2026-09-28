@@ -174,6 +174,31 @@ export const STORY_CARDS = [
     ],
   },
   {
+    id: 'winter.loveLetter', context: 'winter', weight: 3, once: true,
+    when: { heart: 'secret', minYear: 3 },
+    text: 'A letter with no seal, in a hand you would know anywhere. Her husband has begun to ask where she goes on feast days, and who writes to her.',
+    choices: [
+      { label: 'Tell her to be careful, and wait.', effects: { flags: ['loveKept'], traits: { constant: 1 } },
+        result: 'You burn her letter, as you always do, and write back with nothing in it anyone could read twice.' },
+      { label: 'End it, for both your sakes.', effects: { heart: 'free', traits: { constant: -2, honest: 1 } },
+        result: 'You write it plainly, because anything else would be cruel. She does not answer. You did not expect her to.' },
+      { label: 'Ride to her at Candlemas, whatever it costs.', check: { stat: 'lore', dc: 12 },
+        success: { effects: { flags: ['loveKept', 'loveTested'], traits: { constant: 2 } }, result: 'Nobody sees you come or go. For one night nothing else in the world is true.' },
+        failure: { effects: { honour: -3, heart: 'free', flags: ['loveKnown'], traits: { constant: 1 } }, result: 'Her husband’s steward saw you at the postern. By Lady Day half the county knows, and her family has sent her to the priory at Fennick, where women go to be forgotten.' } },
+    ],
+  },
+  {
+    id: 'winter.widowed', context: 'winter', weight: 3, once: true,
+    when: { heart: 'secret', flag: 'loveKept', minYear: 9 },
+    text: 'The letter has a seal this time, in black wax. Her husband died at Martinmas. She writes that she is free, and asks, in the last line, whether you still are.',
+    choices: [
+      { label: 'Marry her, and let them talk.', effects: { heart: 'married', flags: ['married', 'loveWon'], purse: 12 * 240, traits: { constant: 2 } },
+        result: 'You are married at the church door at Candlemas, in front of everyone who whispered. Her jointure is twelve pounds a year, and a manor with it.' },
+      { label: 'Too much has happened. Write that you are not.', effects: { heart: 'free', traits: { constant: -3 } },
+        result: 'You write it three times before you can send it.' },
+    ],
+  },
+  {
     id: 'winter.wedding', context: 'winter', weight: 8, once: true,
     when: { flag: 'weddingSet', notFlag: 'married', heart: 'promised' },
     text: 'The wedding is set for the Sunday after Candlemas. Her family has spent a great deal, and is waiting to see whether you will.',

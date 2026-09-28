@@ -402,6 +402,8 @@ p { margin: 0; }
 .tier-local { color: var(--tier-local); } .tier-regional { color: var(--tier-regional); }
 .tier-high { color: var(--tier-high); } .tier-grand { color: var(--tier-grand); } .tier-pas { color: var(--ink-2); }
 .tier-greatpas, .tier-trial { color: var(--gules); }
+.tier-fair { color: var(--good); } .tier-vow, .tier-order { color: var(--or); }
+.key-fair { border-color: var(--good); }
 
 .opt {
   background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius);
@@ -498,3 +500,12 @@ p { margin: 0; }
 .letter { border-left: 2px solid var(--or); padding-left: 12px; }
 .letter-text { font-family: var(--voice); font-size: 1.04rem; line-height: 1.5; margin: 4px 0; font-style: italic; }
 .letter-sign { text-align: right; }
+
+/* ---------- a life: the fairs, the Swan, vows, the last page ---------- */
+.seg.two { grid-template-columns: repeat(2, 1fr); }
+.notes li.me { color: var(--or); }
+.vow .voice { font-size: 1.1rem; }
+.center { text-align: center; }
+details.vows > summary { cursor: pointer; font-weight: 700; padding: 6px 0; }
+details.vows[open] > summary { margin-bottom: 8px; }
+details.vows .opt + .opt { margin-top: 10px; }

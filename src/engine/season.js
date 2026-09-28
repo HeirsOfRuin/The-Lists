@@ -20,9 +20,14 @@ import { drawCard, drawById, answerCard } from './cards.js';
 import { route } from './calendar.js';
 import {
   admitted, pickRumour, sendInvitations, calendarFor, beginWar, atWar, tensionFor, fightBattle, battleLines,
-  settle, manorDef, manorOffer, companyMax, crownHost,
+  settle, manorDef, manorOffer, companyMax, crownHost, archersMax, warSide, riskOf, shiftBalance,
 } from './realm.js';
-import { simulateMonth, winterField, monthIndex, knightById } from './field.js';
+import { orderWinter, holdChapter, keepTable } from './order.js';
+import { takeVow, dropVow, judgeVow, vowDef } from './vows.js';
+import { newFair, shootPopinjay, runRace } from './fair.js';
+import { retire, retirement } from './ending.js';
+import { FAIRS, CAMPAIGN, CAMPAIGN_EPISODES, LANDS_GUARD, ARCHERS } from '../data/life.data.js';
+import { simulateMonth, winterField, monthIndex, knightById, rollOfArms } from './field.js';
 import { squireCall } from './derive.js';
 import {
   patronDef, isPatronTourney, summonsOpen, checkSummons, winterPatron, planSummons, leaveService,
@@ -32,14 +37,14 @@ import { PATRONS, PILGRIMAGE } from '../data/court.data.js';
 import { fullName } from './knight.js';
 import { randomArms } from './heraldry.js';
 import { TIERS } from '../data/tourney.data.js';
-import { TOWNS, PROVINCES, GREAT_HOUSES, LAST_MONTH, FIRST_MONTH, MONTHS, WORLD } from '../data/world.data.js';
+import { TOWNS, PROVINCES, GREAT_HOUSES, LAST_MONTH, FIRST_MONTH, MONTHS, WORLD, FACTION_LABELS } from '../data/world.data.js';
 import {
   RETINUE, UPKEEP, ALLOWANCE, HARNESS, HORSE_MARKET, TRAINING, SQUIRE_ORIGINS, SQUIRE, SERVICE, CONDITION,
 } from '../data/household.data.js';
 import { GIVEN_NAMES, HORSE_NAMES } from '../data/names.data.js';
-import { WAR_YEAR, COMPANY } from '../data/realm.data.js';
+import { WAR_YEAR, COMPANY, CLAIMANTS } from '../data/realm.data.js';
 import { REALM_BEATS } from '../data/cards.realm.data.js';
-import { visit, noteChampion, writeChronicle, writeLetters } from './lore.js';
+import { visit, learn, noteChampion, writeChronicle, writeLetters } from './lore.js';
 import { STAT_LABELS } from '../data/creation.data.js';
 
 const ok = (extra = {}) => ({ ok: true, ...extra });
@@ -60,11 +65,13 @@ export function monthOptions(state) {
   return events.map((cal) => {
     const r = route(state.location, cal.town);
     const road = travelCost(state, r.days);
-    const entry = entryCost(cal.tier);
+    const fair = cal.tier === 'fair' ? FAIRS[cal.fair] : null;
+    const entry = fair ? fair.entry : entryCost(cal.tier);
     const adm = admitted(state, cal);
     let reason = null;
     if (!adm.ok) reason = adm.reason;
-    else if (injured(state)) reason = 'You are still recovering from your wound.';
+    // A wounded man can still shoot a crossbow.
+    else if (injured(state) && cal.fair !== 'popinjay') reason = 'You are still recovering from your wound.';
     else if (state.purse < road + entry) reason = `You need ${road + entry}d for the road and the entry.`;
     return {
       cal, days: r.days, path: r.path, road, entry, total: road + entry, admitted: adm.ok, invite: adm.why || null, reason, open: !reason,
@@ -80,6 +87,7 @@ export function rideTo(state, calId) {
   if (!opt) return no('That tourney is not held this month.');
   if (!opt.open) return no(opt.reason);
   state.lastResult = null;
+  if (opt.cal.tier === 'fair') return goToFair(state, opt);
   state.event = newTourney(state, opt.cal, { from: state.location });
   state.monthRode = { calId, riders: Object.keys(state.event.riders).filter((id) => id !== YOU) };
   takeRoad(state);
@@ -341,9 +349,109 @@ export function passMonth(state) {
   return ok();
 }
 
-/** Nothing in hand: no tourney under way, no card waiting, and it is not winter. */
+/** Nothing in hand: no tourney or fair under way, no card waiting, and it is not winter. */
 export function isFree(state) {
-  return state.status === 'active' && state.phase === PHASE.MONTH && !state.event && !state.pending;
+  return state.status === 'active' && state.phase === PHASE.MONTH && !state.event && !state.fair && !state.pending;
+}
+
+// ---------------------------------------------------------------------------
+// The fairs
+// ---------------------------------------------------------------------------
+
+function goToFair(state, opt) {
+  state.purse -= opt.total;
+  state.location = opt.cal.town;
+  visit(state, opt.cal.town);
+  state.fair = newFair(state, opt.cal);
+  // Two miles of down tire a horse as a tourney does; a day at the butts does not.
+  state.monthRode = { calId: opt.cal.id, riders: [], entered: opt.cal.fair === 'race' };
+  return ok();
+}
+
+/** A round at the popinjay: { target, lull }. */
+export function shoot(state, choice) { return shootPopinjay(state, choice); }
+
+/** The Downs Race, on the plan you chose. */
+export function race(state, plan) { return runRace(state, plan); }
+
+/** Home from the fair: the month is over. */
+export function leaveFair(state) {
+  if (!state.fair || state.fair.stage !== 'done') return no('The fair is not over.');
+  const f = state.fair;
+  state.lastResult = { title: f.result.won ? (f.kind === 'popinjay' ? 'King of the Popinjay' : 'The Downs Race is yours') : f.name, text: f.result.text, lines: f.result.lines };
+  state.fair = null;
+  endMonth(state);
+  return ok();
+}
+
+// ---------------------------------------------------------------------------
+// The war's months
+// ---------------------------------------------------------------------------
+
+/** Riding with your side's army for a month: open to a sworn knight while the war is undecided. */
+export function campaignOption(state) {
+  if (!atWar(state) || state.realm.war.decided) return null;
+  const side = warSide(state);
+  if (!side) return null;
+  const peril = riskOf(state, CAMPAIGN.peril);
+  const reason = injured(state) ? 'You are still recovering from your wound.' : null;
+  return { side, leader: CLAIMANTS[side].short, peril, pay: CAMPAIGN.pay, open: !reason, reason };
+}
+
+/** A month with the army: pay, renown, your lord's favour, and a small risk of not coming back. */
+export function campaign(state) {
+  if (!isFree(state)) return no('Finish what is in hand first.');
+  const o = campaignOption(state);
+  if (!o) return no('There is no army of yours in the field.');
+  if (!o.open) return no(o.reason);
+  clearNotices(state);
+  const rng = streamFor(state.seed, state.year, `campaign:${state.month}`);
+  const lines = [];
+  if (rng.next() < o.peril) {
+    state.status = 'dead';
+    state.outcome = { kind: 'dead', year: state.year,
+      text: `Sir ${state.knight.given} ${state.knight.house} rode out with ${o.leader}’s army in ${MONTHS[state.month]} of the ${ordinal(state.year)} year of his knighthood, and was killed in a skirmish that no chronicle names.` };
+    return ok();
+  }
+  state.purse += CAMPAIGN.pay;
+  state.renown += CAMPAIGN.renown;
+  state.favour[o.side] = (state.favour[o.side] || 0) + CAMPAIGN.favour;
+  shiftBalance(state, o.side === 'aumbry' ? CAMPAIGN.balance : -CAMPAIGN.balance);
+  lines.push(`Pay +£${CAMPAIGN.pay / 240}`, `Renown +${CAMPAIGN.renown}`, `Favour of ${FACTION_LABELS[o.side]} +${CAMPAIGN.favour}`);
+  if (rng.next() < CAMPAIGN.prisoner) {
+    const pounds = rng.range(CAMPAIGN.ransom.min, CAMPAIGN.ransom.max);
+    state.purse += pounds * 240;
+    lines.push(`A prisoner, ransomed for £${pounds}`);
+  }
+  state.career.monthsCampaigned = (state.career.monthsCampaigned || 0) + 1;
+  state.lastResult = { title: `A month with ${o.leader}’s army`, text: rng.pick(CAMPAIGN_EPISODES), lines };
+  endMonth(state);
+  return ok();
+}
+
+/** Seeing to your manors in a war year: the harvest brought in, and no raider takes the rents. */
+export function landsOption(state) {
+  if (!atWar(state) || !(state.lands || []).length) return null;
+  if (state.guarded === state.year) return { open: false, reason: 'You have seen to your lands this year.', harvest: 0 };
+  return { open: true, reason: null, harvest: LANDS_GUARD.harvest * state.lands.length, raid: LANDS_GUARD.raid };
+}
+
+export function lookToLands(state) {
+  if (!isFree(state)) return no('Finish what is in hand first.');
+  const o = landsOption(state);
+  if (!o) return no('You have no lands to look to, or there is no war to keep them from.');
+  if (!o.open) return no(o.reason);
+  clearNotices(state);
+  state.guarded = state.year;
+  state.purse += o.harvest;
+  const names = state.lands.map((l) => manorDef(l.id).name);
+  state.lastResult = {
+    title: 'A month at home',
+    text: `You ride the bounds of ${names.join(' and ')}, see the harvest in and the ditches cleared, and put your tenants’ sons on the gate. No raider will find your barns unwatched this year.`,
+    lines: [`Harvest +£${o.harvest / 240}`, 'Your manors are watched until winter'],
+  };
+  endMonth(state);
+  return ok();
 }
 
 /** The month ends: the rest of the field rides; then the next month, or winter. */
@@ -454,10 +562,12 @@ export function answerSummons(state) {
 /** A pilgrimage: a month, some silver, and the beginning of a mended name. */
 export function pilgrimage(state) {
   if (!isFree(state)) return no('Finish what is in hand first.');
-  if (!canPilgrimage(state)) return no('Your name needs no mending.');
+  const vowed = shrineVowOpen(state);
+  if (!canPilgrimage(state) && !vowed) return no('Your name needs no mending.');
   if (state.purse < PILGRIMAGE.cost) return no('You cannot pay for the road and the alms.');
   clearNotices(state);
   state.purse -= PILGRIMAGE.cost;
+  if (vowed) state.vow.done = true;
   state.honour = Math.min(20, state.honour + PILGRIMAGE.honour);
   state.knight.traits.pious = Math.min(20, state.knight.traits.pious + PILGRIMAGE.pious);
   state.lastResult = {
@@ -467,6 +577,11 @@ export function pilgrimage(state) {
   };
   endMonth(state);
   return ok();
+}
+
+/** A vow to walk to the shrine, made for this year and not yet kept. */
+export function shrineVowOpen(state) {
+  return state.vow?.id === 'shrine' && state.vow.year === state.year && !state.vow.done;
 }
 
 /** Leave your patron's service, in winter. */
@@ -581,8 +696,15 @@ export function beginWinter(state) {
   // The war's reckoning comes first: it decides whose lands you still hold.
   const settled = settle(state, add, notes);
   winterPatron(state, add, notes);
+  // In a war year, raiders take the rents of a manor nobody watched.
+  const warYear = !!state.realm?.war && state.realm.war.year <= state.year && (!state.realm.war.endedYear || state.realm.war.endedYear >= state.year);
+  const raids = streamFor(state.seed, state.year, 'raids');
   for (const l of state.lands || []) {
     const m = manorDef(l.id);
+    if (warYear && state.guarded !== state.year && raids.next() < LANDS_GUARD.raid) {
+      notes.push(`Raiders burnt the barns at ${m.name}. There are no rents from it this winter.`);
+      continue;
+    }
     add(`Rents of ${m.name}`, m.income * 240);
   }
   if (state.squire) {
@@ -599,6 +721,12 @@ export function beginWinter(state) {
     if (kept < state.company) notes.push(`${state.company - kept} of your men-at-arms went unpaid, and left your service.`);
     state.company = kept;
     add(`Wages: ${kept} men-at-arms`, -kept * COMPANY.wage);
+  }
+  if (state.archers > 0) {
+    const kept = Math.min(state.archers, Math.max(0, Math.floor(state.purse / ARCHERS.wage)));
+    if (kept < state.archers) notes.push(`${state.archers - kept} of your archers went unpaid, and left your service.`);
+    state.archers = kept;
+    add(`Wages: ${kept} archers`, -kept * ARCHERS.wage);
   }
 
   // Age and the body.
@@ -648,7 +776,19 @@ export function beginWinter(state) {
   updateEpithet(state, notes);
   const wasActive = new Set(state.roster.knights.filter((k) => k.active).map((k) => k.id));
   notes.push(...winterField(state));
-  const retired = state.roster.knights.filter((k) => wasActive.has(k.id) && !k.active && k.titles > 1).sort((a, b) => b.titles - a.titles);
+  const retired = state.roster.knights.filter((k) => wasActive.has(k.id) && !k.active && !k.dead && !k.fell && k.titles > 1).sort((a, b) => b.titles - a.titles);
+  // The head of the Roll: the champion of the realm, for a year.
+  const roll = rollOfArms(state, 1);
+  if (roll.rank === 1) {
+    state.career.rollFirst = (state.career.rollFirst || 0) + 1;
+    notes.push(state.career.rollFirst === 1
+      ? 'The heralds will cry your name first on the Roll of Arms at Candlemas. For a year you are the champion of the realm.'
+      : `The heralds will cry your name first on the Roll of Arms again: ${state.career.rollFirst} winters now.`);
+    state.yearNotes = [...(state.yearNotes || []), { line: `The heralds cried Sir ${state.knight.given} ${state.knight.house} first on the Roll of Arms.` }];
+  }
+  // The Company of the Swan, and the vow made on the swans a year ago.
+  orderWinter(state, notes);
+  judgeVow(state, notes);
 
   state.winter = {
     ledger,
@@ -665,6 +805,7 @@ export function beginWinter(state) {
   const inst = settled?.attainted ? drawById(state, 'winter.pardon') : drawCard(state, 'winter', {}, `winter:${state.year}`);
   if (inst) state.pending = { inst, then: 'none' };
 
+  state.winter.retire = retirement(state);
   if (state.purse < 0) {
     state.status = 'ruined';
     state.outcome = {
@@ -811,6 +952,9 @@ export function horseTradeIn(state) {
 export function endWinter(state) {
   if (!inWinter(state)) return no('It is not winter, or there is something to answer first.');
   if (state.status !== 'active') return no('The career is over.');
+  // Candlemas: the Company of the Swan fills its empty stalls.
+  const chapter = holdChapter(state);
+  if (retirement(state).must) return retire(state, 'age');
   // A borrowed horse must be bought or returned by spring.
   if (state.horse.borrowed && state.year >= 1) {
     state.horse = { name: 'a hired hack', kind: 'hack', quality: 7, potential: 7, age: 12, temper: 'steady', borrowed: false, condition: CONDITION.max };
@@ -836,8 +980,58 @@ export function endWinter(state) {
   if (state.patron && atWar(state)) { state.patron.summons = null; state.patron.attended = true; }
   else if (state.patron) planSummons(state);
   state.lastResult = springWords(state);
+  if (chapter.length) state.lastResult.lines = [...(state.lastResult.lines || []), ...chapter];
+  if (state.vow && state.vow.year === state.year) state.lastResult.lines = [...(state.lastResult.lines || []), `Your vow for the year: ${lowerFirst(vowDef(state.vow.id).title)}`];
   state.winter = null;
   openMonth(state);
+  return ok();
+}
+
+function lowerFirst(t) { return t.charAt(0).toLowerCase() + t.slice(1); }
+
+/** Hang up your lance, in winter, once you are old enough to be let. */
+export function retireNow(state) {
+  if (!inWinter(state)) return no('A knight hangs up his lance in winter.');
+  if (state.status !== 'active') return no('The career is over.');
+  if (!retirement(state).may) return no(`Nobody hangs up his lance before ${retirement(state).from}.`);
+  return retire(state, 'chosen');
+}
+
+/** Keep a table for the companions of the Swan at Candlemas. */
+export function feastCompanions(state) {
+  if (!inWinter(state)) return no('The chapter meets at Candlemas.');
+  const r = keepTable(state);
+  if (r.ok) state.winter.bought.push('Kept a table for the companions of the Swan at Candlemas');
+  return r;
+}
+
+/** Make a vow on the swans for the coming year. */
+export function vow(state, id) {
+  if (!inWinter(state)) return no('Vows are made at the Candlemas feast.');
+  if (state.vow && state.vow.year > state.year) return no('You have made your vow for the year.');
+  return takeVow(state, id);
+}
+
+export function unvow(state) {
+  if (!inWinter(state)) return no('Vows are made at the Candlemas feast.');
+  return dropVow(state);
+}
+
+/** Take on an archer, with his first year's wage. */
+export function hireArcher(state) {
+  if (!inWinter(state)) return no('Archers are hired in winter.');
+  if ((state.archers || 0) >= archersMax(state)) return no(`You have room for ${archersMax(state)} archers; more land would keep more.`);
+  if (state.purse < ARCHERS.wage) return no('You cannot pay his first year’s wage.');
+  state.purse -= ARCHERS.wage;
+  state.archers = (state.archers || 0) + 1;
+  state.winter.bought.push('Took on an archer, paid a year in advance');
+  return ok();
+}
+
+export function dismissArcher(state) {
+  if (!inWinter(state)) return no('Archers are let go in winter.');
+  if (!state.archers) return no('You keep no archers.');
+  state.archers -= 1;
   return ok();
 }
 
