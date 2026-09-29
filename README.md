@@ -21,15 +21,21 @@ Open `dist/the-lists.html` in a browser, from anywhere, including a phone's
 downloads folder. It needs no server and no install. It saves itself to that
 browser after every course.
 
+**Play it, or install it:** https://heirsofruin.github.io/The-Lists/
+
 The same build also comes out as an installable web app in `dist/site/`: the
 page, its manifest and icons, and a service worker that keeps it for offline
-play. `.github/workflows/pages.yml` deploys it to GitHub Pages.
-- *Before its first run,* switch Pages on for the repository, with "GitHub
-  Actions" as the source (Settings > Pages).
-- *Running it:* by hand from the Actions tab, or automatically on any push to
-  `main`.
-- *Installing it:* on a phone, open the Pages address and use the browser's
-  "Add to Home Screen".
+play. `.github/workflows/pages.yml` deploys it to GitHub Pages on every push
+to the game's branch.
+- *Installing it:*
+  - iPhone: open the address in Safari, then Share > Add to Home Screen.
+  - Android: open it in Chrome, then the menu > Install app.
+
+  Open it once while online, so the offline copy is kept.
+- *Updates:* every push redeploys. The installed app picks up the new build
+  the next time it opens with a connection.
+- *Saves* live in the browser that plays them. A career in the artifact
+  version, or in Safari rather than the home-screen app, does not carry over.
 
 For development, serve the directory and open `index.html`:
 
