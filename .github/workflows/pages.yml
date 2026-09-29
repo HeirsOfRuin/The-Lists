@@ -1,16 +1,16 @@
 # The installable web build, deployed to GitHub Pages.
 #
-# Runs by hand (Actions > Pages > Run workflow), and on every push to main.
-# Before the first run, Pages must be switched on for the repository with
-# "GitHub Actions" as its source (Settings > Pages); until then the deploy
-# step has nowhere to deploy to.
+# Runs by hand (Actions > Pages > Run workflow), and on every push to the
+# game's branch or to main, so the installed app is always the latest build.
+# Pages must be switched on for the repository with "GitHub Actions" as its
+# source (Settings > Pages); until then the deploy step has nowhere to deploy.
 
 name: Pages
 
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, claude/tournament-knight-game-0yztsj]
 
 permissions:
   contents: read
@@ -33,6 +33,7 @@ jobs:
         run: node --test "test/*.test.js"
       - name: Build the site
         run: node tools/bundle.js
+      - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist/site
