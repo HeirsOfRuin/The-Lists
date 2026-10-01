@@ -25,6 +25,10 @@ import {
 import { CLAIMANTS, COMPANY } from '../data/realm.data.js';
 import { townLore } from '../engine/lore.js';
 import { renderLetters, renderChronicle } from './world.js';
+import { renderHeartLine } from './hearth.js';
+import { councilOption } from '../engine/season.js';
+import { canPetition, petitionChance, petitionTerms } from '../engine/title.js';
+import { TITLES } from '../data/hearth.data.js';
 import { esc, ordinal, cap, days, tierChip, shield, pct, signed } from './view.js';
 
 const TIER_COLOUR = { local: 'var(--tier-local)', regional: 'var(--tier-regional)', high: 'var(--tier-high)', grand: 'var(--tier-grand)', greatpas: 'var(--gules)', fair: 'var(--good)' };
@@ -170,6 +174,10 @@ export function renderMonth(state, ui) {
 
   ${renderVow(state)}
 
+  ${renderCouncil(state)}
+
+  ${renderHeartLine(state)}
+
   <section class="stack">
     <div class="eyebrow">Tourneys this month</div>
     ${opts.length
@@ -210,6 +218,17 @@ export function renderMonth(state, ui) {
 }
 
 function fmtMarks(n) { return Number.isInteger(n) ? String(n) : n.toFixed(1); }
+
+/** A lord's summons to the great council. */
+function renderCouncil(state) {
+  const o = councilOption(state);
+  if (!o) return '';
+  return `<section class="card stack patron">
+    <div class="eyebrow">The great council</div>
+    <p class="small">The lords are summoned to Kingsmead this month, and you are a lord. Answer, and the Crown’s favour +${TITLES.council.favour}; stay away, and it is ${TITLES.council.missed} at winter.</p>
+    <button class="btn primary" data-act="council" ${o.open ? '' : 'disabled'}>Answer the summons at Kingsmead${o.days ? ` (${days(o.days)}, ${lsd(o.cost)})` : ''}</button>
+  </section>`;
+}
 
 /** The vow made on the swans, and how it stands. */
 function renderVow(state) {
@@ -367,6 +386,8 @@ export function renderWinter(state, ui = {}) {
 
   ${renderVows(state)}
 
+  ${renderPetition(state)}
+
   <section class="card stack">
     <div class="eyebrow">The winter’s training</div>
     <div class="skillgrid" role="group" aria-label="Winter training">
@@ -484,6 +505,23 @@ function renderSwan(state) {
     ${empty.length ? `<p class="small">${empty.length === 1 ? 'One stall is' : `${empty.length} stalls are`} empty: ${esc(empty.map((st) => `${st.was}’s`).join(', '))}.</p>` : ''}
     ${body}
     ${chapter}
+  </section>`;
+}
+
+/** A petition to the Crown for a title, when a knight is near enough to send one. */
+function renderPetition(state) {
+  if (state.title) return '';
+  const terms = petitionTerms(state);
+  const met = terms.filter((t) => t.ok).length;
+  const c = canPetition(state);
+  if (!c.ok && state.petition !== state.year && met < terms.length - 1) return '';
+  return `<section class="card stack">
+    <div class="eyebrow">A petition to the Crown</div>
+    <p class="small muted">A knight with land enough and the Crown’s goodwill may ask the king’s council for letters patent making him a baron. The council answers at Candlemas; the fees (${lsd(TITLES.petition.fee)}) are paid only if it says yes.</p>
+    <ul class="terms small">${terms.map((t) => `<li><span class="${t.ok ? 'pos' : 'faint'}">${t.ok ? '✓' : '○'}</span> ${esc(t.label)} <span class="faint">(you have ${t.have})</span></li>`).join('')}</ul>
+    ${state.petition === state.year ? '<p class="small">Your petition is before the council.</p>'
+      : c.ok ? `<button class="btn primary" data-act="petition">Send the petition (granted at about ${pct(petitionChance(state))})</button>`
+      : `<p class="small faint">${esc(c.reason)}</p>`}
   </section>`;
 }
 

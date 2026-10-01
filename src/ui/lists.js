@@ -1,5 +1,7 @@
 // The tourney screens: arrival, the lists, a bout's result, the prize-giving.
 
+import { ladiesAt, canAskColours } from '../engine/hearth.js';
+import { renderColours } from './hearth.js';
 import { TIERS, BARRIERS } from '../data/tourney.data.js';
 import { MELEE_PRIZE_LABELS } from '../data/melee.data.js';
 import { townLore } from '../engine/lore.js';
@@ -74,6 +76,7 @@ export function renderArrival(state) {
       : `<p class="neg">You have ${lsd(state.purse)} and cannot pay to ride.</p>`}
     <button class="btn quiet" data-act="withdraw">Turn for home without riding</button>
   </section>
+  ${ev.tier === 'trial' ? '' : renderColours(state, ladiesAt(state, ev), (l) => canAskColours(state, ev, l))}
   ${renderField(state)}
   ${renderDraw(state)}`;
 }

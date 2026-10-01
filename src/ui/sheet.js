@@ -104,7 +104,8 @@ export function renderSheet(s, { inGame, confirmAbandon = false }) {
     <div class="stack">
       <div class="eyebrow">Your story</div>
       <p class="voice">Squire to ${esc(s.master.name)}, ${esc(s.master.epithet)}${s.master.fate === 'dead' ? ', now in his grave' : ''}.</p>
-      ${heart ? `<p class="voice">Your heart: ${esc(heart)}${s.betrothed && (s.heart === 'promised' || s.heart === 'married') ? `, to the lady ${esc(s.betrothed)}` : ''}.</p>` : ''}
+      ${heart ? `<p class="voice">Your heart: ${esc(heart)}${s.spouse?.alive ? `, to ${esc(s.spouse.name)}` : s.betrothed && s.heart === 'promised' ? `, to the lady ${esc(s.betrothed)}` : ''}.</p>` : ''}
+      ${s.title ? `<p class="voice">Lord ${esc(s.title.seat)}, a baron of the realm.</p>` : ''}
       ${ambition ? `<p class="voice">You want ${esc(ambition)}.</p>` : ''}
       ${threadsOf(s).map((t) => `<div class="thread"><span class="eyebrow">${esc(t.title)}</span><p class="voice">${esc(t.text)}</p></div>`).join('')}
       ${otherFlags(s).length ? `<ul class="small muted" style="margin:0;padding-left:18px">${otherFlags(s).map((f) => `<li>${esc(FLAG_LABELS[f] || f)}</li>`).join('')}</ul>` : ''}

@@ -10,6 +10,7 @@ import { CLAIMANTS } from '../data/realm.data.js';
 import { PROVINCES, TOWNS } from '../data/world.data.js';
 import { manorDef } from './realm.js';
 import { fullName } from './knight.js';
+import { familyLine } from './hearth.js';
 
 const TIER_RANK = { grand: 6, greatpas: 5, high: 4, regional: 3, local: 2, pas: 1 };
 const TIER_WORD = {
@@ -35,6 +36,7 @@ export function honoursOf(state) {
   const married = state.heart === 'married';
   const st = state.realm?.war?.settlement;
   const out = [];
+  if (state.title) out.push('peer');
   if (state.order?.companion) out.push('swan');
   if ((c.rollFirst || 0) >= RETIREMENT.rollFirst && state.book.some((e) => e.tier === 'grand' && e.placing === 'champion')) out.push('champion');
   if (st && st.side && st.side === st.victor && RETIREMENT.kingmaker.includes(st.rank)) out.push('kingmaker');
@@ -56,7 +58,7 @@ export function ambitionMet(state) {
   const c = state.career;
   switch (state.ambition) {
     case 'champion': return (c.rollFirst || 0) >= 1 || state.book.some((e) => e.tier === 'grand' && e.placing === 'champion');
-    case 'lordship': return state.heart === 'married' && (state.lands || []).length >= 1;
+    case 'lordship': return (state.heart === 'married' || !!state.spouse) && ((state.lands || []).length >= 1 || !!state.title);
     case 'love': return state.flags.includes('loveWon');
     case 'order': return !!state.order?.companion;
     case 'clearName': return state.flags.includes('masterCleared');
@@ -132,7 +134,8 @@ function warLine(state) {
 
 function peopleLine(state) {
   const parts = [];
-  if (state.heart === 'married') parts.push(state.flags.includes('loveWon') ? 'He married the lady he had loved in secret, and did not care who knew it.' : `He married ${state.betrothed ? `the lady ${state.betrothed}` : 'his lady'}${(state.lands || []).some((l) => l.how === 'dower') ? ', and held her dower manor' : ''}.`);
+  const family = familyLine(state);
+  if (family) parts.push(family);
   const dubbed = state.book.filter((e) => e.tier === 'dubbing');
   if (dubbed.length) parts.push(`He knighted ${dubbed.length === 1 ? 'a squire' : `${dubbed.length} squires`} with his own hand.`);
   if (state.flags.includes('masterCleared')) parts.push(`His old master, ${state.master.name}, died with his name cleared.`);
@@ -160,6 +163,8 @@ export function epilogue(state, why = 'chosen') {
     lands: lands.length,
     manor: lands.length ? manorDef(lands[0].id).name : home,
     home: lands.length ? manorDef(lands[0].id).name : home,
+    seat: state.title?.seat || home,
+    how: { war: 'for his part in the war', petition: 'by letters patent', marriage: 'by right of his wife' }[state.title?.how] || '',
   };
   const paragraphs = [];
   const opening = why === 'age'

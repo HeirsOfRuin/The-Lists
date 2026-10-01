@@ -269,7 +269,7 @@ export function buildKnight(answers, name, rng) {
 }
 
 /** The name the heralds cry: with his byname, once he has earned one. */
-export function fullName(k) { return `Sir ${k.given} ${k.house}${k.epithet ? ` ${k.epithet}` : ''}`; }
+export function fullName(k) { return `Sir ${k.given} ${k.house}${k.epithet ? ` ${k.epithet}` : ''}${k.lordship ? `, Lord ${k.lordship}` : ''}`; }
 export function provinceName(id) { return PROVINCES[id]?.name || id; }
 export function cadencyNote(arms) { return CADENCY[arms.cadency]; }
 

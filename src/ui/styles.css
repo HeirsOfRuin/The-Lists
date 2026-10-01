@@ -191,7 +191,7 @@ p { margin: 0; }
 .fact .v { font-weight: 600; }
 .tabs { display: flex; gap: 2px; margin-top: 8px; overflow-x: auto; }
 .tab {
-  flex: 1; min-height: 44px; padding: 8px 10px;
+  flex: 1 1 auto; min-height: 44px; padding: 8px 2px; font-size: .9rem;
   border: none; background: transparent; cursor: pointer;
   border-bottom: 3px solid transparent; color: var(--ink-2); font-weight: 600;
   white-space: nowrap;
@@ -514,3 +514,10 @@ details.vows .opt + .opt { margin-top: 10px; }
 .hint { border-left: 3px solid var(--or); }
 .hint p { margin: 0; color: var(--ink-2); }
 .linkbtn { background: none; border: none; padding: 0; color: var(--ink-3); text-decoration: underline; cursor: pointer; font: inherit; }
+
+/* ---------- the hearth ---------- */
+details.lady > summary { cursor: pointer; display: flex; flex-direction: column; gap: 2px; list-style: none; }
+details.lady > summary::-webkit-details-marker { display: none; }
+details.lady[open] > summary { margin-bottom: 6px; }
+.meter.affection i { background: var(--gules); }
+.terms { margin: 4px 0 0; padding-left: 4px; list-style: none; display: flex; flex-direction: column; gap: 2px; }

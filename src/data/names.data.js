@@ -41,4 +41,5 @@ export const MASTERS = {
 export const LADY_NAMES = [
   'Isabeau', 'Margery', 'Alys', 'Joan', 'Eleanor', 'Cecily', 'Blanche', 'Mahaut',
   'Philippa', 'Agnes', 'Yolande', 'Katherine', 'Beatrice', 'Maud',
+  'Anne', 'Marguerite', 'Jacquetta', 'Constance', 'Elizabeth', 'Isabel', 'Avice', 'Juliana',
 ];

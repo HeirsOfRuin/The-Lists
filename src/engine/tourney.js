@@ -628,6 +628,7 @@ function scoreJoust(state) {
   if ((ev.tier === 'high' || ev.tier === 'grand') && ev.champion !== YOU) noteChampion(state, ev, ev.riders[ev.champion].name);
   ev.jousted = {
     placing: ev.placing,
+    boutsWon,
     champion: ev.riders[ev.champion].name,
     beatenBy: lost ? ev.riders[lost.pairing.winner].name : null,
     lances,

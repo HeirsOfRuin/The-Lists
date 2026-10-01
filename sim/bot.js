@@ -21,11 +21,16 @@ import {
   rideDay, standDownDay, meleeTurn, ransom, exchange, footOnward, mercy,
   shoot, race, leaveFair, campaignOption, campaign, landsOption, lookToLands, shrineVowOpen,
   vow, feastCompanions, hireArcher, retireNow,
+  courtOption, courtLady, askForHand, askColours, councilOption, answerCouncil, petitionCrown,
 } from '../src/engine/season.js';
 import { popinjayPreview, raceOdds } from '../src/engine/fair.js';
 import { reckonChapter } from '../src/engine/order.js';
 import { vowOptions } from '../src/engine/vows.js';
 import { retirement } from '../src/engine/ending.js';
+import { heartFree, hasMet, ladyTerms, canAsk, approachesFor, ladiesAt, canAskColours } from '../src/engine/hearth.js';
+import { canPetition } from '../src/engine/title.js';
+import { MATCHES } from '../src/data/hearth.data.js';
+import { TITLES } from '../src/data/hearth.data.js';
 import { ARCHERS, ORDER, POPINJAY } from '../src/data/life.data.js';
 import { cardById, holds } from '../src/engine/cards.js';
 import { oathTerms, riskOf, battlePreview, companyMax, archersMax } from '../src/engine/realm.js';
@@ -66,6 +71,19 @@ let vowPolicy = 'lances';
 export function setVow(v) { vowPolicy = v; }
 let retireAge = 99;
 export function setRetireAge(a) { retireAge = a; }
+// Whether it courts at all: 'yes', or 'no' for the instruments that measure without it.
+let courting = 'yes';
+export function setCourting(c) { courting = c; }
+
+/** The lady the bot would marry: the best match it can reach, met first. */
+function suitTarget(state) {
+  if (courting !== 'yes' || !heartFree(state).ok) return null;
+  const worth = (l) => l.pounds + 60 * l.manors + (l.barony ? 150 : 0) + (MATCHES[l.kind].brings.favour ? 20 : 0);
+  const reach = (l) => ladyTerms(state, l).filter((t) => !t.hers).every((t) => t.ok || (t.label.startsWith('renown') && state.renown >= t.have * 0 + (MATCHES[l.kind].wants.renown || 0) - 15));
+  const cands = state.ladies.filter((l) => l.status === 'free' && !l.jilted && reach(l));
+  cands.sort((a, b) => (hasMet(state, b) - hasMet(state, a)) || (worth(b) + b.affection) - (worth(a) + a.affection));
+  return cands[0] || null;
+}
 
 function worth(state, e = {}) {
   let v = 0;
@@ -135,6 +153,22 @@ function reserve(state) {
 }
 
 function chooseMonth(state) {
+  // A lord answers the great council.
+  const council = councilOption(state);
+  if (council?.open) return { kind: 'council' };
+  // Her hand, once her family will hear it.
+  const target = suitTarget(state);
+  if (target && canAsk(state, target).ok) return { kind: 'ask', id: target.id };
+  // A month at her family's house, in a month with no great tourney to ride.
+  if (target && hasMet(state, target) && state.year >= 2 && !monthOptions(state).some((o) => o.open && ['regional', 'high', 'grand'].includes(o.cal.tier))) {
+    const o = courtOption(state, target.id);
+    if (o.open && state.purse - o.road > reserve(state) * 0.6) {
+      const a = approachesFor(state, target)
+        .filter((x) => !x.cost || state.purse - x.cost > reserve(state))
+        .sort((x, y) => (y.chance * y.gain - (1 - y.chance) * y.loss) - (x.chance * x.gain - (1 - x.chance) * x.loss))[0];
+      if (a) return { kind: 'court', id: target.id, approach: a.id };
+    }
+  }
   // A vow to walk to the shrine is kept in the summer.
   if (shrineVowOpen(state) && state.month >= 7 && state.purse > 4 * 240) return { kind: 'pilgrimage' };
   // The war's months: see to the lands once, and otherwise ride with the army.
@@ -216,6 +250,7 @@ function winter(state) {
     const want = open.find((v) => v.id === vowPolicy) || open.find((v) => v.id === 'lances');
     if (want) vow(state, want.id);
   }
+  if (canPetition(state).ok && state.purse > TITLES.petition.fee + reserve(state)) petitionCrown(state);
   if (state.knight.age >= retireAge && retirement(state).may) { retireNow(state); return; }
   endWinter(state);
 }
@@ -254,6 +289,12 @@ export function step(state, policy, rng) {
   if (ev) {
     switch (ev.stage) {
       case STAGE.ARRIVAL:
+        if (courting === 'yes' && !ev.colours) {
+          const t = suitTarget(state);
+          const here = ladiesAt(state, ev).filter((l) => canAskColours(state, ev, l).ok);
+          const pick = here.find((l) => l.id === t?.id) || here.find((l) => l.status !== 'free') || here[0];
+          if (pick) askColours(state, pick.id);
+        }
         if (canEnter(state)) { enter(state); return 'enter'; }
         withdraw(state); return 'withdraw';
       case STAGE.BOUT: {
@@ -292,6 +333,9 @@ export function step(state, policy, rng) {
     if (m.kind === 'summons' && answerSummons(state).ok) return 'summons';
     if (m.kind === 'pilgrimage' && pilgrimage(state).ok) return 'pilgrimage';
     if (m.kind === 'lands' && lookToLands(state).ok) return 'lands';
+    if (m.kind === 'council' && answerCouncil(state).ok) return 'council';
+    if (m.kind === 'ask' && askForHand(state, m.id).ok) return 'ask';
+    if (m.kind === 'court' && courtLady(state, m.id, m.approach).ok) return 'courtLady';
     if (m.kind === 'campaign' && campaign(state).ok) return 'campaign';
     if (m.kind === 'court' && visitCourt(state, m.town).ok) return 'court';
     if (m.kind === 'serve' && serve(state).ok) return 'serve';

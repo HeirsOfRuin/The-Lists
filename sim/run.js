@@ -133,6 +133,13 @@ export function playCareer({ seed, policy = 'squire', years = 8, answers = null 
       ambition: state.ambition,
       ambitionMet: ambitionMet(state),
       age: state.knight.age,
+      wife: state.spouse ? `${state.spouse.how}:${state.spouse.kind}` : null,
+      wedYear: state.spouse?.since || null,
+      widowed: state.spouse ? !state.spouse.alive : false,
+      children: (state.children || []).length,
+      title: state.title ? state.title.how : null,
+      titleYear: state.title?.since || null,
+      ladiesLost: (state.ladies || []).filter((l) => l.status === 'married').length,
     },
   };
   assertProgress(r);
@@ -205,6 +212,11 @@ function lifeSummary(results) {
     headOfRoll: `${L.filter((l) => l.rollFirst >= 1).length} ever; ${L.filter((l) => l.rollFirst >= 2).length} twice or more`,
     endings: count(L.map((l) => l.ending)),
     ambitionMet: count(L.filter((l) => l.ambitionMet).map((l) => l.ambition)) + ` (of ${count(L.map((l) => l.ambition))})`,
+    married: `${L.filter((l) => l.wife).length} of ${n} (median year ${median(L.filter((l) => l.wedYear).map((l) => l.wedYear))}): ${count(L.filter((l) => l.wife).map((l) => l.wife))}`,
+    widowed: L.filter((l) => l.widowed).length,
+    children: `${(sum((l) => l.children) / Math.max(1, L.filter((l) => l.wife).length)).toFixed(1)} per marriage`,
+    titled: `${L.filter((l) => l.title).length} of ${n} (median year ${median(L.filter((l) => l.titleYear).map((l) => l.titleYear))}): ${count(L.filter((l) => l.title).map((l) => l.title))}`,
+    ladiesLostToRivals: (sum((l) => l.ladiesLost) / n).toFixed(1),
   };
 }
 

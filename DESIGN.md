@@ -234,6 +234,7 @@ Endings (all built). A knight may hang up his lance in any winter from 34,
 and must at 45. The heralds give the career the grandest title it earned, in
 this order, and name the others it also earned:
 
+- **A baron of the realm**: a title, however won (built in phase 8).
 - **Companion of the Swan**: holding a stall at the end.
 - **Champion of the Realm**: first on the Roll of Arms three winters, and a
   King's Tourney won.
@@ -343,13 +344,25 @@ before the court, and the card engine planned for phase 3 arrived here.
    - Archers in your company; campaigning with your side's army, or guarding
      your lands against raiders, in the war's months.
    - The secret love now has an ending.
-7. **Balance and polish**: this build.
+7. **Balance and polish**: done.
    - *Renown's scale:* a progressive winter fade, the field's horses keeping
      pace with its fame, and the field earning the days after the jousts.
    - *The backgrounds instrument.*
    - *First-time hints* for every kind of screen.
    - *The installable Pages build,* with offline play.
-8. **What is left:**
+8. **The hearth**: this build.
+   - *Courtship:* nine ladies of five kinds of match, each with a portion,
+     family terms, something she values, and a rival suitor.
+   - *Courting:* a month at her family's house (five ways, odds shown), or
+     her colours at a tourney.
+   - *Marriage:* the dowry, her manors and her house's goodwill, her
+     household and stewardship, children, the danger of childbed, and
+     marriage without leave.
+   - *Titles:* a barony by the war (for those who fought in the deciding
+     battle), by petition (land and the Crown's favour), or by marriage to
+     the Crown's ward. A lord answers the great council; an attainted lord
+     loses his title.
+9. **What is left:**
    - a new career as the squire you knighted;
    - more cards, since the war years and the long peace after them repeat
      sooner than the early years;

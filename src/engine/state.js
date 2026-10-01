@@ -15,11 +15,12 @@ import { yearCalendar } from './calendar.js';
 import { freshRealm, grantManor, pickRumour, sendInvitations } from './realm.js';
 import { visit, learn } from './lore.js';
 import { orderFor } from './order.js';
+import { ladiesFor, ladyName } from './hearth.js';
 import { WORLD, PROVINCES, TOWNS, FIRST_MONTH } from '../data/world.data.js';
 import { HARNESS } from '../data/household.data.js';
 
 export const SAVE_KEY = 'the-lists.save.v1';
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 
 export const STATUS = {
   ACTIVE: 'active',
@@ -81,6 +82,14 @@ function lifeFor(state) {
   state.career.rollFirst = state.career.rollFirst || 0;
 }
 
+/** The parts of a career that phase eight added: the ladies of the realm, marriage, titles. */
+function hearthFor(state) {
+  ladiesFor(state);
+  state.title = null;
+  state.petition = null;
+  state.council = null;
+}
+
 /** The parts of a career that phase four added: the realm, land and men. */
 function realmFor(state) {
   state.realm = freshRealm(state.year);
@@ -122,6 +131,7 @@ export function newGame({ seed = 1, answers, name }) {
   realmFor(state);
   loreFor(state);
   lifeFor(state);
+  hearthFor(state);
   state.realm.rumour = pickRumour(state);
   sendInvitations(state);
   state.notices = [];
@@ -270,6 +280,27 @@ export function migrate(s) {
     s.eventsUsed = s.eventsUsed || [];
     lifeFor(s);
     s.version = 6;
+  }
+  if (s.version === 6) {
+    // Phase eight: the ladies of the realm come into a career already under
+    // way. A knight already married keeps his wife, from his story's
+    // betrothal or his secret, with no children yet recorded.
+    const wasMarried = s.heart === 'married';
+    if (wasMarried) s.heart = 'free';
+    hearthFor(s);
+    if (wasMarried) {
+      s.ladySerial += 1;
+      const l = {
+        id: `l${s.ladySerial}`, given: s.betrothed || 'Avice', house: s.flags.includes('loveWon') ? 'Belcombe' : 'Lacy',
+        kind: s.flags.includes('loveWon') ? 'secret' : 'betrothed', town: 'kingsmead', faction: null, value: 'pious', age: 24,
+        pounds: 0, manors: 0, barony: null, affection: 80, status: 'yours', husband: null, rival: null, since: s.year, asked: 0,
+      };
+      s.ladies.push(l);
+      // The wedding was in an earlier year; which one the old save did not keep.
+      s.spouse = { id: l.id, given: l.given, house: l.house, kind: l.kind, name: ladyName(l), since: Math.max(1, s.year - 1), age: l.age, alive: true, how: l.kind === 'secret' ? 'secret' : 'card', faction: null };
+      s.heart = 'married';
+    }
+    s.version = 7;
   }
   return s;
 }

@@ -45,7 +45,66 @@ python3 -m http.server 8000
 
 ## What this build is
 
-Phase 7 is balance and polish:
+Phase 8 is the hearth: courtship, marriage, and the titles a knight might
+rise to.
+
+- **The ladies of the realm.** Nine ladies at the start of a career, five
+  kinds of match:
+  - two merchants' daughters (money, little else asked);
+  - two lords' daughters (a house's goodwill, and its quarrels);
+  - two heiresses and two widows (a manor each; a widow chooses for herself);
+  - one heiress to a barony, a ward of the Crown (her husband will be a
+    lord).
+
+  Each has her own name, house, town and age. Each has a portion, family
+  terms, and a thing she values in a suitor.
+- **Courting.** You meet the ladies of every town you go to.
+  - *A month at her family's house:* five ways to court her (a gift, a dance,
+    letters, hawking, mass). Each shows its chance and what it is worth, and
+    the way she values is worth half again. The same courtesy twice is worth
+    less.
+  - *Her colours:* at a tourney she attends, ask for her sleeve. Every bout
+    you win in it she sees; a prize won in it counts double; beaten in the
+    first round, she sees that too.
+- **Her family's terms and her own mind.** The Hearth tab shows both as a
+  checklist:
+  - renown, honour, lineage;
+  - her house's favour;
+  - the Crown's leave for its ward, or the price of her marriage;
+  - her own affection.
+- **A rival.** Every lady has another suitor from the field, whose suit
+  grows each winter. If it reaches its mark while it stands above her
+  affection for you, her family gives her to him, and another lady comes of
+  age.
+- **Marriage.**
+  - *The wedding* is at Candlemas: the dowry is in the winter's accounts,
+    with her manors and her house's goodwill.
+  - *Her years:* she keeps your household (£2 a winter) and the rolls of
+    your manors (£1 a manor), and writes to you.
+  - *Children* are born in the winters, and named in the epilogue: the
+    eldest son inherits.
+  - *A danger,* small and historical: a wife may die in childbed.
+  - *Without her family's leave:* a lady who loves you enough will marry you
+    anyway, at the cost of honour and the dowry.
+
+  The betrothal and the secret love of your story now end in the same
+  marriages.
+- **Titles.** A knight may be made a baron, Lord of his seat, three ways:
+  - **By the war.** The new crown ennobles the councillors of war who fought
+    in the deciding battle, and the captains who led the charge there and hold
+    two manors. A knight who kept to the reserve is not one of them.
+  - **By petition,** in any winter of peace. It needs three manors, the
+    Crown's favour at 10, honour 12 and renown 50. The council answers at
+    Candlemas at the chance shown; the £20 in fees is paid only if it says
+    yes.
+  - **By marriage** to the Crown's ward, by right of your wife.
+
+  A lord is bidden to every great tourney and counts for more in the realm.
+  He keeps a lord's household, and answers the great council at Kingsmead
+  each April (or the Crown remembers). An attainted lord loses his title.
+  "A baron of the realm" heads the epilogue.
+
+Phase 7 was balance and polish:
 - **Renown's scale.** Renown fades a tenth each winter, and a quarter of
   whatever is over 100, for every knight.
 - **The field keeps up.** Its famous knights buy better horses, and in the
@@ -662,6 +721,37 @@ the headline if the knight retired at the end of the run.
   head of the Roll and a King's Tourney won. Renown's scale is the first job
   of the balance phase.
 
+### The hearth and titles (measured at phase 8)
+
+The bot courts the best match it can reach. It rides in her colours when she
+is at a tourney, courts her in months with no great tourney to ride, and asks
+when her family's terms are met. It petitions whenever it may.
+
+| run, 100 careers | married | titled | the endings |
+|---|---|---|---|
+| 8 years | 57% (median year 5) | 3% | Feats 40, lord 21, quiet 20, Champion 10, Swan 6, peer 3 |
+| 13 years, careful in war | 96% | 19%: petition 16, marriage 3 | Swan 33, peer 19, Champion 15, exiled 13 |
+| 13 years, bold in war | 96% | 39%: war 30, petition 6, marriage 3 | peer 39, Swan 20, dead 20, Champion 7 |
+| 13 years, worldly, bold in war | 35% | 0% | disgrace 39, dead 21, Champion 12 |
+| 25 years, careful, retiring at 40 | 98% | 28%: petition 24, marriage 4 | Swan 51, peer 26, exiled 13 |
+
+- **Whom the bot marries.** A widow most often (37%), the secret love of its
+  story (30%), its story's betrothal (13%), then merchants' daughters and
+  heiresses. The ward, the hardest, goes in 3–4%.
+- **Children:** about two per marriage by the thirteenth year, three by the
+  twenty-fifth.
+- **The rivals** marry off about eleven ladies in thirteen years. You cannot
+  wait for every lady.
+- **The worldly knight** marries a third as often. His honour fails every
+  family's terms but the merchants' and the widows'. He is never ennobled:
+  the petition needs honour 12, and too few worldly knights rise to
+  councillor and fight on the winning side.
+- **Titles depend on the role in the war.** The first version ennobled every
+  councillor and landed captain on the winning side, which made the barony
+  the commonest ending (45% at thirteen years). Now only those who fought in
+  the deciding battle are ennobled. The bold knight is twice as often a
+  baron, and four times as often dead.
+
 ### Renown and the Roll (measured at phase 7)
 
 Phase 6 left the knight outgrowing the field after the war. The median
@@ -807,6 +897,25 @@ true:
 - Fame buys the field better horses. A tourney you do not ride pays the field
   for its mêlée and barriers, reproducibly.
 - Every first-time hint is written, and brief.
+- The realm holds nine ladies of five kinds, each with a town and a living
+  rival. A knight meets those of the towns he has been to.
+- Every way of courting shows the chance it rolls, and a courtesy repeated is
+  worth less.
+- Her family answers by its stated terms, and the wedding is at Candlemas,
+  with the dowry in the accounts. The Crown's ward is bought or granted, and
+  her husband is a lord. Marrying without leave costs the dowry and honour,
+  and never takes a ward.
+- Her colours move her affection by the stated amounts.
+- A rival at his mark marries her, unless she loves you more. Another lady
+  comes of age in her place.
+- A marriage's years bring her household, her stewardship and children. The
+  story's betrothal card makes her your wife, and breaking it frees you.
+- A petition: the terms, none in a war, the chance shown, and the fee only if
+  granted. The new crown ennobles a councillor who fought; an attainted lord
+  loses his title. The great council: attended, favour; missed, favour lost.
+- A lord's epilogue is headed by his title, and every family line is written
+  in full. A phase-six save opens with the ladies, and a married knight keeps
+  his wife.
 
 **Is it balanced?**
 
@@ -846,6 +955,9 @@ src/engine/   pure, deterministic, no DOM
   vows.js       vows on the swans, judged from the Book of Feats
   fair.js       the popinjay (THE odds: popinjayOdds) and the Downs Race (finishChances)
   ending.js     retirement, the endings, the epilogue and the obituary
+  hearth.js     the ladies of the realm, courtship, her colours, marriage, children
+  title.js      barony: by the war, by petition, by marriage; the great council
+  checks.js     THE chance of any skill or trait check (cards and courtship alike)
   lore.js       the Book of Lothmere, the chronicle, letters from home
   herald.js     the course called, and the Book of Feats entry
   heraldry.js   arms: generated, blazoned, drawn as SVG

@@ -44,6 +44,9 @@ import { PATRON_CARDS, CHURCH_CARDS, STORY_CARDS } from '../data/cards.story.dat
 import { TRAIT_PAIRS, STAT_LABELS } from '../data/creation.data.js';
 import { FACTION_LABELS } from '../data/world.data.js';
 import { LADY_NAMES } from '../data/names.data.js';
+import { traitValue, checkValue, checkChance, checkLabel } from './checks.js';
+import { wedFromCard, wedSecret, jilt } from './hearth.js';
+export { traitValue, checkValue, checkChance, checkLabel };
 import { TOWNS } from '../data/world.data.js';
 
 export const CARDS = [
@@ -72,7 +75,6 @@ export function cardById(id) {
   return c;
 }
 
-const sigmoid = (x) => 1 / (1 + Math.exp(-x));
 
 // ---------------------------------------------------------------------------
 // Conditions
@@ -126,12 +128,6 @@ export function holds(state, when, ctx = {}) {
   return true;
 }
 
-/** A trait's value, whichever half of its pair is named. */
-export function traitValue(state, name) {
-  const pair = TRAIT_PAIRS.find(([a, b]) => a === name || b === name);
-  const v = state.knight.traits[pair[0]];
-  return name === pair[0] ? v : 20 - v;
-}
 
 // ---------------------------------------------------------------------------
 // Casting: who is in the scene
@@ -383,26 +379,12 @@ function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 // Checks
 // ---------------------------------------------------------------------------
 
-export function checkValue(state, check) {
-  if (check.stat) return state.knight.stats[check.stat];
-  return traitValue(state, check.trait);
-}
 
 function opposite(t) {
   const pair = TRAIT_PAIRS.find(([a, b]) => a === t || b === t);
   return pair[0] === t ? pair[1] : pair[0];
 }
 
-/** The chance of passing a check: shown on the button, and rolled. */
-export function checkChance(state, check) {
-  const p = sigmoid((checkValue(state, check) - check.dc) * 0.45);
-  return Math.max(0.05, Math.min(0.95, p));
-}
-
-export function checkLabel(check) {
-  if (check.stat) return STAT_LABELS[check.stat];
-  return check.trait.charAt(0).toUpperCase() + check.trait.slice(1);
-}
 
 /** What the screen shows for each answer. */
 export function choicesView(state, inst) {
@@ -479,11 +461,13 @@ export function applyEffects(state, inst, effects, hooks = {}) {
   if (e.patronTarget && state.patron && inst.cast[e.patronTarget]) state.patron.target = inst.cast[e.patronTarget];
   if (e.reveal === 'culprit') revealCulprit(state);
   if (e.clearMaster) clearMaster(state, 'Before the heralds, the truth of Ambry Cross was told.');
-  if (e.heart) state.heart = e.heart;
-  if (e.heart === 'married' && !(state.lands || []).some((l) => l.how === 'dower')) {
-    const m = grantManor(state, null, 'dower');
-    if (m) after.push(`Her dower is the manor of ${m.name}.`);
-  }
+  if (e.heart === 'married') {
+    // The flags of the same answer are already set: a secret love won, or the betrothal kept.
+    after.push(...(state.flags.includes('loveWon') ? wedSecret(state) : wedFromCard(state)));
+  } else if (e.heart === 'free' && state.heart === 'promised') {
+    jilt(state);
+    state.heart = 'free';
+  } else if (e.heart) state.heart = e.heart;
   // The realm.
   if (e.balance) shiftBalance(state, e.balance);
   if (e.lean) {

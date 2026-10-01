@@ -18,7 +18,7 @@ import { newGame, serialize } from '../src/engine/state.js';
 import { randomAnswers, randomName } from '../src/engine/knight.js';
 import { makeRng } from '../src/engine/rng.js';
 import { step } from '../sim/bot.js';
-import { passMonth, answer } from '../src/engine/season.js';
+import { passMonth, answer, monthOptions, rideTo } from '../src/engine/season.js';
 import { cardById, holds } from '../src/engine/cards.js';
 
 const ROOT = process.cwd();
@@ -165,7 +165,7 @@ const endYear = await text('.banner .fact:last-child .k');
 check('the year advanced', endYear !== startYear, `${startYear} -> ${endYear}`);
 report('play');
 
-for (const t of ['knight', 'field', 'book', 'world']) {
+for (const t of ['knight', 'hearth', 'field', 'book', 'world']) {
   await page.click(`[data-tab="${t}"]`);
   await page.waitForTimeout(60);
   const body = (await page.locator('main').innerText()).trim();
@@ -345,6 +345,60 @@ report('fairs');
   check('it is written in full', !/undefined|NaN|\{/.test(last));
   await page.screenshot({ path: `${SHOTS}/14-last-page.png`, fullPage: true });
   report('a life');
+}
+
+// The hearth: a free knight who has met a lady courts her, rides in her
+// colours, and asks for her hand.
+{
+  const s = monthSave(12, 4, (x) => { x.heart = 'free'; x.ladies = x.ladies.filter((l) => l.kind !== 'betrothed'); x.purse = 80 * 240; });
+  while (s.pending) answerFirst(s);
+  const l = s.ladies.find((x) => x.kind === 'widow');
+  if (!s.visited.includes(l.town)) s.visited.push(l.town);
+  l.affection = 30;
+  await page.evaluate((raw) => localStorage.setItem('the-lists.save.v1', raw), serialize(s));
+  await page.reload({ waitUntil: 'load' });
+  await page.click('[data-tab="hearth"]');
+  check('the Hearth tab lists the ladies of the realm', (await page.locator('details.lady').count()) >= 9);
+  await page.click(`[data-lady-open="${l.id}"]`);
+  check('her terms and her rival are shown', /Before her family will hear you/.test(await page.locator('main').innerText()) && /courting her too/.test(await page.locator('main').innerText()));
+  await page.click(`[data-approach="${l.id}:dance"]`);
+  check('a way to court her shows its chance', /Dance with her at her father’s table · \d+%/.test(await page.locator('main').innerText()));
+  await page.screenshot({ path: `${SHOTS}/15-hearth.png`, fullPage: true });
+  check('no sideways scroll on the Hearth', (await overflow()) <= 1);
+  await page.click(`[data-court-lady="${l.id}"]`);
+  check('a month courting her is told on the month', /Her affection/.test(await page.locator('main').innerText()));
+  // Her family's terms met: ask, and the betrothal is made.
+  const t = monthSave(12, 4, (x) => { x.heart = 'free'; x.ladies = x.ladies.filter((y) => y.kind !== 'betrothed'); x.purse = 80 * 240; x.renown = 40; x.honour = 15; });
+  while (t.pending) answerFirst(t);
+  const m = t.ladies.find((x) => x.kind === 'widow');
+  if (!t.visited.includes(m.town)) t.visited.push(m.town);
+  m.affection = 70;
+  await page.evaluate((raw) => localStorage.setItem('the-lists.save.v1', raw), serialize(t));
+  await page.reload({ waitUntil: 'load' });
+  await page.click('[data-tab="hearth"]');
+  await page.click(`[data-lady-open="${m.id}"]`);
+  await page.click(`[data-ask-hand="${m.id}"]`);
+  check('her family consents, and the wedding is set', /betrothed to/.test(await page.locator('main').innerText()));
+  // Her colours at a tourney in her town.
+  const u = monthSave(13, 3, (x) => { x.heart = 'free'; x.ladies = x.ladies.filter((y) => y.kind !== 'betrothed'); x.purse = 80 * 240; });
+  while (u.pending) answerFirst(u);
+  const opt = monthOptions(u).find((o) => o.open && o.cal.tier !== 'fair');
+  if (opt) {
+    const lady = u.ladies[0];
+    lady.town = opt.cal.town;
+    lady.affection = 30;
+    rideTo(u, opt.cal.id);
+    while (u.pending) answerFirst(u);
+    if (u.event?.stage === 'arrival') {
+      await page.evaluate((raw) => localStorage.setItem('the-lists.save.v1', raw), serialize(u));
+      await page.reload({ waitUntil: 'load' });
+      check('the ladies in the gallery are shown on arrival', await has(`[data-colours="${lady.id}"]`));
+      await page.click(`[data-colours="${lady.id}"]`);
+      check('and you may ride in her colours', /You ride in the colours of/.test(await page.locator('main').innerText()));
+      await page.screenshot({ path: `${SHOTS}/16-colours.png`, fullPage: true });
+    }
+  }
+  report('hearth');
 }
 
 await page.emulateMedia({ colorScheme: 'dark' });

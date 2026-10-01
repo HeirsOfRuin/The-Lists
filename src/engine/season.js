@@ -26,6 +26,12 @@ import { orderWinter, holdChapter, keepTable } from './order.js';
 import { takeVow, dropVow, judgeVow, vowDef } from './vows.js';
 import { newFair, shootPopinjay, runRace } from './fair.js';
 import { retire, retirement } from './ending.js';
+import {
+  ladyById, canCourt, court, askHand as askHandOf, elope as elopeWith, askColours as askColoursOf, coloursResult,
+  hearthWinter, ladyName,
+} from './hearth.js';
+import { petition as petitionFor, answerPetition, councilDue, attendCouncil, councilWinter } from './title.js';
+import { TITLES } from '../data/hearth.data.js';
 import { FAIRS, CAMPAIGN, CAMPAIGN_EPISODES, LANDS_GUARD, ARCHERS } from '../data/life.data.js';
 import { simulateMonth, winterField, monthIndex, knightById, rollOfArms, fadeRenown } from './field.js';
 import { squireCall } from './derive.js';
@@ -252,6 +258,13 @@ export function leave(state) {
     else if (resume === 'beginDays' || resume === 'openRound') beginDays(state);
     return ok();
   }
+  if (ev.colours) {
+    const r = coloursResult(state, ev.entry, ev.colours);
+    if (r && r.lady.status === 'free') {
+      const word = r.delta > 0 ? `She was there to see it. Her affection ${r.delta > 0 ? '+' : ''}${r.delta}.` : r.delta < 0 ? `She saw that too. Her affection ${r.delta}.` : 'She watched every course.';
+      state.notices = [...(state.notices || []), `You rode in the colours of ${ladyName(r.lady)}. ${word}`];
+    }
+  }
   state.event = null;
   endMonth(state);
   return ok();
@@ -382,6 +395,110 @@ export function leaveFair(state) {
   state.fair = null;
   endMonth(state);
   return ok();
+}
+
+// ---------------------------------------------------------------------------
+// The hearth: courting, asking, and the great council
+// ---------------------------------------------------------------------------
+
+/** What a month courting her costs on the road, and whether you may. */
+export function courtOption(state, id) {
+  const l = ladyById(state, id);
+  const c = canCourt(state, l);
+  if (!c.ok) return { open: false, reason: c.reason, lady: l };
+  const r = route(state.location, l.town);
+  const road = travelCost(state, r.days);
+  if (!isFree(state)) return { open: false, reason: 'Finish what is in hand first.', lady: l, road, days: r.days };
+  if (state.purse < road) return { open: false, reason: 'You cannot pay for the road.', lady: l, road, days: r.days };
+  return { open: true, reason: null, lady: l, road, days: r.days };
+}
+
+/** A month at her family's house, courting her in the way you choose. */
+export function courtLady(state, id, approach) {
+  const o = courtOption(state, id);
+  if (!o.open) return no(o.reason);
+  clearNotices(state);
+  const l = o.lady;
+  state.purse -= o.road;
+  state.location = l.town;
+  visit(state, l.town);
+  const r = court(state, l, approach);
+  if (!r.ok) return r;
+  const name = ladyName(l);
+  state.lastResult = {
+    title: `A month at ${TOWNS[l.town].name}`,
+    text: r.success
+      ? `${r.approach.label}. ${cap(name)} is pleased, and lets it show.`
+      : `${r.approach.label}. It does not go as you hoped; her family notices.`,
+    lines: [`Her affection ${r.delta >= 0 ? '+' : ''}${r.delta} (now ${Math.round(l.affection)})`, ...(r.approach.cost ? [`Purse −£${r.approach.cost / 240}`] : []), ...(o.road ? [`The road ${lsdRoad(o.road)}`] : [])],
+  };
+  endMonth(state);
+  return ok();
+}
+
+function lsdRoad(d) { return `−${Math.floor(d / 12)}s${d % 12 ? ` ${d % 12}d` : ''}`; }
+
+/** Ask her family for her hand: a letter, any month or in winter. */
+export function askForHand(state, id) {
+  if (state.pending || state.event || state.fair) return no('Finish what is in hand first.');
+  const r = askHandOf(state, id);
+  if (!r.ok) return r;
+  if (state.phase === PHASE.WINTER) state.winter.notes.push(...r.lines);
+  else state.lastResult = { title: 'A betrothal', text: r.lines.join(' '), lines: [] };
+  return ok();
+}
+
+/** Marry her without her family's leave: it takes the month. */
+export function elopeWithLady(state, id) {
+  if (!isFree(state)) return no('Finish what is in hand first.');
+  clearNotices(state);
+  const r = elopeWith(state, id);
+  if (!r.ok) return r;
+  state.lastResult = { title: 'A marriage without leave', text: `You are married at a church door, by a priest who asks no questions. ${r.lines.join(' ')}`, lines: [] };
+  endMonth(state);
+  return ok();
+}
+
+/** Ride in a lady's colours at this tourney, before you pay the entry. */
+export function askColours(state, id) {
+  const ev = state.event;
+  if (!ev || ev.stage !== STAGE.ARRIVAL || state.pending) return no('Her sleeve is asked for before the jousts.');
+  return askColoursOf(state, ev, id);
+}
+
+/** A lord's summons to the great council at Kingsmead, in April. */
+export function councilOption(state) {
+  if (!councilDue(state)) return null;
+  const r = route(state.location, WORLD.capital);
+  const cost = travelCost(state, r.days);
+  return { cost, days: r.days, open: state.purse >= cost, reason: state.purse >= cost ? null : 'You cannot pay for the road.' };
+}
+
+export function answerCouncil(state) {
+  if (!isFree(state)) return no('Finish what is in hand first.');
+  const o = councilOption(state);
+  if (!o) return no('There is no council sitting.');
+  if (!o.open) return no(o.reason);
+  clearNotices(state);
+  state.purse -= o.cost;
+  state.location = WORLD.capital;
+  visit(state, WORLD.capital);
+  attendCouncil(state);
+  state.lastResult = {
+    title: 'The great council',
+    text: 'You take your place among the lords at Kingsmead, below the earls and above the bishops’ clerks, and say what you think when you are asked. Mostly you are not asked.',
+    lines: [`Favour of the Crown +${TITLES.council.favour}`],
+  };
+  endMonth(state);
+  return ok();
+}
+
+/** Petition the Crown for a title, in winter. */
+export function petitionCrown(state) {
+  if (!inWinter(state)) return no('Petitions go up to the council in winter.');
+  const r = petitionFor(state);
+  if (r.ok) state.winter.bought.push('Sent a petition to the king’s council for letters patent');
+  return r;
 }
 
 // ---------------------------------------------------------------------------
@@ -789,6 +906,10 @@ export function beginWinter(state) {
   // The Company of the Swan, and the vow made on the swans a year ago.
   orderWinter(state, notes);
   judgeVow(state, notes);
+  // The hearth: a wedding, the rivals, a marriage's year, children. A lord's household.
+  hearthWinter(state, notes, add);
+  if (state.title && state.title.since < state.year) add('A lord’s household', -TITLES.household);
+  councilWinter(state, notes);
 
   state.winter = {
     ledger,
@@ -952,8 +1073,9 @@ export function horseTradeIn(state) {
 export function endWinter(state) {
   if (!inWinter(state)) return no('It is not winter, or there is something to answer first.');
   if (state.status !== 'active') return no('The career is over.');
-  // Candlemas: the Company of the Swan fills its empty stalls.
-  const chapter = holdChapter(state);
+  // Candlemas: the Company of the Swan fills its empty stalls, and the
+  // council answers a petition.
+  const chapter = [...holdChapter(state), ...answerPetition(state)];
   if (retirement(state).must) return retire(state, 'age');
   // A borrowed horse must be bought or returned by spring.
   if (state.horse.borrowed && state.year >= 1) {

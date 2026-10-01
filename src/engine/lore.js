@@ -181,9 +181,18 @@ export function writeLetters(state) {
     if (m.id === 'disgraced' && !state.flags.includes('masterCleared')) kind = 'fennick';
     out.push({ from: MASTERS[m.id]?.name || m.name, sign: MASTERS[m.id]?.name || m.name, text: rng.pick(LETTERS.master[kind]).replaceAll('{town}', lastTown) });
   }
-  if (['promised', 'married', 'secret'].includes(state.heart)) {
-    const from = state.heart === 'secret' ? 'A letter with no seal' : `The lady ${state.betrothed}`;
-    out.push({ from, sign: state.heart === 'secret' ? '' : state.betrothed, text: rng.pick(LETTERS.lady[state.heart]) });
+  const sp = state.spouse;
+  if (sp?.alive) {
+    const kids = (state.children || []).length;
+    out.push({ from: `Your wife, ${sp.name}`, sign: sp.given, text: rng.pick(kids && rng.next() < 0.5 ? LETTERS.lady.children : LETTERS.lady.married) });
+  } else if (state.heart === 'secret') {
+    out.push({ from: 'A letter with no seal', sign: '', text: rng.pick(LETTERS.lady.secret) });
+  } else if (state.heart === 'promised') {
+    out.push({ from: `The lady ${state.betrothed}`, sign: state.betrothed, text: rng.pick(LETTERS.lady.promised) });
+  } else {
+    // The lady you court, if she thinks well enough of you to risk a letter.
+    const fond = (state.ladies || []).filter((l) => l.status === 'free' && l.affection >= 30).sort((a, b) => b.affection - a.affection)[0];
+    if (fond) out.push({ from: `${fond.kind === 'merchant' ? 'Mistress' : fond.kind === 'widow' ? 'Dame' : 'The lady'} ${fond.given} ${fond.house}`, sign: fond.given, text: rng.pick(LETTERS.lady.courting) });
   }
   return out;
 }

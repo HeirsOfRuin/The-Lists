@@ -20,6 +20,8 @@ import {
 import { PATRONS, CONDUCT } from '../data/court.data.js';
 import { ARCHERS, ORDER, FAIRS } from '../data/life.data.js';
 import { learn } from './lore.js';
+import { createBaron, forfeitTitle } from './title.js';
+import { TITLES, MARRIAGE_LIFE } from '../data/hearth.data.js';
 import { TOWNS, FACTION_LABELS } from '../data/world.data.js';
 
 export function freshRealm(year = 1) {
@@ -165,6 +167,7 @@ export function invitation(state, cal) {
   }
   if (cal.tier === 'greatpas') return { invited: true, why: 'Its articles admit any knight of name and arms.' };
   if (state.order?.companion) return { invited: true, why: 'A Companion of the Swan is bidden to every great tourney.' };
+  if (state.title) return { invited: true, why: `A lord of the realm is bidden to every great tourney.` };
   const I = INVITATIONS[cal.tier];
   if (cal.tier === 'high') {
     const house = cal.host.faction;
@@ -290,6 +293,8 @@ export function importance(state) {
     { label: virtue ? `Known as ${state.knight.epithet}` : 'No byname for a virtue', value: virtue ? I.virtue : 0 },
     { label: `${state.career.greatPrizes || 0} great prize${state.career.greatPrizes === 1 ? '' : 's'}`, value: Math.min(I.prizeCap, (state.career.greatPrizes || 0) * I.prize) },
     ...(state.order?.companion ? [{ label: 'A Companion of the Swan', value: ORDER.importance }] : []),
+    ...(state.title ? [{ label: `Lord ${state.title.seat}, a baron of the realm`, value: TITLES.importance }] : []),
+    ...(state.spouse?.alive ? [{ label: `Married to ${state.spouse.name}`, value: MARRIAGE_LIFE.importance }] : []),
   ];
   const score = Math.round(terms.reduce((t, x) => t + x.value, 0));
   let rank = RANKS[0];
@@ -557,6 +562,16 @@ export function settle(state, add, notes) {
     state.favour.crown = (state.favour.crown || 0) + 5;
     notes.push(`${crowned} remembers who stood with ${victor === 'aumbry' ? 'him' : 'her'}.`);
     if (out.granted.length) notes.push(`You are granted ${out.granted.join(' and ')}.`);
+    // The new crown makes lords of the men who won it the field: a councillor
+    // who fought in the deciding battle, or a captain who led the charge there.
+    const W = TITLES.war;
+    const last = w.battles[w.battles.length - 1];
+    const fought = last && last.side === victor && W.fought.includes(last.mode);
+    const charged = last && last.side === victor && last.mode === 'charge';
+    if ((W.ranks.includes(rank) && fought) || (rank === 'captain' && charged && (state.lands || []).length >= W.captainManors)) {
+      const t = createBaron(state, 'war');
+      if (t) { out.title = t.seat; notes.push(`${crowned} creates you a baron of the realm, for your part in the war. You are Lord ${t.seat}.`); }
+    }
   } else if (side === loser) {
     out.forfeited = forfeit(state, loser).map((m) => m.name);
     const rng = streamFor(state.seed, state.year, 'attainder');
@@ -565,6 +580,8 @@ export function settle(state, add, notes) {
     state.favour[victor] = (state.favour[victor] || 0) - 8;
     if (out.forfeited.length) notes.push(`${out.forfeited.join(' and ')}, held of ${FACTION_LABELS[loser]}, are forfeit to the new crown.`);
     if (out.attainted) {
+      const lost = forfeitTitle(state);
+      if (lost) notes.push(`Your barony of ${lost} is forfeit with your name.`);
       out.fine = ATTAINDER.fine[rank] * 240;
       notes.push(`Your name is on the list of the attainted. A pardon can be bought for ${ATTAINDER.fine[rank]} pounds, or refused.`);
     } else {

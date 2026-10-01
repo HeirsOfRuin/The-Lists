@@ -232,6 +232,11 @@ export const RETIREMENT = {
 // How a career ends, in the order the heralds would put it. The first that
 // fits is the headline; everything else that fits is said too.
 export const ENDINGS = {
+  peer: {
+    title: 'A baron of the realm',
+    line: 'He was Lord {seat}, made a baron {how}, and his name was read out among the lords at every great council.',
+    after: 'He kept a lord’s house at {seat}, sat in the council when it was summoned, and was called my lord by men who had called him Sir.',
+  },
   disgrace: {
     title: 'Retired in disgrace',
     line: 'The heralds do not cry his name at his leaving. There is nobody to cry it to.',

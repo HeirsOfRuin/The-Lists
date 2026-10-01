@@ -305,7 +305,20 @@ export const LETTERS = {
   },
   lady: {
     promised: ['My father asks when you will have a hall to bring me to. I tell him soon. Do not make me a liar.', 'I have your letter by me as I write. The ladies here say a knight who writes so well cannot joust. Prove them wrong.'],
-    married: ['The manor is in good order and the steward is a thief, which I have told him. Come home for the winter. I have a great deal to say to you.'],
+    married: [
+      'The manor is in good order and the steward is a thief, which I have told him. Come home for the winter. I have a great deal to say to you.',
+      'The rents are in, the roof of the great barn is mended, and your mother has written twice to tell me how to manage both. Ride carefully. I mean it.',
+      'Our neighbour has moved his boundary stones again. I have moved them back, and sent him a ham. Between the two of us he will not know what to think.',
+    ],
+    children: [
+      'The children ask every day when you are coming home, and the eldest has made himself a lance from a bean pole and broken it on the dog.',
+      'Your son can sit a pony now, and your daughter has learned to say "Sir", which she says to the cat. Come home and be laughed at.',
+    ],
     secret: ['No name, no seal. You know my hand. I watched you at the tourney from the gallery and could not say a word to you, and did not need to.'],
+    courting: [
+      'My father says I am not to write to you. I am not writing to you; I am writing to my cousin, who is a very slow reader and will show you this.',
+      'You rode well at the last tourney, everyone says so. I say nothing, because I am a modest girl. But I kept the broken end of your lance.',
+      'My mother asks what your lands are worth. I told her I had not asked. I have asked you now. You need not answer, but she will.',
+    ],
   },
 };
