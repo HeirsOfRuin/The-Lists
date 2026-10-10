@@ -54,6 +54,16 @@ stronger man". What you know about him decides whether your odds are true:
 Scouting is not flavour. It is the difference between a number that is right and
 a number that is a guess.
 
+### Seeing the course (phase 9a)
+
+The course is rolled and saved before anything is shown. The lists then play
+it back from the course record: the charge, the lances, and what each lance
+did (`src/ui/tilt.js`). The cry over the scene comes from the same record
+(`courseCry` in `src/engine/herald.js`), and so does the sound
+(`src/ui/sound.js`). Nothing in the picture is decided by the picture, so it
+cannot show a course that did not happen. Skipping it, or reduced motion,
+changes the picture and nothing else.
+
 ### The ordinance
 
 Scoring follows the spirit of John Tiptoft's ordinances of 1466:
@@ -362,7 +372,17 @@ before the court, and the card engine planned for phase 3 arrived here.
      battle), by petition (land and the Crown's favour), or by marriage to
      the Crown's ward. A lord answers the great council; an attainted lord
      loses his title.
-9. **What is left:**
+9. **Come alive**, after the first public comment: hard to get into, and it
+   could use graphics and sound.
+   - *9a, the lists (done):* the tilt drawn, every course animated from its
+     record, the cry, and sound made in the browser with a switch to turn it
+     off.
+   - *9b, a lighter first hour:* a quick start; creation's numbers folded
+     away; the first year's month showing only what matters yet; tabs that
+     open as they are needed; a near first tourney.
+   - *9c, the rest of the game:* scene art and sound for the road, the hall,
+     winter, the mêlée and the barriers.
+10. **What is left:**
    - a new career as the squire you knighted;
    - more cards, since the war years and the long peace after them repeat
      sooner than the early years;

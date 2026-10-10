@@ -10,7 +10,8 @@ import { newGame, STATUS, saveToStorage, loadFromStorage, clearStorage } from '.
 import { QUESTIONS } from '../data/creation.data.js';
 import { optionLines, availableOptions, randomName, fullName, prefaceFor, biography } from '../engine/knight.js';
 import { makeRng } from '../engine/rng.js';
-import { buyHeraldRead, STAGE } from '../engine/tourney.js';
+import { buyHeraldRead, currentBout, STAGE } from '../engine/tourney.js';
+import { courseCry } from '../engine/herald.js';
 import { reckonNow } from '../engine/derive.js';
 import {
   rideTo, enter, withdraw, ride, rideOutBout, onward, leave, train, serve, rest, visitCourt, passMonth,
@@ -32,7 +33,9 @@ import { WORLD, MONTHS, TOWNS } from '../data/world.data.js';
 import { lsd } from '../engine/money.js';
 import { esc, ordinal, resetIds, shield } from './view.js';
 import { renderMonth, renderWinter } from './hub.js';
-import { renderArrival, renderBout, renderResult, renderDone } from './lists.js';
+import { renderArrival, renderBout, renderResult, renderDone, renderReplay } from './lists.js';
+import { playTilt, TIMING } from './tilt.js';
+import { soundOn, setSound, fanfare, courseSound, hush } from './sound.js';
 import { renderSheet, renderField, renderBook, renderCard, renderResultNote } from './sheet.js';
 
 const app = document.getElementById('app');
@@ -47,7 +50,7 @@ const ui = {
   men: null,
   trainSkill: 'lance',
   selected: null,
-  charging: false,
+  replay: null,
   confirmAbandon: false,
   confirmRetire: false,
   shot: { target: 'wing', lull: false },
@@ -214,11 +217,21 @@ function banner() {
           ${fact(`Year ${s.year}`, when)}
         </div>
       </div>
+      ${soundButton()}
     </div>
     <nav class="tabs" role="tablist">
       ${tabBtn('now', 'Now')}${tabBtn('knight', 'Knight')}${tabBtn('hearth', 'Hearth')}${tabBtn('field', 'Field')}${tabBtn('book', 'Book')}${tabBtn('world', 'World')}
     </nav>
   </header>`;
+}
+
+function soundButton() {
+  const on = soundOn();
+  const waves = on
+    ? '<path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'
+    : '<path d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>';
+  return `<button class="sound-toggle" data-act="sound" aria-pressed="${on}" aria-label="${on ? 'Sound on: turn it off' : 'Sound off: turn it on'}" title="${on ? 'Sound on' : 'Sound off'}">
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/>${waves}</svg></button>`;
 }
 
 /** Which first-time hint belongs to the screen in front of the player. */
@@ -231,6 +244,7 @@ function hintKey() {
 }
 
 function renderNow() {
+  if (ui.replay) return renderReplay(state, ui);
   if (state.status !== STATUS.ACTIVE) return renderEnding();
   const refusal = `${ui.refusal ? `<p class="refusal">${esc(ui.refusal)}</p>` : ''}${hintCard(hintKey())}`;
   if (state.pending) {
@@ -318,19 +332,48 @@ function act(fn, ...args) {
   return r;
 }
 
+let replaying = null;
+
+/**
+ * Run a course. It is rolled and saved first; then, unless the player prefers
+ * reduced motion, the lists play it back from the record. A tap skips it, and
+ * a reload in the middle finds the course already run.
+ */
 function runCourse() {
-  if (ui.charging) return;
-  const go = () => {
-    act(ride, ui.pick);
-    ui.charging = false;
+  if (ui.replay) return;
+  const cb = currentBout(state);
+  if (!cb) return;
+  const before = { ...cb, you: { ...cb.you }, him: { ...cb.him }, bout: { ...cb.bout, scores: { ...cb.bout.scores } } };
+  const r = act(ride, ui.pick);
+  if (!r || r.ok === false) { render(); return; }
+  const course = state.event.lastCourse;
+  const cry = courseCry(course);
+  const still = reducedMotion();
+  courseSound(course, { impact: still ? 0 : TIMING.impact / 1000, gallopToo: !still, tone: cry.tone });
+  if (still) {
     render();
     if (state.pending) toTop();
-  };
-  toTop();
-  if (reducedMotion()) { go(); return; }
-  ui.charging = true;
+    return;
+  }
+  ui.replay = { cb: before, course };
   render();
-  setTimeout(go, 560);
+  toTop();
+  replaying = playTilt(document.querySelector('.scene-wrap.playing'), course, {
+    cheer: cry.tone === 'good' || course.you.out === 'unhorse' || course.him.out === 'unhorse',
+    onDone: () => {
+      ui.replay = null;
+      replaying = null;
+      render();
+      if (state.pending) toTop();
+    },
+  });
+}
+
+/** End a course being played as if it had run to its end. */
+function skipReplay() {
+  if (!replaying) return;
+  if (performance.now() < replaying.impactAt) hush();
+  replaying.finish();
 }
 
 // ---------------------------------------------------------------------------
@@ -338,6 +381,11 @@ function runCourse() {
 // ---------------------------------------------------------------------------
 
 app.addEventListener('click', (e) => {
+  if (replaying) {
+    const onScene = !!e.target.closest('.scene-wrap');
+    skipReplay();
+    if (onScene) return;
+  }
   const t = e.target.closest('[data-act],[data-opt],[data-aim],[data-seat],[data-tab],[data-read],[data-ride],[data-sel],[data-train-pick],[data-court],[data-answer],[data-focus],[data-sqfocus],[data-squire],[data-hire],[data-dismiss],[data-harness],[data-horse],[data-men],[data-melee],[data-ransom],[data-stroke],[data-guard],[data-mark],[data-lull],[data-race],[data-vow],[data-hint],[data-lady-open],[data-approach],[data-court-lady],[data-ask-hand],[data-elope],[data-colours]');
   if (!t || t.disabled) return;
   const d = t.dataset;
@@ -409,7 +457,11 @@ app.addEventListener('click', (e) => {
         ui.tab = 'now';
         save();
         break;
-      case 'enter': act(enter); ui.pick = { aim: 'shield', seat: 'balanced' }; break;
+      case 'enter':
+        act(enter);
+        ui.pick = { aim: 'shield', seat: 'balanced' };
+        if (state.event?.stage === STAGE.BOUT) fanfare();
+        break;
       case 'withdraw': act(withdraw); break;
       case 'squire': {
         const r = reckonNow(state);
@@ -419,7 +471,12 @@ app.addEventListener('click', (e) => {
       }
       case 'run': runCourse(); return;
       case 'auto': act(rideOutBout); break;
-      case 'continue': act(onward); ui.pick = { aim: 'shield', seat: 'balanced' }; break;
+      case 'continue':
+        act(onward);
+        ui.pick = { aim: 'shield', seat: 'balanced' };
+        if (state.event?.stage === STAGE.BOUT) fanfare();
+        break;
+      case 'sound': setSound(!soundOn()); top = false; break;
       case 'leave': act(leave); break;
       case 'day-ride': {
         const men = Math.min(ui.men ?? meleeMenOption(state).max, meleeMenOption(state).max);

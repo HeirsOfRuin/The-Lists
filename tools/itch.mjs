@@ -230,7 +230,7 @@ async function art() {
     return s;
   };
   // A shot from the top, or with a section brought up under the sticky banner.
-  const shot = async (n, section = null) => {
+  const shot = async (n, section = null, clip = null) => {
     await page.evaluate(() => window.scrollTo(0, 0));
     if (section) {
       await section.first().evaluate((el) => {
@@ -238,14 +238,45 @@ async function art() {
         window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - banner - 12);
       });
     }
+    if (clip) {
+      // Only the banner and the lists: a course being run has nothing below it.
+      const bottom = await page.evaluate(() => document.querySelector('#tilt')?.getBoundingClientRect().bottom || 600);
+      await page.screenshot({ path: join(OUT, `screenshot-${n}.png`), clip: { x: 0, y: 0, width: 400, height: Math.ceil(bottom + 14) } });
+      console.log(`dist/itch/screenshot-${n}.png       800x${Math.ceil(bottom + 14) * 2}`);
+      return;
+    }
     await page.screenshot({ path: join(OUT, `screenshot-${n}.png`) });
     console.log(`dist/itch/screenshot-${n}.png       800x1720`);
   };
 
-  // 1. The joust: a bout in the lists, the odds on every choice.
-  await load(play(5, (s) => s.year >= 3 && s.event?.stage === 'bout' && ['regional', 'high'].includes(s.event.tier) && !s.pending));
-  await page.click('[data-act="squire"]').catch(() => {});
-  await shot(1, page.locator('section.card', { hasText: /Course \d of 3/ }));
+  // 1. The joust: a course at the moment the lances meet. A real course, from
+  // the save's own dice: of the nine ways to ride it, the first that takes
+  // him on the helm (or, failing that, breaks a lance on him).
+  const { ride } = await import(resolve(ROOT, 'src/engine/season.js'));
+  const { deserialize } = await import(resolve(ROOT, 'src/engine/state.js'));
+  const { CHOICES } = await import(resolve(ROOT, 'src/engine/joust.js'));
+  const lands = (s, out) => CHOICES.find((c) => ride(deserialize(serialize(s)), { aim: c.aim, seat: c.seat }).course?.you.out === out);
+  setWar('careful');
+  setRetireAge(99);
+  const br = makeRng(5 * 7919 + 1);
+  const bout = newGame({ seed: 5, answers: randomAnswers(br), name: randomName(br) });
+  const ready = (s) => s.year >= 3 && s.event?.stage === 'bout' && ['regional', 'high'].includes(s.event.tier) && !s.pending;
+  let pick = null;
+  for (let g = 0; g < 80000 && bout.status === 'active' && !pick; g++) {
+    if (ready(bout)) pick = lands(bout, 'helm');
+    if (!pick) step(bout, 'squire', br);
+  }
+  pick = pick || CHOICES[0];
+  await load(bout);
+  await page.click(`[data-aim="${pick.aim}"]`);
+  await page.click(`[data-seat="${pick.seat}"]`);
+  await page.evaluate(() => {
+    const st = window.setTimeout;
+    window.setTimeout = (f, ms, ...a) => (ms > 1000 ? 0 : st(f, ms, ...a)); // hold the course where it is put
+  });
+  await page.click('[data-act="run"]');
+  await page.evaluate(() => { for (const a of document.getAnimations()) { a.pause(); a.currentTime = 1060; } });
+  await shot(1, null, true);
   // 2. The month: the map, the realm, the tourneys on offer.
   await load(play(7, (s) => s.year === 4 && s.month === 5 && s.phase === 'month' && !s.event && !s.pending && !s.fair));
   await shot(2, page.locator('section.card', { has: page.locator('.month-head') }));

@@ -41,7 +41,11 @@ if (title) {
     const has = async (sel) => (await page.locator(sel).count()) > 0;
     if (await has('[data-answer]')) await page.locator('[data-answer]').first().click();
     else if (await has('[data-act="enter"]')) await page.click('[data-act="enter"]');
-    else if (await has('[data-act="run"]')) { await page.click('[data-act="run"]'); await page.waitForTimeout(700); ran = true; }
+    else if (await has('[data-act="run"]')) {
+      await page.click('[data-act="run"]');
+      await page.waitForFunction(() => !document.querySelector('.scene-wrap.playing'), null, { timeout: 5000 });
+      ran = (await page.locator('.call .cry').count()) > 0;
+    }
     else if (await has('[data-act="continue"]')) await page.click('[data-act="continue"]');
     else if (await has('[data-act="leave"]')) await page.click('[data-act="leave"]');
     else if (await has('[data-act="shoot"]')) await page.click('[data-act="shoot"]');

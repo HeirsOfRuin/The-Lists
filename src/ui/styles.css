@@ -298,18 +298,34 @@ p { margin: 0; }
 .pips i.done { background: var(--ink-3); }
 .pips i.now { border-color: var(--or); background: var(--or); }
 .pips i.extra { border-style: dashed; }
-.barrier {
-  grid-column: 1 / -1; height: 6px; border-radius: 3px; margin-top: 6px;
-  background: repeating-linear-gradient(90deg, var(--or) 0 14px, var(--ink) 14px 28px);
-  opacity: .8;
+/* The lists, drawn: the scene plays a course back from its record. */
+.scene-wrap { position: relative; margin: 2px -4px 0; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--rule); background: #e8ede9; }
+.scene { display: block; width: 100%; height: auto; }
+.scene * { transform-box: view-box; transform-origin: 0 0; }
+.scene-wrap.playing { cursor: pointer; }
+.scene-cry {
+  position: absolute; left: 0; right: 0; top: 8%; margin: 0 auto; width: max-content; max-width: 92%;
+  padding: 6px 14px; border-radius: 4px; text-align: center;
+  font-family: var(--voice); font-size: clamp(1.05rem, 4.6vw, 1.45rem); line-height: 1.2;
+  background: rgba(21, 32, 58, .86); color: #f4ecd8; box-shadow: 0 4px 14px rgba(0, 0, 0, .25);
 }
-.shield-you, .shield-him { transition: transform .5s cubic-bezier(.5, 0, .75, 0); }
-.charging .shield-you { transform: translateX(34%); }
-.charging .shield-him { transform: translateX(-34%); }
-@media (prefers-reduced-motion: reduce) {
-  .shield-you, .shield-him { transition: none; }
-  .charging .shield-you, .charging .shield-him { transform: none; }
+.playing .scene-cry { opacity: 0; }
+.scene-cry.tone-good { border-bottom: 3px solid #d4a82a; }
+.scene-cry.tone-bad { border-bottom: 3px solid #c2343c; }
+.scene-cry.tone-even { border-bottom: 3px solid #8a96ab; }
+.scene-skip { position: absolute; right: 8px; bottom: 6px; font-size: .74rem; color: #f4ecd8; background: rgba(21, 32, 58, .6); padding: 1px 7px; border-radius: 3px; }
+.call .cry { font-size: 1.3rem; line-height: 1.25; color: var(--ink); }
+.call .cry.tone-good { color: var(--or); }
+.call .cry.tone-bad { color: var(--gules); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .scene { filter: brightness(.86) saturate(.92); }
 }
+:root[data-theme="dark"] .scene { filter: brightness(.86) saturate(.92); }
+.sound-toggle {
+  margin-left: auto; align-self: flex-start; flex: none; display: grid; place-items: center;
+  width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--rule); background: var(--surface); color: var(--ink-2); cursor: pointer;
+}
+.sound-toggle[aria-pressed="false"] { color: var(--ink-3); }
 .status-line { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
 .tag {
   font-size: .72rem; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--rule-2);

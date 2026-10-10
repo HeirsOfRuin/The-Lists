@@ -114,6 +114,7 @@ const shot = async (kind) => {
 const startYear = await text('.banner .fact:last-child .k');
 let steps = 0;
 let courses = 0;
+const replays = { played: 0, skipped: false, cries: 0 };
 let cards = 0;
 let winters = 0;
 let melees = 0;
@@ -122,8 +123,27 @@ for (; steps < 400; steps++) {
   if (await has('[data-act="enter"]')) { await shot('arrival'); await page.click('[data-act="enter"]'); continue; }
   if (await has('[data-act="run"]')) {
     await shot('bout');
-    if (courses % 4 === 0) { await page.click('[data-act="run"]'); await page.waitForTimeout(700); }
-    else await page.click('[data-act="auto"]');
+    if (courses % 4 === 0) {
+      await page.click('[data-act="run"]');
+      const played = await has('.scene-wrap.playing');
+      if (!replays.played) check('a course is ridden out in the lists', played);
+      replays.played += played ? 1 : 0;
+      if (played && !replays.skipped) {
+        // A tap on the scene ends it at once, on the same result.
+        await page.waitForTimeout(400);
+        await page.click('.scene-wrap.playing');
+        await page.waitForTimeout(120);
+        check('a tap skips the course', !(await has('.scene-wrap.playing')));
+        replays.skipped = true;
+      }
+      await page.waitForFunction(() => !document.querySelector('.scene-wrap.playing'), null, { timeout: 5000 }).catch(() => {});
+      check('every course played ends', !(await has('.scene-wrap.playing')));
+      if (await has('.call .cry')) {
+        const cry = await text('.call .cry');
+        if (!cry || /undefined|NaN/.test(cry)) check('the cry is clean', false, cry);
+        replays.cries += 1;
+      }
+    } else await page.click('[data-act="auto"]');
     courses += 1;
     continue;
   }
@@ -160,6 +180,7 @@ for (; steps < 400; steps++) {
 }
 check('played through winter in the browser', winters >= 1, `${steps} steps, ${courses} bouts or courses, ${cards} cards, ${winters} winters`);
 check('cards came up in play', cards >= 3);
+check('courses were played out, with the herald\u2019s cry after', replays.played >= 2 && replays.cries >= 1, `${replays.played} played, ${replays.cries} cries`);
 check('the mêlée was ridden in the page', melees >= 1, `${melees} passes`);
 const endYear = await text('.banner .fact:last-child .k');
 check('the year advanced', endYear !== startYear, `${startYear} -> ${endYear}`);
@@ -177,9 +198,16 @@ check('the Book of Lothmere has pages known', (await page.locator('details.lore'
 check('the chronicle has a year in it', (await page.locator('.chron-year').count()) >= 1);
 report('tabs');
 
+// Sound: on by default, off with one tap, and off stays off.
+check('the banner has a sound switch, on', (await page.getAttribute('[data-act="sound"]', 'aria-pressed')) === 'true');
+await page.click('[data-act="sound"]');
+check('one tap turns the sound off', (await page.getAttribute('[data-act="sound"]', 'aria-pressed')) === 'false');
+
 // Reload: the career must come back from storage.
 await page.reload({ waitUntil: 'load' });
 check('a reload resumes the career', await has('.banner .name'));
+check('and the sound stays off', (await page.getAttribute('[data-act="sound"]', 'aria-pressed')) === 'false');
+await page.click('[data-act="sound"]');
 check('and a hint once read stays read', !(await has('[data-hint="month"]')));
 
 // A phase-one save opens in this build.

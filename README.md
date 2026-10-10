@@ -63,6 +63,37 @@ python3 -m http.server 8000
 
 ## What this build is
 
+Phase 9a makes the lists come alive. It answers the first public comment on
+the game: hard to get into, and it could use graphics and sound.
+
+- **The tilt, drawn.** Every bout shows the lists: the gallery, the
+  cloth-covered tilt, and two knights at either end of it in their own arms
+  (caparison, crest, lance and shield).
+- **The course, ridden.** Run the course and the riders charge, lances come
+  down, and the course plays out as it was rolled:
+  - a lance breaks, or takes the helm and snaps the head back;
+  - a man goes out of the saddle (behind the tilt, only his dust shows);
+  - a point drops onto the tilt, or onto the horse;
+  - both lances miss.
+
+  The course is rolled and saved first, then played from its record, so the
+  picture cannot disagree with the score, and a reload mid-charge finds the
+  course already run. A tap skips it. With reduced motion set, it is not
+  played.
+- **The cry.** A few words for every course ("On the helm! He misses.", "You
+  are borne down!") over the scene, and at the head of the herald's call
+  after it, coloured for whose course it was.
+- **Sound, made in the browser.** No files, so the single-file build stays
+  one file:
+  - the heralds' trumpets as you ride into the lists and into each round;
+  - hooves building to the meeting;
+  - the crack and splinter of a lance, the ring of a helm, the thud and
+    clatter of a fall, the knock of the tilt;
+  - the crowd's cheer or groan.
+
+  The speaker in the banner turns it off, and off is remembered. On an
+  iPhone, the silent switch also silences it.
+
 Phase 8 is the hearth: courtship, marriage, and the titles a knight might
 rise to.
 
@@ -934,6 +965,10 @@ true:
 - A lord's epilogue is headed by his title, and every family line is written
   in full. A phase-six save opens with the ladies, and a married knight keeps
   his wife.
+- Every pair of outcomes has a cry, and its tone follows the ordinance. The
+  lists draw for any arms, with either rider down. A lance points where it
+  was aimed: the helm above the shield, the shield above low, the tilt below
+  all three.
 
 **Is it balanced?**
 
@@ -947,7 +982,13 @@ node sim/verify-backgrounds.js --runs=40 # does each creation answer do what it 
                                          # (also --war=careful|bold, --conduct=worldly, --vow=none|<id>)
 node tools/smoke.mjs                     # drive the real page at phone width
 node tools/check-bundle.mjs              # the single file from disk; the Pages build, installed and offline
+node tools/tilt-sheet.mjs out.png        # every kind of course, frozen at its moments, to look at
 ```
+
+The smoke test also plays courses out in the lists, skips one with a tap,
+reads the cry after each, and checks the sound switch survives a reload.
+The animation itself is checked by eye, on the contact sheet: a course that
+animates wrongly passes every test.
 
 `sim/run.js` refuses to report on a career that never reached a winter, entered
 no tourney, fought no bout, ran no course, or met no card in two years. A harness that silently plays nothing reports green on

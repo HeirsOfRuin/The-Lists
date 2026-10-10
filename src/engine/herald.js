@@ -2,7 +2,7 @@
 // writes in the Book of Feats. Written FROM the record of what happened, so
 // the book cannot describe a tourney that did not take place.
 
-import { AIMS, SEATS } from '../data/joust.data.js';
+import { AIMS, SEATS, ORDINANCE } from '../data/joust.data.js';
 
 const YOUR_LANCE = {
   miss: 'Your lance missed.',
@@ -45,6 +45,30 @@ export function callCourse(course) {
   if (course.wounds.you) lines.push(WOUND_YOU[course.wounds.you]);
   if (course.wounds.him) lines.push(WOUND_HIM[course.wounds.him]);
   return lines;
+}
+
+// The cry from the stands: a few words for the course, said the moment the
+// lances meet. A fall or a foul is the whole story; otherwise both lances are.
+const CRY_YOU = { miss: 'You miss.', tilt: 'Your point on the tilt!', break: 'Your lance breaks!', helm: 'On the helm!' };
+const CRY_HIM = { miss: 'He misses.', tilt: 'His point on the tilt.', break: 'His lance breaks on you.', helm: 'He takes your helm.' };
+const CRY_BOTH = { miss: 'Both lances miss.', tilt: 'Both points on the tilt!', break: 'Both lances break!', helm: 'Helm and helm!' };
+
+/** The cry for one course, and whose course it was: good, bad or even for you. */
+export function courseCry(course) {
+  const a = course.you.out;
+  const b = course.him.out;
+  if (a === 'horse' || b === 'horse') {
+    if (a === b) return { text: 'Both lances on the horses. Foul!', tone: 'even' };
+    return a === 'horse'
+      ? { text: 'Foul! Your lance on his horse.', tone: 'bad' }
+      : { text: 'Foul! His lance on your horse.', tone: 'good' };
+  }
+  if (a === 'unhorse' || b === 'unhorse') {
+    if (a === b) return { text: 'Both men out of the saddle!', tone: 'even' };
+    return a === 'unhorse' ? { text: 'Out of the saddle!', tone: 'good' } : { text: 'You are borne down!', tone: 'bad' };
+  }
+  const d = ORDINANCE.points[a] - ORDINANCE.points[b];
+  return { text: a === b ? CRY_BOTH[a] : `${CRY_YOU[a]} ${CRY_HIM[b]}`, tone: d > 0 ? 'good' : d < 0 ? 'bad' : 'even' };
 }
 
 export const HOW = {

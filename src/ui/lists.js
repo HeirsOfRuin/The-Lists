@@ -13,7 +13,8 @@ import {
 } from '../engine/tourney.js';
 import { coursePreview, reckonNow, knownOf, tellsInPlay } from '../engine/derive.js';
 import { AIM_IDS, SEAT_IDS, choiceByKey, fatigueThreshold } from '../engine/joust.js';
-import { callCourse, HOW } from '../engine/herald.js';
+import { callCourse, courseCry, HOW } from '../engine/herald.js';
+import { renderScene } from './tilt.js';
 import { lsd, lsdSigned } from '../engine/money.js';
 import { esc, cap, pct, shield, signed, tierChip } from './view.js';
 
@@ -161,24 +162,27 @@ function pips(bout) {
   return `<div class="pips" aria-label="Course ${bout.course + 1}">${out.join('')}</div>`;
 }
 
-export function tiltCard(state, cb, { showCall, charging }) {
+export function tiltCard(state, cb, { showCall, replay = null }) {
   const { bout, you, him, roundName: rn } = cb;
   const ev = state.event;
+  const fallen = bout.done && bout.how === 'unhorse' ? (bout.winner === 'a' ? 'far' : 'near') : null;
+  const cry = showCall && ev.lastCourse && bout.course > 0 ? courseCry(ev.lastCourse) : null;
   const courseLabel = bout.done ? `${bout.course} course${bout.course === 1 ? '' : 's'} run`
     : bout.course >= ORDINANCE.courses ? `Course ${bout.course + 1}: level, so they ride again` : `Course ${bout.course + 1} of ${ORDINANCE.courses}`;
   return `
   <section class="card lift stack" id="tilt">
     <div class="spread"><span class="eyebrow">${esc(cap(rn))} · ${esc(TOWNS[ev.town].name)}</span><span class="eyebrow">${courseLabel}</span></div>
-    <div class="tilt ${charging ? 'charging' : ''}">
-      <div class="side"><span class="shield-you">${shield(you.arms, 56)}</span>
+    ${renderScene({ near: you.arms, far: him.arms, farName: him.name, fallen, cry: replay ? courseCry(replay.course) : null, playing: !!replay })}
+    <div class="tilt">
+      <div class="side"><span class="shield-you">${shield(you.arms, 36)}</span>
         <span class="nm">You</span><span class="sk">Lance ${you.lance} · Seat ${you.seat} · Horse ${you.horse.quality}</span>${riderTags(you)}</div>
       <div class="score"><span class="n">${bout.scores.a}<span class="dash">–</span>${bout.scores.b}</span>${pips(bout)}</div>
-      <div class="side"><span class="shield-him">${shield(him.arms, 56)}</span>
+      <div class="side"><span class="shield-him">${shield(him.arms, 36)}</span>
         <span class="nm">${esc(him.name)}</span><span class="sk">Lance ${him.lance} · Seat ${him.seat} · Horse ${him.horse.quality}</span>${riderTags(him)}</div>
-      <div class="barrier" aria-hidden="true"></div>
     </div>
-    ${showCall && ev.lastCourse && bout.course > 0 ? `
+    ${cry ? `
       <div class="call"><span class="eyebrow">Course ${ev.lastCourse.n}</span>
+        <span class="cry tone-${cry.tone}">${esc(cry.text)}</span>
         ${callCourse(ev.lastCourse).map((l, i) => `<span class="${i ? 'hit' : 'muted'}">${esc(l)}</span>`).join('')}
       </div>` : ''}
   </section>`;
@@ -233,7 +237,7 @@ export function renderBout(state, ui) {
     : 'assuming the field’s usual habits';
   const best = r.best;
   return `
-  ${tiltCard(state, cb, { showCall: true, charging: ui.charging })}
+  ${tiltCard(state, cb, { showCall: true })}
   ${renderIntel(state, cb.him)}
   <section class="card stack-lg">
     <div class="stack">
@@ -268,6 +272,11 @@ export function renderBout(state, ui) {
   ${renderDraw(state)}`;
 }
 
+/** A course being ridden: the lists alone, the score as it stood before it. */
+export function renderReplay(state, ui) {
+  return tiltCard(state, ui.replay.cb, { showCall: false, replay: ui.replay });
+}
+
 function outcomeWord(o) {
   return { miss: 'miss', tilt: 'the tilt', horse: 'the horse', break: 'broke', helm: 'helm', unhorse: 'bore him down' }[o];
 }
@@ -283,7 +292,7 @@ export function renderResult(state, ui) {
   const next = won && !hurt ? (last ? 'To the prize-giving' : `On to ${roundName(ev, ev.round + 1)}`) : 'Watch the rest of the tourney';
   const reaction = ev.reactions.filter((x) => x.round === ev.round).pop();
   return `
-  ${tiltCard(state, cb, { showCall: true, charging: false })}
+  ${tiltCard(state, cb, { showCall: true })}
   <section class="card stack-lg">
     <div class="stack">
       <div class="verdict ${won ? 'win' : ''}">${won ? 'You carry the bout' : 'Beaten'}</div>
