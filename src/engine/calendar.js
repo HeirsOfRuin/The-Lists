@@ -3,7 +3,8 @@
 //
 // A calendar is a pure function of (seed, year), so a season reproduces
 // exactly, and the knights of the field ride the same tourneys whether you are
-// there to see them or not.
+// there to see them or not. The first year also knows where a new knight rides
+// out from, so that his first month has a joust he can reach.
 
 import { streamFor } from './rng.js';
 import { TIERS, CALENDAR, LOCAL_HOSTS, GREAT_PAS } from '../data/tourney.data.js';
@@ -52,7 +53,12 @@ export function route(from, to) {
 // The calendar
 // ---------------------------------------------------------------------------
 
-export function yearCalendar(seed, year) {
+// A new knight's first month: if no joust of the month is within this many
+// days of his home, the heralds hold one nearer. One of the year's local
+// jousts is moved, so the calendar keeps its shape.
+export const DEBUT = { days: 3 };
+
+export function yearCalendar(seed, year, home = null) {
   const rng = streamFor(seed, year, 'calendar');
   const events = [];
   const taken = new Set(); // "town|month"
@@ -104,7 +110,29 @@ export function yearCalendar(seed, year) {
     out.push({ tier: 'fair', fair: f.id, month: f.month, town: f.town, host: { kind: 'fair', faction: null, name: f.host },
       name: f.name, id: `y${year}f${f.id}`, year, feast: FEASTS[f.month] });
   }
-  return out.sort((a, b) => a.month - b.month);
+  out.sort((a, b) => a.month - b.month);
+  return year === 1 && home ? withDebut(out, home) : out;
+}
+
+/** The first year, with a local joust in its first month near `home`. */
+function withDebut(cal, home) {
+  const first = Math.min(...CALENDAR.local.months);
+  const near = (e) => route(home, e.town).days <= DEBUT.days;
+  if (cal.some((e) => e.month === first && e.tier === 'local' && near(e))) return cal;
+  const locals = cal.filter((e) => e.tier === 'local');
+  // The first month's own joust if it has one, or else the year's last, brought forward.
+  const moving = locals.find((e) => e.month === first) || locals[locals.length - 1];
+  const taken = new Set(cal.filter((e) => e !== moving && e.month === first).map((e) => e.town));
+  const town = Object.keys(TOWNS).filter((id) => !taken.has(id))
+    .sort((a, b) => route(home, a).days - route(home, b).days || (a < b ? -1 : 1))[0];
+  const t = TOWNS[town];
+  const hostName = (t.city ? LOCAL_HOSTS.city : LOCAL_HOSTS.town)[0];
+  const moved = {
+    ...moving, month: first, town, feast: FEASTS[first],
+    host: { kind: t.city ? 'guild' : 'town', faction: t.city ? 'cities' : null, name: hostName },
+    name: t.city ? `The joust of ${hostName} at ${t.name}` : `The joust on the green at ${t.name}`,
+  };
+  return cal.map((e) => (e === moving ? moved : e)).sort((a, b) => a.month - b.month);
 }
 
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }

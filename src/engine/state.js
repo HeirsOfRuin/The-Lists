@@ -36,8 +36,8 @@ function freshMarks() { return { lance: 0, seat: 0, sword: 0, vigour: 0, courtes
 function worldFor(state) {
   state.roster = generateRoster(state.seed, `${state.knight.given} ${state.knight.house}`);
   seedHistory(state);
-  state.calendar = yearCalendar(state.seed, state.year);
   state.location = PROVINCES[state.province].home;
+  state.calendar = yearCalendar(state.seed, state.year, state.location);
   state.phase = 'month';
   state.intel = {};
   state.harness = { quality: HARNESS.start, years: 0, label: 'The harness you were knighted in' };

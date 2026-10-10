@@ -110,6 +110,9 @@ browser, are kept separately and do not carry over.
 
 The page uses period typefaces from Google Fonts when it is online. Offline it
 falls back to the fonts on your machine and plays the same.
+
+The lists have sound, made by the page itself. The speaker at the top of the
+screen turns it off, and the page remembers.
 `;
 
 await mkdir(OUT, { recursive: true });

@@ -2,7 +2,10 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { yearCalendar, route } from '../src/engine/calendar.js';
+import { yearCalendar, route, DEBUT } from '../src/engine/calendar.js';
+import { calendarFor } from '../src/engine/realm.js';
+import { monthOptions } from '../src/engine/season.js';
+import { PROVINCES } from '../src/data/world.data.js';
 import { admitted, sendInvitations } from '../src/engine/realm.js';
 import { takeService } from '../src/engine/court.js';
 import { INVITATIONS, PARTISAN_AT } from '../src/data/realm.data.js';
@@ -37,6 +40,31 @@ test('every year holds the same shape of calendar, and it reproduces', () => {
     assert.deepEqual(yearCalendar(7, year), cal);
   }
   assert.notDeepEqual(yearCalendar(7, 3), yearCalendar(8, 3));
+});
+
+test('a new knight\u2019s first month has a joust he can reach, and the year keeps its shape', () => {
+  for (let seed = 1; seed <= 120; seed++) {
+    for (const p of Object.values(PROVINCES)) {
+      const cal = yearCalendar(seed, 1, p.home);
+      const plain = yearCalendar(seed, 1);
+      const count = (c, t) => c.filter((e) => e.tier === t).length;
+      for (const t of ['grand', 'high', 'regional', 'local', 'fair']) assert.equal(count(cal, t), count(plain, t), `${seed} ${t}`);
+      const near = cal.filter((e) => e.month === FIRST_MONTH && e.tier === 'local' && route(p.home, e.town).days <= DEBUT.days);
+      assert.ok(near.length >= 1, `seed ${seed}, home ${p.home}`);
+      const places = new Set(cal.map((e) => `${e.town}|${e.month}`));
+      assert.equal(places.size, cal.length, 'still never two tourneys in one town in one month');
+      assert.equal(new Set(cal.map((e) => e.id)).size, cal.length);
+      // Only the first year is touched.
+      assert.deepEqual(yearCalendar(seed, 2, p.home), yearCalendar(seed, 2));
+    }
+  }
+  // And a real new knight finds it open to him, on the calendar the realm keeps.
+  for (let seed = 1; seed <= 40; seed++) {
+    const s = knight(seed);
+    assert.deepEqual(calendarFor(s, 1), s.calendar);
+    const open = monthOptions(s).filter((o) => o.open && o.cal.tier === 'local' && o.days <= DEBUT.days);
+    assert.ok(open.length >= 1, `seed ${seed}`);
+  }
 });
 
 test('the roads join every town, and the shortest road is the shortest', () => {

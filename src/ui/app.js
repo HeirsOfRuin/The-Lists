@@ -8,7 +8,7 @@
 
 import { newGame, STATUS, saveToStorage, loadFromStorage, clearStorage } from '../engine/state.js';
 import { QUESTIONS } from '../data/creation.data.js';
-import { optionLines, availableOptions, randomName, fullName, prefaceFor, biography } from '../engine/knight.js';
+import { optionLines, availableOptions, randomName, randomAnswers, fullName, prefaceFor, biography } from '../engine/knight.js';
 import { makeRng } from '../engine/rng.js';
 import { buyHeraldRead, currentBout, STAGE } from '../engine/tourney.js';
 import { courseCry } from '../engine/herald.js';
@@ -25,6 +25,8 @@ import { obituary } from '../engine/ending.js';
 import { renderFair } from './fair.js';
 import { hintCard, dismissHint, setHints } from './hints.js';
 import { renderHearth } from './hearth.js';
+import { hasMet } from '../engine/hearth.js';
+import { pref, setPref } from './prefs.js';
 import { footSquireCall } from '../engine/derive.js';
 import { meleeMenOption } from '../engine/tourney.js';
 import { renderDay, renderMelee, renderRansom, renderFoot, renderFootResult } from './days.js';
@@ -88,6 +90,8 @@ function renderTitle() {
     </section>` : ''}
     ${!saved.ok && !/no saved|no storage/.test(saved.reason) ? `<p class="small neg">A saved knight could not be read: ${esc(saved.reason)}</p>` : ''}
     <button class="btn ${s ? '' : 'primary'} wide" data-act="new">A new knight</button>
+    ${s && s.status === STATUS.ACTIVE ? '' : `<button class="btn wide" data-act="quick">Quick start: a knight ready-made</button>
+    <p class="small muted">A new knight answers six questions about his birth and training. A quick start answers them for you, and puts you on the road to your first joust.</p>`}
     <p class="small faint build-note">A whole life, from your spurs to the last page of your Book of Feats: the circuit
       and its rivals, the mêlée and the barriers, the court, ten years to a civil war, the Company of the Swan, vows, the
       fairs, and the Book of Lothmere.</p>
@@ -143,6 +147,7 @@ function renderCreate() {
         <p class="preface">${esc(prefaceFor(q.id, create.answers))}</p>
         <p class="question">${esc(q.prompt)}</p>
       </div>
+      <button class="linkbtn small numbers-toggle" data-act="numbers" aria-pressed="${pref('numbers', false)}">${pref('numbers', false) ? 'Hide what each answer gives' : 'Show what each answer gives, in numbers'}</button>
       <div class="stack">
         ${opts.map((o) => {
           const l = optionLines(o);
@@ -151,7 +156,7 @@ function renderCreate() {
           <span class="t">${esc(o.title)}</span>
           <span class="b">${esc(o.blurb)}</span>
           ${l.threads.map((t) => `<span class="thread-line">${esc(t)}</span>`).join('')}
-          ${l.gives.length ? `<span class="gives">${esc(l.gives.join(' · '))}</span>` : ''}
+          ${l.gives.length && pref('numbers', false) ? `<span class="gives">${esc(l.gives.join(' · '))}</span>` : ''}
         </button>`;
         }).join('')}
       </div>
@@ -202,7 +207,11 @@ function chooseOption(id) {
 function banner() {
   const s = state;
   const fact = (k, v, cls = '') => `<span class="fact"><span class="k">${k}</span><span class="v ${cls}">${v}</span></span>`;
-  const tabBtn = (id, label) => `<button class="tab" role="tab" data-tab="${id}" aria-selected="${ui.tab === id}">${label}</button>`;
+  const open = tabsOpen(s);
+  const seen = pref('tabsSeen', []);
+  const tabBtn = (id, label) => (open[id]
+    ? `<button class="tab" role="tab" data-tab="${id}" aria-selected="${ui.tab === id}">${label}${GATED.includes(id) && s.year <= 2 && !seen.includes(id) ? '<i class="tab-new" aria-label="new"></i>' : ''}</button>`
+    : '');
   const when = s.phase === PHASE.WINTER ? 'Winter' : MONTHS[s.month];
   return `
   <header class="banner">
@@ -223,6 +232,24 @@ function banner() {
       ${tabBtn('now', 'Now')}${tabBtn('knight', 'Knight')}${tabBtn('hearth', 'Hearth')}${tabBtn('field', 'Field')}${tabBtn('book', 'Book')}${tabBtn('world', 'World')}
     </nav>
   </header>`;
+}
+
+// The tabs a new knight does not need yet open as he comes to need them: the
+// Field and the Book with his first tourney, the Hearth when he meets a lady,
+// the World with his second tourney or his first winter's chronicle.
+// A tab is marked new until opened, in a career's first two years (a career
+// begun before tabs opened this way has nothing new to be shown).
+const GATED = ['hearth', 'field', 'book', 'world'];
+function tabsOpen(s) {
+  const rode = s.career?.tourneys || 0;
+  return {
+    now: true,
+    knight: true,
+    field: rode > 0,
+    book: rode > 0,
+    hearth: (s.ladies || []).some((l) => hasMet(s, l)) || !!s.spouse || !!s.engaged || (!!s.heart && s.heart !== 'free'),
+    world: rode >= 2 || (s.chronicle || []).length > 0,
+  };
 }
 
 function soundButton() {
@@ -302,6 +329,7 @@ function renderEnding() {
 }
 
 function renderGame() {
+  if (!tabsOpen(state)[ui.tab]) ui.tab = 'now';
   let body = '';
   if (ui.tab === 'knight') body = renderSheet(state, { inGame: true, confirmAbandon: ui.confirmAbandon });
   else if (ui.tab === 'field') body = renderField(state);
@@ -391,7 +419,13 @@ app.addEventListener('click', (e) => {
   const d = t.dataset;
   let top = true;
 
-  if (d.tab) { ui.tab = d.tab; ui.confirmAbandon = false; ui.refusal = null; }
+  if (d.tab) {
+    ui.tab = d.tab;
+    ui.confirmAbandon = false;
+    ui.refusal = null;
+    const seen = pref('tabsSeen', []);
+    if (!seen.includes(d.tab)) setPref('tabsSeen', [...seen, d.tab]);
+  }
   else if (d.opt) chooseOption(d.opt);
   else if (d.aim) { ui.pick.aim = d.aim; top = false; }
   else if (d.seat) { ui.pick.seat = d.seat; top = false; }
@@ -437,6 +471,16 @@ app.addEventListener('click', (e) => {
         screen = 'create';
         break;
       case 'title': screen = 'title'; break;
+      case 'quick': {
+        const seed = (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
+        const rng = makeRng(seed);
+        state = newGame({ seed, answers: randomAnswers(rng), name: randomName(rng) });
+        screen = 'game';
+        ui.tab = 'now';
+        save();
+        break;
+      }
+      case 'numbers': setPref('numbers', !pref('numbers', false)); top = false; break;
       case 'another-name':
         create.nameSeed = (create.nameSeed + 1) >>> 0;
         create.name = randomName(makeRng(create.nameSeed));

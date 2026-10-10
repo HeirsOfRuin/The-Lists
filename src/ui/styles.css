@@ -537,3 +537,16 @@ details.lady > summary::-webkit-details-marker { display: none; }
 details.lady[open] > summary { margin-bottom: 6px; }
 .meter.affection i { background: var(--gules); }
 .terms { margin: 4px 0 0; padding-left: 4px; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+
+/* ---------- folds: what matters later, one tap away ---------- */
+details.fold > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+details.fold > summary::-webkit-details-marker { display: none; }
+details.fold > summary::after { content: '+'; margin-left: auto; color: var(--ink-3); font-size: 1.1rem; line-height: 1; }
+details.fold[open] > summary::after { content: '\2212'; }
+details.fold[open] > .fold-body { margin-top: 10px; }
+.fold-shields { display: inline-flex; gap: 3px; align-items: center; }
+details.fold-inline > summary { cursor: pointer; padding: 4px 0; }
+details.fold-inline[open] > summary { margin-bottom: 8px; }
+.terms-line { font-size: .98rem; }
+.numbers-toggle { align-self: flex-start; }
+.tab-new { display: inline-block; width: 7px; height: 7px; margin-left: 5px; border-radius: 50%; background: var(--or); vertical-align: .45em; }

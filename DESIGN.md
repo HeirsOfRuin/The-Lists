@@ -377,9 +377,10 @@ before the court, and the card engine planned for phase 3 arrived here.
    - *9a, the lists (done):* the tilt drawn, every course animated from its
      record, the cry, and sound made in the browser with a switch to turn it
      off.
-   - *9b, a lighter first hour:* a quick start; creation's numbers folded
-     away; the first year's month showing only what matters yet; tabs that
-     open as they are needed; a near first tourney.
+   - *9b, a lighter first hour (done):* a quick start; creation's numbers
+     folded away; the first year's realm, court and calendar folded to a
+     line each; tabs that open as they are needed; the arrival as one line;
+     a local joust within three days of home in every first month.
    - *9c, the rest of the game:* scene art and sound for the road, the hall,
      winter, the mêlée and the barriers.
 10. **What is left:**

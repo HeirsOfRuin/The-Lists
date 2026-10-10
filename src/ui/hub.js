@@ -149,6 +149,7 @@ export function renderMonth(state, ui) {
   const hurt = injured(state);
   const skill = ui.trainSkill;
   const k = state.knight;
+  const early = state.year === 1;
   const news = (state.news || []).map((n) => {
     const cal = state.calendar.find((e) => e.id === n.calId);
     return cal ? `${esc(n.champion)} won ${esc(cal.name.charAt(0).toLowerCase() + cal.name.slice(1))}.` : '';
@@ -168,7 +169,7 @@ export function renderMonth(state, ui) {
     ${news.length ? `<p class="small muted">Last month: ${news.join(' ')}</p>` : ''}
   </section>
 
-  ${renderRealm(state)}
+  ${renderRealm(state, { fold: early })}
 
   ${renderPatron(state)}
 
@@ -206,18 +207,29 @@ export function renderMonth(state, ui) {
       <div class="small muted">${shrineVowOpen(state) ? 'You vowed on the swans to walk to the shrine this year.' : `Your name is ${esc(conductOf(state.honour).label.toLowerCase())}. ${esc(conductOf(state.honour).does)}`}</div>
       <button class="btn" data-act="pilgrimage" ${state.purse >= PILGRIMAGE.cost ? '' : 'disabled'}>Go on pilgrimage to ${esc(PILGRIMAGE.shrine)} (${lsdSigned(-PILGRIMAGE.cost)}, honour +${PILGRIMAGE.honour})</button>
     </div>` : ''}
-    <div class="stack">
-      <div class="small muted">Go to court: favour with the great is won in their halls.</div>
-      ${courtOptions(state).map((c) => `<button class="btn quiet left" data-court="${c.town}" ${c.open ? '' : 'disabled'}>
-        ${esc(cap(c.host))} at ${esc(TOWNS[c.town].name)} · ${c.days ? `${days(c.days)}, ${lsd(c.cost)}` : 'here'} · favour ${state.favour[c.faction] || 0}</button>`).join('')}
-    </div>
+    ${(() => {
+      const court = courtOptions(state).map((c) => `<button class="btn quiet left" data-court="${c.town}" ${c.open ? '' : 'disabled'}>
+        ${esc(cap(c.host))} at ${esc(TOWNS[c.town].name)} · ${c.days ? `${days(c.days)}, ${lsd(c.cost)}` : 'here'} · favour ${state.favour[c.faction] || 0}</button>`).join('');
+      return early
+        ? `<details class="fold-inline"><summary class="small muted">Or go to court, where favour with the great is won</summary><div class="stack">${court}</div></details>`
+        : `<div class="stack"><div class="small muted">Go to court: favour with the great is won in their halls.</div>${court}</div>`;
+    })()}
     <button class="btn quiet" data-act="pass">Let the month pass</button>
   </section>
 
-  ${renderCalendar(state)}`;
+  ${renderCalendar(state, { fold: early })}`;
 }
 
 function fmtMarks(n) { return Number.isInteger(n) ? String(n) : n.toFixed(1); }
+
+/**
+ * A card folded to one line: in the first year, what matters later waits here
+ * until it is wanted. Nothing in it is gone; a tap opens it.
+ */
+function folded(title, aside, body, cls = '') {
+  return `<details class="card fold ${cls}"><summary><span class="eyebrow">${title}</span><span class="small muted">${aside}</span></summary>
+    <div class="stack fold-body">${body}</div></details>`;
+}
 
 /** A lord's summons to the great council. */
 function renderCouncil(state) {
@@ -276,7 +288,7 @@ function tensionWord(t) {
 }
 
 /** The realm: how near the war is, who leads, what they are saying, and where you stand. */
-function renderRealm(state) {
+function renderRealm(state, { fold = false } = {}) {
   const r = state.realm;
   const imp = importance(state);
   if (r.ruler && !atWar(state)) {
@@ -298,13 +310,15 @@ function renderRealm(state) {
       ? bs.map((b) => `${esc(cap(b.name))}: ${esc(CLAIMANTS[b.victor].short)} carried the field.`).join(' ')
       : 'No battle has been fought yet.'} ${r.war.decided ? 'The war is decided; the reckoning comes in winter.' : ''}</p>`;
   }
-  return `<section class="card stack realm">
-    <div class="spread"><span class="eyebrow">The realm</span><span class="small muted">${tensionWord(r.tension)}</span></div>
-    ${atWar(state) ? '' : `<div class="meter tension" title="Tension ${r.tension} of 100"><i style="width:${r.tension}%"></i></div>`}
+  const body = `${atWar(state) ? '' : `<div class="meter tension" title="Tension ${r.tension} of 100"><i style="width:${r.tension}%"></i></div>`}
     ${war}
     ${r.rumour ? `<p class="voice small rumour">${esc(r.rumour)}</p>` : ''}
     <p class="small muted">${esc(balanceWords(state))} ${esc(sworn)}</p>
-    <p class="small">If it came to swords: <b>${esc(imp.rank.label)}</b>. ${esc(imp.rank.does)} <span class="faint">(standing ${imp.score}${imp.next ? `; ${imp.next.min} makes you ${imp.next.label.toLowerCase()}` : ''}; the Knight tab shows why)</span></p>
+    <p class="small">If it came to swords: <b>${esc(imp.rank.label)}</b>. ${esc(imp.rank.does)} <span class="faint">(standing ${imp.score}${imp.next ? `; ${imp.next.min} makes you ${imp.next.label.toLowerCase()}` : ''}; the Knight tab shows why)</span></p>`;
+  if (fold && !atWar(state)) return folded('The realm', tensionWord(r.tension), body, 'realm');
+  return `<section class="card stack realm">
+    <div class="spread"><span class="eyebrow">The realm</span><span class="small muted">${tensionWord(r.tension)}</span></div>
+    ${body}
   </section>`;
 }
 
@@ -333,7 +347,7 @@ function renderPatron(state) {
   </section>`;
 }
 
-function renderCalendar(state) {
+function renderCalendar(state, { fold = false } = {}) {
   const rows = [];
   for (let m = FIRST_MONTH; m <= LAST_MONTH; m++) {
     const evs = state.calendar.filter((e) => e.month === m);
@@ -341,6 +355,10 @@ function renderCalendar(state) {
     rows.push(`<div class="cal-row ${cls}"><span class="m">${MONTHS[m].slice(0, 3)}</span><span class="evs">${
       evs.length ? evs.map((e) => `<span class="cal-ev">${tierChip(e.tier)} ${esc(TOWNS[e.town].name)}</span>`).join('') : '<span class="faint small">no tourney</span>'
     }</span></div>`);
+  }
+  if (fold) {
+    const left = state.calendar.filter((e) => e.month > state.month && e.tier !== 'fair').length;
+    return folded('The year’s calendar', `${left} more tourneys this year`, `<div class="cal">${rows.join('')}</div>`);
   }
   return `<section class="card stack"><div class="eyebrow">The year’s calendar</div><div class="cal">${rows.join('')}</div></section>`;
 }

@@ -63,6 +63,33 @@ python3 -m http.server 8000
 
 ## What this build is
 
+Phase 9b makes the first hour lighter. Nothing is taken out; what matters
+later waits until it is wanted.
+
+- **A quick start.** The title offers a knight ready-made: no questions, and
+  straight to the first month. It is offered only when there is no career in
+  hand to lose.
+- **Creation reads as a story.** The numbers each answer gives are folded
+  away, behind a link that shows them for anyone who wants them.
+- **A first month with less on it.** In the first year the realm, the visits
+  to court and the year's calendar are folded to one line each, a tap away.
+- **Tabs open as they are needed.** A new knight sees Now and Knight. The
+  Field and the Book open with his first tourney, the Hearth when he meets a
+  lady, the World with his second tourney or his first winter. A new tab is
+  marked until it is opened.
+- **The arrival is one line, not two tables.** "4s 6d to ride · a silver cup
+  to the winner · 6s to the runner-up", with the prizes, costs and renown in
+  full a tap away. The field is folded to its shields.
+- **A first joust in reach.** Every new career has a local joust in its first
+  month within three days of home. Before, one career in six had no tourney
+  that month and many had a week's ride or more. One of the year's local
+  jousts is moved to make it, so the calendar keeps its shape.
+
+Measured by walking a new knight from the title to his first course at the
+itch.io frame's size (two walks before, one after; knights differ by seed): the creation screens lose their 85 numbers; the first
+month goes from about 3.8 screens, 500 words and 48 numbers to 3.2 screens,
+380 words and 37; the arrival from 2.6 screens and 41 numbers to 2.0 and 21.
+
 Phase 9a makes the lists come alive. It answers the first public comment on
 the game: hard to get into, and it could use graphics and sound.
 
@@ -965,6 +992,8 @@ true:
 - A lord's epilogue is headed by his title, and every family line is written
   in full. A phase-six save opens with the ladies, and a married knight keeps
   his wife.
+- A new knight's first month has a local joust within three days of home,
+  from every province, and the year keeps its shape.
 - Every pair of outcomes has a cry, and its tone follows the ordinance. The
   lists draw for any arms, with either rider down. A lance points where it
   was aimed: the helm above the shield, the shield above low, the tilt below
@@ -986,7 +1015,11 @@ node tools/tilt-sheet.mjs out.png        # every kind of course, frozen at its m
 ```
 
 The smoke test also plays courses out in the lists, skips one with a tap,
-reads the cry after each, and checks the sound switch survives a reload.
+reads the cry after each, and checks the sound switch survives a reload. It
+checks the first hour: creation's numbers folded and shown on request, a new
+knight's tabs, the Field and the Book opening (marked) with the first
+tourney, and a quick start landing on the first month with a joust in
+reach.
 The animation itself is checked by eye, on the contact sheet: a course that
 animates wrongly passes every test.
 

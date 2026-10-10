@@ -81,6 +81,10 @@ await page.click('[data-act="new"]');
 await page.fill('#given', 'Smoke');
 await page.click('[data-act="name-next"]');
 let asked = 0;
+check('creation keeps its numbers folded away', (await page.locator('.option .gives').count()) === 0);
+await page.click('[data-act="numbers"]');
+check('and shows them when asked', (await page.locator('.option .gives').count()) > 0);
+await page.click('[data-act="numbers"]');
 for (let q = 0; q < 12; q++) {
   const opts = page.locator('[data-opt]');
   const n = await opts.count();
@@ -97,6 +101,9 @@ check('no sideways scroll on the roll', (await overflow()) <= 1);
 await page.click('[data-act="ride-out"]');
 check('the month opens with a map', await has('svg.map'));
 check('a new player is shown a hint for the month', await has('.hint [data-hint="month"]'));
+check('a new knight sees only the tabs he needs', !(await has('[data-tab="field"]')) && !(await has('[data-tab="book"]')) && !(await has('[data-tab="world"]')));
+check('the first year folds the calendar away', await has('details.fold .cal'));
+check('a joust he can reach in his first month', (await page.locator('[data-ride]').count()) > 0);
 await page.screenshot({ path: `${SHOTS}/1-month.png`, fullPage: true });
 await page.click('[data-hint="month"]');
 check('a hint read is gone', !(await has('[data-hint="month"]')));
@@ -118,7 +125,12 @@ const replays = { played: 0, skipped: false, cries: 0 };
 let cards = 0;
 let winters = 0;
 let melees = 0;
+let tabsOpened = false;
 for (; steps < 400; steps++) {
+  if (!tabsOpened && await has('[data-tab="field"]')) {
+    tabsOpened = true;
+    check('the Field and the Book open with the first tourney, marked new', await has('[data-tab="book"] .tab-new'));
+  }
   if (await has('[data-answer]')) { await shot('card'); await page.locator('[data-answer]').first().click(); cards += 1; continue; }
   if (await has('[data-act="enter"]')) { await shot('arrival'); await page.click('[data-act="enter"]'); continue; }
   if (await has('[data-act="run"]')) {
@@ -186,8 +198,11 @@ const endYear = await text('.banner .fact:last-child .k');
 check('the year advanced', endYear !== startYear, `${startYear} -> ${endYear}`);
 report('play');
 
+check('two winters on, the Field, the Book and the World are open', await has('[data-tab="field"]') && await has('[data-tab="book"]') && await has('[data-tab="world"]'));
 for (const t of ['knight', 'hearth', 'field', 'book', 'world']) {
+  if (!(await has(`[data-tab="${t}"]`))) { check(`tab "${t}" is not open yet (only the Hearth may wait)`, t === 'hearth'); continue; }
   await page.click(`[data-tab="${t}"]`);
+  if (t === 'book') check('a tab once opened loses its mark', !(await has('[data-tab="book"] .tab-new')));
   await page.waitForTimeout(60);
   const body = (await page.locator('main').innerText()).trim();
   check(`tab "${t}" has content`, body.length > 100, `${body.length} chars`);
@@ -435,6 +450,19 @@ const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundC
 check('dark theme paints its own ground', bg === 'rgb(14, 26, 47)', bg);
 await page.screenshot({ path: `${SHOTS}/3-dark.png`, fullPage: true });
 report('dark');
+
+// A quick start: no questions, straight to the first month and its joust.
+await page.emulateMedia({ colorScheme: 'light' });
+await page.evaluate(() => localStorage.removeItem('the-lists.save.v1'));
+await page.reload({ waitUntil: 'load' });
+check('the title offers a quick start when no career is in hand', await has('[data-act="quick"]'));
+await page.click('[data-act="quick"]');
+check('a quick start opens on the first month, on the map', await has('svg.map') && /year 1\b/i.test(await text('.banner')));
+check('with a joust in reach', (await page.locator('[data-ride]').count()) > 0);
+await page.screenshot({ path: `${SHOTS}/17-quick.png`, fullPage: true });
+await page.reload({ waitUntil: 'load' });
+check('and the quick knight is saved', await has('.banner .name'));
+report('quick');
 
 await browser.close();
 server.close();

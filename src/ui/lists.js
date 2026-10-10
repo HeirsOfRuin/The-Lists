@@ -55,6 +55,8 @@ export function renderArrival(state) {
     ${townLore(ev.town) && ev.tier !== 'trial' ? `<p class="town-lore">${esc(townLore(ev.town).text)}</p>` : ''}
     ${notes(ev)}
     ${daysBlock(ev)}
+    <p class="terms-line"><b>${lsd(entryCost(ev.tier))}</b> to ride · ${esc(tier.prizeLabels.champion)} to the winner${tier.prizes.runnerUp ? ` · ${lsd(tier.prizes.runnerUp)} to the runner-up` : ''}${state.renown >= tier.beneath ? ' · <span class="neg">no renown for a knight of yours</span>' : ''}</p>
+    <details class="fold-inline"><summary class="small muted">The prizes, the costs and the renown, in full</summary><div class="stack-lg">
     <div class="stack">
       <div class="eyebrow">Prizes</div>
       <table class="ledger"><tbody>
@@ -72,6 +74,7 @@ export function renderArrival(state) {
       </tbody></table>
       <p class="small muted">The road cost you ${lsd(-ev.ledger.filter((l) => /road/i.test(l.label)).reduce((t, l) => t + l.amount, 0))} already. Lances you break are ${tier.lancePrice}d each, settled at the end. The herald’s read of a rider is ${lsd(heraldReadCost(state))} to you.</p>
     </div>
+    </div></details>
     ${canEnter(state)
       ? `<button class="btn primary wide" data-act="enter">Pay ${lsd(entryCost(ev.tier))} and ride</button>`
       : `<p class="neg">You have ${lsd(state.purse)} and cannot pay to ride.</p>`}
@@ -111,12 +114,16 @@ export function riderLine(state, id, r) {
 function renderField(state) {
   const ev = state.event;
   const ids = Object.keys(ev.riders).filter((id) => id !== YOU);
+  const known = ids.filter((id) => (state.intel[id] || 0) >= 1).length;
   return `
-  <section class="card stack">
-    <div class="eyebrow">The field</div>
-    ${ids.some((id) => (state.intel[id] || 0) >= 1) ? '' : '<p class="small muted">You know none of these riders’ habits yet. You will learn them by watching them ride.</p>'}
+  <details class="card fold">
+    <summary><span class="eyebrow">The field</span><span class="fold-shields">${ids.map((id) => shield(ev.riders[id].arms, 14)).join('')}</span>
+      <span class="small muted">${ids.length} knights${known ? `, ${known} you know` : ''}</span></summary>
+    <div class="stack fold-body">
+    ${known ? '' : '<p class="small muted">You know none of these riders’ habits yet. You will learn them by watching them ride.</p>'}
     <div class="riders">${ids.map((id) => riderLine(state, id, ev.riders[id])).join('')}</div>
-  </section>`;
+    </div>
+  </details>`;
 }
 
 export function renderDraw(state) {

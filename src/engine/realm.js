@@ -22,7 +22,7 @@ import { ARCHERS, ORDER, FAIRS } from '../data/life.data.js';
 import { learn } from './lore.js';
 import { createBaron, forfeitTitle } from './title.js';
 import { TITLES, MARRIAGE_LIFE } from '../data/hearth.data.js';
-import { TOWNS, FACTION_LABELS } from '../data/world.data.js';
+import { TOWNS, FACTION_LABELS, PROVINCES } from '../data/world.data.js';
 
 export function freshRealm(year = 1) {
   return {
@@ -309,7 +309,7 @@ export function importance(state) {
 
 /** The year's tourneys: the heralds' calendar, less what a war cancels. */
 export function calendarFor(state, year) {
-  const cal = yearCalendar(state.seed, year);
+  const cal = yearCalendar(state.seed, year, year === 1 ? PROVINCES[state.province].home : null);
   const r = state.realm;
   if (r?.war && year >= r.war.year && (!r.war.done || year <= r.war.endedYear)) {
     // Only the guild towns keep their jousts; the cities keep out of it.
