@@ -37,6 +37,24 @@ to the game's branch.
 - *Saves* live in the browser that plays them. A career in the artifact
   version, or in Safari rather than the home-screen app, does not carry over.
 
+**Publishing to itch.io:**
+
+```
+node tools/bundle.js && node tools/itch.mjs --art
+```
+
+This writes `dist/itch/`:
+- `the-lists-web.zip`: `index.html` at the zip's root. Upload it as an HTML
+  project and tick "This file will be played in the browser".
+- `the-lists-offline.zip`: the single file and a short README, for download.
+- `description.html`: the store page. Paste it into the description editor's
+  HTML view. Its source is `tools/itch/description.html`.
+- With `--art`: `cover.png` (1260x1000; itch asks for 630x500 or larger), and
+  `screenshot-1.png` to `screenshot-5.png` taken from real play at phone width.
+
+Leave `--art` off to rebuild the zips alone. A career saved on itch.io lives in
+that site's storage in the browser, so it is separate from the Pages copy.
+
 For development, serve the directory and open `index.html`:
 
 ```
