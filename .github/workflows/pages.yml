@@ -4,7 +4,8 @@
 # game's branch or to main, so the installed app is always the latest build.
 # It builds and checks on both; it deploys only from the default branch, the
 # one the github-pages environment accepts (Silk Road lost eight deploys to
-# that rule). configure-pages switches Pages on if it never was.
+# that rule). Pages itself is switched on once by hand (Settings > Pages >
+# Source: GitHub Actions); the workflow's token cannot create the site.
 
 name: Pages
 
