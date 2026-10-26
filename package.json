@@ -10,6 +10,8 @@
     "curve": "node sim/joust-curve.js",
     "build": "node tools/bundle.js",
     "smoke": "node tools/smoke.mjs",
+    "check-bundle": "node tools/check-bundle.mjs",
+    "check": "node --test \"test/*.test.js\" && node tools/bundle.js && node tools/check-bundle.mjs && node tools/smoke.mjs",
     "serve": "python3 -m http.server 8000"
   },
   "engines": { "node": ">=20" }

@@ -2,8 +2,9 @@
 #
 # Runs by hand (Actions > Pages > Run workflow), and on every push to the
 # game's branch or to main, so the installed app is always the latest build.
-# Pages must be switched on for the repository with "GitHub Actions" as its
-# source (Settings > Pages); until then the deploy step has nowhere to deploy.
+# It builds and checks on both; it deploys only from the default branch, the
+# one the github-pages environment accepts (Silk Road lost eight deploys to
+# that rule). configure-pages switches Pages on if it never was.
 
 name: Pages
 
@@ -33,13 +34,32 @@ jobs:
         run: node --test "test/*.test.js"
       - name: Build the site
         run: node tools/bundle.js
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      # A site missing its manifest, worker or an icon still deploys, and the
+      # browser then declines to install it without a word (Centennial Farm).
+      - name: Check the installable build is complete
+        run: |
+          set -e
+          for f in index.html manifest.webmanifest sw.js; do
+            test -s "dist/site/$f" || { echo "missing or empty: dist/site/$f"; exit 1; }
+          done
+          for f in $(node -e "for (const i of JSON.parse(require('fs').readFileSync('dist/site/manifest.webmanifest','utf8')).icons) console.log(i.src)"); do
+            test -s "dist/site/$f" || { echo "manifest icon missing: dist/site/$f"; exit 1; }
+          done
+          grep -q 'rel="manifest"' dist/site/index.html || { echo "index.html does not link the manifest"; exit 1; }
+          grep -q "const CACHE = 'the-lists-[0-9a-f]" dist/site/sw.js || { echo "sw.js cache is not named by the build"; exit 1; }
+          echo "site is complete"
+      - if: github.ref_name == github.event.repository.default_branch
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - if: github.ref_name == github.event.repository.default_branch
+        uses: actions/upload-pages-artifact@v3
         with:
           path: dist/site
 
   deploy:
     needs: build
+    if: github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     environment:
       name: github-pages
